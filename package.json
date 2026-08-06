@@ -1,0 +1,22 @@
+{
+  "name": "sona",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Nurse/provider-to-patient communication platform: web admin, mobile app, API",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:admin": "turbo run dev --filter=admin",
+    "dev:mobile": "turbo run dev --filter=mobile",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  },
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=22"
+  }
+}
