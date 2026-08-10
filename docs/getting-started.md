@@ -2,19 +2,102 @@
 
 ## Prerequisites
 
-- **Node.js ≥ 22** (repo tested on 24)
-- **pnpm ≥ 11** — `corepack enable && corepack prepare pnpm@latest --activate`
-- **.NET SDK 10**
-- For mobile: Xcode (iOS simulator) and/or Android Studio, or the Expo Go app on a physical device
+| Tool | Required version | What it's for |
+|------|-----------------|---------------|
+| Node.js | ≥ 22 (tested on 24) | JavaScript runtime for admin & mobile apps |
+| pnpm | ≥ 11 | Package manager for the JS monorepo |
+| .NET SDK | 10 | ASP.NET Core API backend |
+| Git | Any recent | Source control |
+
+For mobile development only:
+- Xcode (iOS simulator, macOS only) and/or Android Studio, or the **Expo Go** app on a physical device
+
+---
+
+### 1. Install Node.js
+
+**Windows (recommended — nvm-windows):**
+
+Download and install [nvm-windows](https://github.com/coreybutler/nvm-windows/releases) (pick the latest `.exe` installer), then open a **new** terminal:
+
+```powershell
+nvm install 24
+nvm use 24
+node --version   # should print v24.x.x
+```
+
+**macOS (recommended — nvm):**
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+# restart your terminal, then:
+nvm install 24
+nvm use 24
+node --version   # should print v24.x.x
+```
+
+### 2. Install pnpm
+
+pnpm is a fast, disk-efficient package manager (like npm or yarn, but better for monorepos). It ships with Node.js via **corepack** — you just need to enable it:
+
+```bash
+corepack enable
+corepack prepare pnpm@latest --activate
+pnpm --version   # should print 11.x.x
+```
+
+> **What is corepack?** It's a tool bundled with Node.js (since v16.9) that manages package manager versions — there is nothing extra to install. Running `corepack enable` activates it, and `corepack prepare` downloads the correct pnpm version. No separate installer or PATH changes needed.
+
+**Windows PowerShell note:** If you get an `UnauthorizedAccess` error when running `pnpm`, PowerShell is blocking the script. Fix it with:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+This only needs to be done once per machine and does not require admin rights.
+
+### 3. Install .NET SDK
+
+**Windows:**
+
+Download and install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (pick the Windows x64 installer).
+
+```powershell
+dotnet --version   # should print 10.x.x
+```
+
+**macOS:**
+
+```bash
+# via Homebrew
+brew install dotnet@10
+
+# or download from https://dotnet.microsoft.com/download/dotnet/10.0
+dotnet --version   # should print 10.x.x
+```
+
+### 4. Authenticate with GitHub
+
+To push/pull from the repo, authenticate the GitHub CLI:
+
+```bash
+gh auth login
+```
+
+Follow the prompts — select **GitHub.com**, **HTTPS**, and authenticate via **browser**. This automatically configures Git credentials.
+
+---
 
 ## Install
 
 ```bash
-pnpm install                 # all JS workspace packages
+pnpm install                      # all JS workspace packages
 dotnet build apps/api/Sona.slnx   # restore + build the API
 ```
 
-> The repo's `.npmrc` sets `node-linker=hoisted` (required by Expo) and `pnpm-workspace.yaml` pins `lightningcss` (required by NativeWind). Don't remove either.
+> **Don't remove these config files** — the repo's `.npmrc` sets `node-linker=hoisted` (required by Expo) and `pnpm-workspace.yaml` pins `lightningcss` (required by NativeWind).
+>
+> **Windows note:** If `pnpm install` fails with an `EBUSY` symlink error, simply re-run `pnpm install`. This is a known Windows issue where antivirus or file indexing briefly locks newly-created directories. Retrying usually succeeds on the second or third attempt.
 
 ## Environment
 
