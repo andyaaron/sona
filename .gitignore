@@ -23,5 +23,6 @@ obj/
 # OS / editor
 .DS_Store
 .idea/
+.vs/
 .vscode/*
 !.vscode/extensions.json
