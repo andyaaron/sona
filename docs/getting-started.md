@@ -48,6 +48,19 @@ pnpm --version   # should print 11.x.x
 
 > **What is corepack?** It's a tool bundled with Node.js (since v16.9) that manages package manager versions — there is nothing extra to install. Running `corepack enable` activates it, and `corepack prepare` downloads the correct pnpm version. No separate installer or PATH changes needed.
 
+**If `pnpm` is not recognized after running `corepack prepare`**, try these in order:
+
+1. **Close and reopen your terminal.** Corepack creates shims (`.cmd` files) in the Node.js directory that your current terminal session may not detect until restarted.
+2. **Run `corepack enable` as Administrator (Windows).** The command needs write access to the Node.js install directory to create the pnpm shim. Right-click your terminal → "Run as Administrator", then re-run `corepack enable && corepack prepare pnpm@latest --activate`.
+3. **Check for execution policy errors (Windows PowerShell).** If you see `UnauthorizedAccess` instead of "not recognized", PowerShell is blocking the `pnpm.ps1` shim. See the PowerShell note below.
+
+**If none of the above work**, install pnpm globally via npm instead:
+
+```bash
+npm install -g pnpm
+pnpm --version   # should print 11.x.x
+```
+
 **Windows PowerShell note:** If you get an `UnauthorizedAccess` error when running `pnpm`, PowerShell is blocking the script. Fix it with:
 
 ```powershell

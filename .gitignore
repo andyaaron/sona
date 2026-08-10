@@ -20,6 +20,9 @@ obj/
 .env.*
 !.env.example
 
+# Scripts (root-level only)
+/*.ps1
+
 # OS / editor
 .DS_Store
 .idea/
