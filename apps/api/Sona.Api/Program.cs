@@ -1,8 +1,48 @@
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
+using Microsoft.EntityFrameworkCore;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.MSSqlServer;
+using Sona.Api.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+
+#region Keyvault data pull + Database Context
+
+var keyVaultUri = builder.Configuration["Keyvault:_keyvaultURI"];
+var keyVaultClient = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
+
+var connectionString = keyVaultClient.GetSecret("DefaultConnection").Value.Value;
+
+//SERILOG
+#region SERILOG
+
+Log.Logger = new LoggerConfiguration()
+.WriteTo
+.MSSqlServer(
+    connectionString: connectionString,
+    restrictedToMinimumLevel: LogEventLevel.Warning,
+    sinkOptions: new MSSqlServerSinkOptions { TableName = "AppLogs" }
+    )
+.WriteTo.Console()
+.CreateLogger();
+builder.Host.UseSerilog();
+
+#endregion
+
+
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
+
+#endregion
+
+
+
 
 var app = builder.Build();
 
