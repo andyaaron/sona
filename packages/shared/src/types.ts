@@ -1,11 +1,13 @@
 export type UserRole = "nurse" | "provider" | "admin";
 
-export interface Provider {
+/** Internal staff user of the admin platform (nurse, provider, admin). */
+export interface AppUser {
   id: string;
   firstName: string;
   lastName: string;
   role: UserRole;
   email: string;
+  isActive: boolean;
 }
 
 export interface Patient {

@@ -89,7 +89,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 
 **Done when:** build + `pnpm typecheck` pass, migration applies, unique email index in place, TS contract has exactly one staff-user type consistent with the entity.
 
-- [ ] Completed — notes:
+- [x] Completed — notes: 2026-08-11. Renamed `Provider` → `AppUser` in shared types (+ `isActive`); no other package imported `Provider`, so the rename touched only `types.ts`.
 
 ---
 

@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Sona.Api.Features.Messaging;
+using Sona.Api.Features.Users;
 
 namespace Sona.Api.Data;
 
 public class SonaDbContext(DbContextOptions<SonaDbContext> options) : DbContext(options)
 {
     public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
+
+    public DbSet<AppUser> AppUsers => Set<AppUser>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
