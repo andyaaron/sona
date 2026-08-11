@@ -3,7 +3,7 @@ namespace Sona.Api.Data;
 /// <summary>
 /// Base for all persisted entities: UUID v7 primary key (time-ordered, avoids
 /// index fragmentation on SQL Server uniqueidentifier PKs) plus UTC audit
-/// timestamps stamped by <see cref="SonaDbContext"/> on save.
+/// timestamps stamped by <see cref="ApplicationDbContext"/> on save.
 /// </summary>
 public abstract class EntityBase
 {
