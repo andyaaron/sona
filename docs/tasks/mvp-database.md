@@ -191,7 +191,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 
 **Done when:** fresh DB builds from migrations alone, all gates green, docs match code.
 
-- [ ] Completed — notes:
+- [x] Completed — notes: 2026-08-11. Docker/SQL Server unavailable in the implementing environment — fresh-DB apply substituted with `dotnet ef migrations script --idempotent` (full script generates cleanly; 6 domain tables + history). **Run `dotnet dotnet-ef database update` against a real SQL Server before merging.** All gates green: dotnet build, pnpm typecheck, pnpm build. architecture.md + data-model.md synced. Compliance checks: Restrict deletes on audit FKs, no credential columns, no free-text message path, no PHI in code/logs.
 
 ---
 

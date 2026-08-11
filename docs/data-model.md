@@ -1,6 +1,6 @@
 # Data Model
 
-Proposed database tables for Sona. Status: **draft for review — not yet implemented.**
+Database tables for Sona. Status: **MVP tables implemented** (SQL Server via EF Core, migrations in `apps/api/Sona.Api/Migrations/`); Enhancement tables remain design-only. Physical table names are pluralized (`Patients`, `AppUsers`, `MessagesOut`, ...).
 
 Phasing follows the product roadmap:
 
@@ -145,7 +145,7 @@ Audit trail for flat-file patient imports: which file, who uploaded it, what hap
 | `ErrorMessage` | string | Validation error only (e.g. "invalid phone format") — do not echo the full raw row here; it contains PHI and error tables tend to get read/exported casually. |
 | `CreateDate` | datetime | |
 
-Optionally add `ImportBatchId` FK on `Patient` to trace each row to its source file.
+`Patient.ImportBatchId` (nullable FK, SetNull on delete) traces each imported patient row to its source file — implemented.
 
 ---
 

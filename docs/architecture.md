@@ -62,9 +62,9 @@ On mobile, Expo Router owns `src/app/` (its file-based routing convention); ever
 
 ## Backend
 
-ASP.NET Core (.NET 10) minimal API, currently the default template. Planned shape:
+ASP.NET Core (.NET 10) minimal API with an EF Core data layer on **SQL Server** (entities under `Features/*`, `SonaDbContext` + configurations under `Data/`, schema versioned via EF migrations — see [data-model.md](data-model.md) for the table designs and [getting-started.md](getting-started.md) for the local DB workflow). Planned shape:
 
-- Vertical-slice organization per feature (`Patients`, `Notifications`) mirroring the frontend `features/` layout.
+- Vertical-slice organization per feature (`Patients`, `Messaging`, `Imports`, `Users`) mirroring the frontend `features/` layout.
 - `POST /api/notifications/ready` encapsulates channel selection (push vs SMS) behind one endpoint — clients never choose the channel.
 - OpenAPI document published in development; long-term, TS types in `@sona/shared` should be generated from it.
 
