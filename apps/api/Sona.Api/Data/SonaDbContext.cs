@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sona.Api.Features.Messaging;
+using Sona.Api.Features.Patients;
 using Sona.Api.Features.Users;
 
 namespace Sona.Api.Data;
@@ -9,6 +10,8 @@ public class SonaDbContext(DbContextOptions<SonaDbContext> options) : DbContext(
     public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
 
     public DbSet<AppUser> AppUsers => Set<AppUser>();
+
+    public DbSet<Patient> Patients => Set<Patient>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

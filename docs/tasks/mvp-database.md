@@ -117,7 +117,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 
 **Done when:** all gates pass; `createPatientSchema` requires explicit `smsConsent`; no FIN column exists.
 
-- [ ] Completed — notes:
+- [x] Completed — notes: 2026-08-11. TS `Patient` extended (mrn, dob, smsConsent, smsConsentDate, inCerner, importSource, isActive; `hasApp`/`phoneNumber` names kept, mapped at API boundary). `createPatientSchema` requires explicit smsConsent; dob uses zod v4 `z.iso.date()`. `importSource` is server-set, not in the create input. No admin form consumed the schema yet, so no UI changes.
 
 ---
 

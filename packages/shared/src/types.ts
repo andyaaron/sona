@@ -10,14 +10,30 @@ export interface AppUser {
   isActive: boolean;
 }
 
+export type PatientImportSource = "flatfile" | "ui" | "cerner";
+
 export interface Patient {
   id: string;
+  /** Person-level medical record number — unique business identifier */
+  mrn: string;
   firstName: string;
   lastName: string;
+  /** ISO date (YYYY-MM-DD) */
+  dob: string;
   /** E.164 format, e.g. +15551234567 */
   phoneNumber: string;
+  /** TCPA: no SMS may be sent while false */
+  smsConsent: boolean;
+  /** ISO datetime when consent was captured, null if never */
+  smsConsentDate: string | null;
   /** True once the patient has installed and registered the mobile app */
   hasApp: boolean;
+  /** Whether the patient exists in Cerner */
+  inCerner: boolean;
+  /** Which ingest path last wrote this record */
+  importSource: PatientImportSource;
+  /** Soft delete — inactive patients are hidden, never hard-deleted */
+  isActive: boolean;
 }
 
 export type NotificationChannel = "push" | "sms";
