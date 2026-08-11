@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Sona.Api.Features.Imports;
 using Sona.Api.Features.Patients;
 
 namespace Sona.Api.Data.Configurations;
@@ -20,5 +21,10 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.Property(p => p.MobileNumber).HasMaxLength(16);
 
         builder.Property(p => p.ImportSource).HasMaxLength(20);
+
+        builder.HasOne<ImportBatch>()
+            .WithMany()
+            .HasForeignKey(p => p.ImportBatchId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

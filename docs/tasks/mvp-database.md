@@ -174,7 +174,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 
 **Done when:** build passes, migration applies, PHI constraint comment present on `ErrorMessage`.
 
-- [ ] Completed — notes:
+- [x] Completed — notes: 2026-08-11. Delete behaviors verified in migration: Restrict (batch→AppUser), Cascade (rowError→batch), SetNull (Patient.ImportBatchId). PHI comment on `ErrorMessage`. No `packages/shared` changes (tables not exposed to frontends).
 
 ---
 

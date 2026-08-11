@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sona.Api.Features.Imports;
 using Sona.Api.Features.Messaging;
 using Sona.Api.Features.Patients;
 using Sona.Api.Features.Users;
@@ -14,6 +15,10 @@ public class SonaDbContext(DbContextOptions<SonaDbContext> options) : DbContext(
     public DbSet<Patient> Patients => Set<Patient>();
 
     public DbSet<MessageOut> MessagesOut => Set<MessageOut>();
+
+    public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
+
+    public DbSet<ImportRowError> ImportRowErrors => Set<ImportRowError>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

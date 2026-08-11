@@ -35,4 +35,7 @@ public class Patient : EntityBase
 
     /// <summary>Soft delete — patient rows are never hard-deleted (audit trail).</summary>
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Traces this row to the flat-file import that created it, when applicable.</summary>
+    public Guid? ImportBatchId { get; set; }
 }
