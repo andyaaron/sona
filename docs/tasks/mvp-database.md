@@ -63,7 +63,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 
 **Done when:** migration applies, seeded row present, unique constraint on `Key` verified in the migration SQL.
 
-- [ ] Completed — notes:
+- [x] Completed — notes: 2026-08-11. Seeded with fixed UUIDv7-style Guid + fixed seed date (deterministic migration). Body matches compliance.md wording exactly.
 
 ---
 

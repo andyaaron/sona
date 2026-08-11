@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Sona.Api.Features.Messaging;
 
 namespace Sona.Api.Data;
 
 public class SonaDbContext(DbContextOptions<SonaDbContext> options) : DbContext(options)
 {
+    public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SonaDbContext).Assembly);
