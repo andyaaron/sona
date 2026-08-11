@@ -146,7 +146,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 
 **Done when:** build + typecheck pass; migration applies; FKs are Restrict; contract has one aligned outbound-message type; no endpoint accepts free-text message bodies.
 
-- [ ] Completed — notes:
+- [x] Completed — notes: 2026-08-11. Vocabulary decision: renamed TS `ReadyNotification` → `MessageOut` (matches table); `NotificationChannel`/`NotificationStatus` type names kept, values already matched. api-client `notificationsApi` updated; admin code only used `NotifyPatientInput`, unchanged. All 3 FKs Restrict (verified in migration). No endpoints exist yet, so no free-text path.
 
 ---
 

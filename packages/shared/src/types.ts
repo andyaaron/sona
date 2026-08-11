@@ -45,16 +45,27 @@ export type NotificationStatus =
   | "failed";
 
 /**
- * A "ready to be seen" ping from a provider to a patient.
+ * An outbound "ready to be seen" message from a staff user to a patient.
  * Delivered via push if the patient has the app, otherwise SMS.
- * Message content must never contain PHI — see docs/compliance.md.
+ * This record is the send audit log; content must never contain PHI —
+ * see docs/compliance.md. Mirrors the MessagesOut table (docs/data-model.md).
  */
-export interface ReadyNotification {
+export interface MessageOut {
   id: string;
   patientId: string;
-  sentByProviderId: string;
+  sentByUserId: string;
   channel: NotificationChannel;
+  /** Approved template the body was rendered from; never caller-supplied text */
+  messageTemplateId: string | null;
+  /** Rendered text as actually sent (audit snapshot) */
+  body: string | null;
+  /** Number dialed at send time; null for push */
+  mobileNumber: string | null;
   status: NotificationStatus;
+  /** SMS provider message SID / push ticket id, once dispatched */
+  providerMessageSid: string | null;
+  failureReason: string | null;
   createdAt: string;
+  sentAt: string | null;
   deliveredAt: string | null;
 }

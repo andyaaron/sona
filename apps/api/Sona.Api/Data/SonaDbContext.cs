@@ -13,6 +13,8 @@ public class SonaDbContext(DbContextOptions<SonaDbContext> options) : DbContext(
 
     public DbSet<Patient> Patients => Set<Patient>();
 
+    public DbSet<MessageOut> MessagesOut => Set<MessageOut>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SonaDbContext).Assembly);
