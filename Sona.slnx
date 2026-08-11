@@ -1,0 +1,25 @@
+<!-- Root solution for IDE convenience (Visual Studio 2022 17.13+, Rider, VS Code C# Dev Kit).
+     The canonical build entry point remains apps/api/Sona.slnx (referenced by AGENTS.md and CI
+     commands); when adding a .NET project, add it to BOTH files.
+     JS apps (apps/admin, apps/mobile) and packages are pnpm workspaces — browse them via the
+     Solution Explorer's Folder View; they are not VS projects. -->
+<Solution>
+  <Folder Name="/apps/">
+    <Project Path="apps/api/Sona.Api/Sona.Api.csproj" />
+  </Folder>
+  <Folder Name="/docs/">
+    <File Path="docs/architecture.md" />
+    <File Path="docs/compliance.md" />
+    <File Path="docs/data-model.md" />
+    <File Path="docs/getting-started.md" />
+    <File Path="docs/tech-stack.md" />
+  </Folder>
+  <Folder Name="/config/">
+    <File Path="AGENTS.md" />
+    <File Path="README.md" />
+    <File Path=".npmrc" />
+    <File Path="package.json" />
+    <File Path="pnpm-workspace.yaml" />
+    <File Path="turbo.json" />
+  </Folder>
+</Solution>
