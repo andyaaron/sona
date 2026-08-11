@@ -1,6 +1,6 @@
 using Sona.Api.Data;
 
-namespace Sona.Api.Features.Imports;
+namespace Sona.Api.Data.DbModels;
 
 /// <summary>A single failed row within an import batch.</summary>
 public class ImportRowError : EntityBase

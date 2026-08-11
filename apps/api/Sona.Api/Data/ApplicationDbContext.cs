@@ -1,9 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Sona.Api.Data.DbModels;
-using Sona.Api.Features.Imports;
-using Sona.Api.Features.Messaging;
-using Sona.Api.Features.Patients;
-using Sona.Api.Features.Users;
 
 namespace Sona.Api.Data
 {
@@ -15,21 +11,22 @@ namespace Sona.Api.Data
         }
 
         public DbSet<AppLog> AppLogs { get; set; }
-        public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
-        public DbSet<AppUser> AppUsers => Set<AppUser>();
-        public DbSet<Patient> Patients => Set<Patient>();
-        public DbSet<MessageOut> MessagesOut => Set<MessageOut>();
-        public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
-        public DbSet<ImportRowError> ImportRowErrors => Set<ImportRowError>();
+        // public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
+        public virtual DbSet<AccessLevel> AccessLevels { get; set; }
+        public virtual DbSet<AppUser> AppUsers { get; set; }
+        // public DbSet<Patient> Patients => Set<Patient>();
+        // public DbSet<MessageOut> MessagesOut => Set<MessageOut>();
+        // public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
+        // public DbSet<ImportRowError> ImportRowErrors => Set<ImportRowError>();
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-        }
+        // protected override void OnModelCreating(ModelBuilder modelBuilder)
+        // {
+        //     // do something here..
+        // }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
-            StampAuditDates();
+            // @TODO: Insert audit logging
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
@@ -37,26 +34,8 @@ namespace Sona.Api.Data
             bool acceptAllChangesOnSuccess,
             CancellationToken cancellationToken = default)
         {
-            StampAuditDates();
+            // @TODO: Insert audit logging
             return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-        }
-
-        private void StampAuditDates()
-        {
-            var utcNow = DateTime.UtcNow;
-            foreach (var entry in ChangeTracker.Entries<EntityBase>())
-            {
-                switch (entry.State)
-                {
-                    case EntityState.Added:
-                        entry.Entity.CreateDate = utcNow;
-                        entry.Entity.ModDate = utcNow;
-                        break;
-                    case EntityState.Modified:
-                        entry.Entity.ModDate = utcNow;
-                        break;
-                }
-            }
         }
     }
 }

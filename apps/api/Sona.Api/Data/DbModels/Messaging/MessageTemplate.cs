@@ -1,6 +1,6 @@
 using Sona.Api.Data;
 
-namespace Sona.Api.Features.Messaging;
+namespace Sona.Api.Data.DbModels;
 
 /// <summary>
 /// Approved outbound message texts. The PHI review gate: content is reviewed

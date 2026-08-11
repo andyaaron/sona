@@ -1,6 +1,6 @@
 using Sona.Api.Data;
 
-namespace Sona.Api.Features.Patients;
+namespace Sona.Api.Data.DbModels;
 
 /// <summary>
 /// Patient demographics, ingested via flat-file import, manual UI entry, or

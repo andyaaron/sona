@@ -1,7 +1,6 @@
 using Sona.Api.Data;
-using Sona.Api.Features.Users;
 
-namespace Sona.Api.Features.Imports;
+namespace Sona.Api.Data.DbModels;
 
 /// <summary>Audit record for one flat-file patient import: which file, who, outcome.</summary>
 public class ImportBatch : EntityBase
