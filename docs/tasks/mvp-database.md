@@ -39,7 +39,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 
 **Done when:** build passes, empty migration applies to a fresh local database, getting-started.md documents the local DB workflow.
 
-- [ ] Completed — notes:
+- [x] Completed — notes: 2026-08-11. EF Core 10.0.10. dotnet-ef installed as local tool (`.config/dotnet-tools.json` — run `dotnet tool restore` on fresh clone). Docker unavailable in the implementing environment, so `database update` was not run live; migrations verified via `dotnet ef migrations script` (see Task 7 note).
 
 ---
 

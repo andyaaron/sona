@@ -112,6 +112,31 @@ dotnet build apps/api/Sona.slnx   # restore + build the API
 >
 > **Windows note:** If `pnpm install` fails with an `EBUSY` symlink error, simply re-run `pnpm install`. This is a known Windows issue where antivirus or file indexing briefly locks newly-created directories. Retrying usually succeeds on the second or third attempt.
 
+## Database (SQL Server)
+
+The API uses SQL Server via EF Core. For local development, run SQL Server in Docker:
+
+```bash
+docker run -d --name sona-sql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='SonaDev_Local1!' -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+```
+
+> **Apple Silicon:** the SQL Server image is amd64-only — enable **Rosetta emulation** in Docker Desktop (Settings → General → "Use Rosetta for x86_64/amd64 emulation").
+
+The dev connection string lives in `apps/api/Sona.Api/appsettings.Development.json` and matches the container above (database `SonaDev`). These are local-dev-only credentials — real environments configure the `ConnectionStrings__Sona` setting outside source control.
+
+Apply migrations (creates the database on first run):
+
+```bash
+dotnet tool restore
+dotnet dotnet-ef database update --project apps/api/Sona.Api
+```
+
+Re-run `database update` whenever you pull new migrations. To add a migration after changing entities:
+
+```bash
+dotnet dotnet-ef migrations add <Name> --project apps/api/Sona.Api
+```
+
 ## Environment
 
 Each frontend reads its API base URL from an env file (both default to `http://localhost:5032`):
