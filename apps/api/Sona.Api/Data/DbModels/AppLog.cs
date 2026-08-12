@@ -2,8 +2,11 @@
 
 namespace Sona.Api.Data.DbModels
 {
-    public class AppLog: EntityBase
+    public class AppLog
     {
+        [Key]
+        public int Id { get; set; }
+
         public string? Message { get; set; }
         public string? MessageTemplate { get; set; }
         public string? Level { get; set; }

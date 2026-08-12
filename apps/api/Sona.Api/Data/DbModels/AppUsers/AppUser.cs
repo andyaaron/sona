@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 using Sona.Api.Data;
 
 namespace Sona.Api.Data.DbModels;
@@ -7,8 +10,11 @@ namespace Sona.Api.Data.DbModels;
 /// No credential columns until the auth approach is decided — see
 /// docs/data-model.md open questions.
 /// </summary>
-public class AppUser : EntityBase
+public class AppUser
 {
+    [Key]
+    public int Id { get; set; }
+
     public string Hca34id { get; set; } = null!;
 
     public string DisplayName { get; set; } = null!;
