@@ -12,7 +12,7 @@ const baseFolder =
     ? `${env.APPDATA}/ASP.NET/https`
     : `${env.HOME}/.aspnet/https`
 
-const certificateName = 'admin'
+const certificateName = 'sona.client'
 const certFilePath = path.join(baseFolder, `${certificateName}.pem`)
 const keyFilePath = path.join(baseFolder, `${certificateName}.key`)
 
@@ -41,14 +41,17 @@ if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
   }
 }
 
+const target = env.ASPNETCORE_HTTPS_PORT ? `https://localhost:${env.ASPNETCORE_HTTPS_PORT}` :
+    env.ASPNETCORE_URLS ? env.ASPNETCORE_URLS.split(';')[0] : 'https://localhost:7296';
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     // tanstackRouter must come before react()
     tanstackRouter({
       target: 'react',
-      routesDirectory: './src/app/routes',
-      generatedRouteTree: './src/app/routeTree.gen.ts',
+      routesDirectory: './src/routes',
+      generatedRouteTree: './src/routeTree.gen.ts',
       autoCodeSplitting: true,
     }),
     react(),
@@ -59,11 +62,37 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  server: {
+    server: {
+    proxy: {
+            '^/api': {
+                target,
+                changeOrigin: true,
+                secure: false
+            },
+            '/auth': {
+                target: target,
+                changeOrigin: true,
+                secure: false,
+            },
+            '/MicrosoftIdentity': {
+                target,
+                changeOrigin: true,
+                secure: false
+            },
+            '/signin-oidc': {
+                target,
+                changeOrigin: true,
+                secure: false
+            }
+    },
     port: 5173,
     https: {
       key: fs.readFileSync(keyFilePath),
       cert: fs.readFileSync(certFilePath),
     },
+  },
+  build: {
+    outDir: '../sona.server/wwwroot',
+    emptyOutDir: true,
   },
 })

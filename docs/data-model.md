@@ -1,6 +1,6 @@
 # Data Model
 
-Database tables for Sona. Status: **MVP tables implemented** (SQL Server via EF Core, migrations in `apps/api/Sona.Api/Migrations/`); Enhancement tables remain design-only. Physical table names are pluralized (`Patients`, `AppUsers`, `MessagesOut`, ...).
+Database tables for Sona. Status: **MVP tables implemented** (SQL Server via EF Core, migrations in `apps/sona.server/Migrations/`); Enhancement tables remain design-only. Physical table names are pluralized (`Patients`, `AppUsers`, `MessagesOut`, ...).
 
 Phasing follows the product roadmap:
 

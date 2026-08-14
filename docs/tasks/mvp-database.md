@@ -7,7 +7,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 - **Do tasks in order.** Later tasks depend on earlier ones (FKs, shared infrastructure). One task per work session; do not batch.
 - **Source of truth:** table shapes come from [data-model.md](../data-model.md). If this file and data-model.md disagree, data-model.md wins — flag the discrepancy and fix this file as part of the task.
 - **Contract rule:** if a task changes domain types, change `packages/shared` first, then `packages/api-client`, then consumers — same task, never split (AGENTS.md §0.2).
-- **Definition of done, every task:** `dotnet build apps/api/Sona.slnx` passes; `pnpm typecheck` passes from repo root if any TS package was touched; a migration exists and applies cleanly to a fresh database; no PHI in logs, messages, or URLs.
+- **Definition of done, every task:** `dotnet build apps/sona.server/sona.server.csproj` passes; `pnpm typecheck` passes from repo root if any TS package was touched; a migration exists and applies cleanly to a fresh database; no PHI in logs, messages, or URLs.
 - **Conventions** (from data-model.md): UUID PKs, `CreateDate`/`ModDate` (UTC) on every table, enums stored as strings, phone numbers E.164, soft delete via `IsActive` where specified. Configure these in EF entity configurations, not data annotations, so constraints are visible in one place per entity.
 - **Status tracking:** when you complete a task, tick its checkbox and add a one-line note (date + anything the next agent must know).
 
@@ -24,10 +24,10 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 **Goal:** the API has a working data layer: DbContext, SQL Server provider, migrations infrastructure, dev connection string. No domain tables yet.
 
 **Files:**
-- `apps/api/Sona.Api/Sona.Api.csproj` — add `Microsoft.EntityFrameworkCore.SqlServer`, `Microsoft.EntityFrameworkCore.Design` (latest stable compatible with .NET 10)
-- `apps/api/Sona.Api/Data/SonaDbContext.cs` — new
-- `apps/api/Sona.Api/Program.cs` — register DbContext
-- `apps/api/Sona.Api/appsettings.Development.json` — dev connection string (localhost, database `SonaDev`, `TrustServerCertificate=True` for local dev). **Never commit real credentials; dev-only values.**
+- `apps/sona.server/sona.server.csproj` — add `Microsoft.EntityFrameworkCore.SqlServer`, `Microsoft.EntityFrameworkCore.Design` (latest stable compatible with .NET 10)
+- `apps/sona.server/Data/SonaDbContext.cs` — new
+- `apps/sona.server/Program.cs` — register DbContext
+- `apps/sona.server/appsettings.Development.json` — dev connection string (localhost, database `SonaDev`, `TrustServerCertificate=True` for local dev). **Never commit real credentials; dev-only values.**
 - `docs/getting-started.md` — add: how to run SQL Server locally (document the `docker run` one-liner for `mcr.microsoft.com/mssql/server:2022-latest`; note Apple Silicon needs Rosetta emulation enabled in Docker Desktop), how to apply migrations (`dotnet ef database update`)
 
 **Steps:**
@@ -35,7 +35,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 2. Create `SonaDbContext` (empty `DbSet`s come in later tasks). Apply a base convention for `CreateDate`/`ModDate`: an abstract `EntityBase` class (`Id` Guid, `CreateDate`, `ModDate`) + `SaveChanges` override or interceptor that stamps them in UTC. `Id` values are generated in application code (`Guid.CreateVersion7()`), not by the database.
 3. Register in `Program.cs` with connection string from configuration. Remove the template `weatherforecast` endpoint and `WeatherForecast` record while here — it is dead scaffolding.
 4. Create the initial (empty) migration to prove the pipeline: `dotnet ef migrations add Initial --project apps/api/Sona.Api`.
-5. Verify: `dotnet build apps/api/Sona.slnx`; `dotnet ef database update` against a local SQL Server succeeds.
+5. Verify: `dotnet build apps/sona.server/sona.server.csproj`; `dotnet ef database update` against a local SQL Server succeeds.
 
 **Done when:** build passes, empty migration applies to a fresh local database, getting-started.md documents the local DB workflow.
 
@@ -50,9 +50,9 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 **Table shape:** see [data-model.md → MessageTemplate](../data-model.md#messagetemplate--mvp-small-but-recommended).
 
 **Files:**
-- `apps/api/Sona.Api/Features/Messaging/MessageTemplate.cs` — entity (vertical-slice layout per docs/architecture.md)
-- `apps/api/Sona.Api/Data/Configurations/MessageTemplateConfiguration.cs` — EF configuration
-- `apps/api/Sona.Api/Data/SonaDbContext.cs` — add DbSet
+- `apps/sona.server/Features/Messaging/MessageTemplate.cs` — entity (vertical-slice layout per docs/architecture.md)
+- `apps/sona.server/Data/Configurations/MessageTemplateConfiguration.cs` — EF configuration
+- `apps/sona.server/Data/SonaDbContext.cs` — add DbSet
 - New migration
 
 **Steps:**
@@ -74,9 +74,9 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 **Table shape:** see [data-model.md → AppUser](../data-model.md#appuser-staff--mvp).
 
 **Files:**
-- `apps/api/Sona.Api/Features/Users/AppUser.cs` — entity
-- `apps/api/Sona.Api/Data/Configurations/AppUserConfiguration.cs`
-- `apps/api/Sona.Api/Data/SonaDbContext.cs` — add DbSet
+- `apps/sona.server/Features/Users/AppUser.cs` — entity
+- `apps/sona.server/Data/Configurations/AppUserConfiguration.cs`
+- `apps/sona.server/Data/SonaDbContext.cs` — add DbSet
 - New migration
 - `packages/shared/src/types.ts` — reconcile with existing `Provider` type (see step 3)
 
@@ -100,9 +100,9 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 **Table shape:** see [data-model.md → Patient](../data-model.md#patient--mvp).
 
 **Files:**
-- `apps/api/Sona.Api/Features/Patients/Patient.cs` — entity
-- `apps/api/Sona.Api/Data/Configurations/PatientConfiguration.cs`
-- `apps/api/Sona.Api/Data/SonaDbContext.cs` — add DbSet
+- `apps/sona.server/Features/Patients/Patient.cs` — entity
+- `apps/sona.server/Data/Configurations/PatientConfiguration.cs`
+- `apps/sona.server/Data/SonaDbContext.cs` — add DbSet
 - New migration
 - `packages/shared/src/types.ts` — extend `Patient` type
 - `packages/shared/src/schemas.ts` — extend `createPatientSchema`
@@ -130,9 +130,9 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 **Depends on:** Tasks 2 (MessageTemplate), 3 (AppUser), 4 (Patient) — three FK targets.
 
 **Files:**
-- `apps/api/Sona.Api/Features/Messaging/MessageOut.cs` — entity
-- `apps/api/Sona.Api/Data/Configurations/MessageOutConfiguration.cs`
-- `apps/api/Sona.Api/Data/SonaDbContext.cs` — add DbSet
+- `apps/sona.server/Features/Messaging/MessageOut.cs` — entity
+- `apps/sona.server/Data/Configurations/MessageOutConfiguration.cs`
+- `apps/sona.server/Data/SonaDbContext.cs` — add DbSet
 - New migration
 - `packages/shared/src/types.ts` — reconcile with `ReadyNotification`
 
@@ -159,9 +159,9 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 **Depends on:** Task 3 (AppUser FK), Task 4 (Patient, for the optional trace FK).
 
 **Files:**
-- `apps/api/Sona.Api/Features/Imports/ImportBatch.cs`, `ImportRowError.cs` — entities
-- `apps/api/Sona.Api/Data/Configurations/` — two configurations
-- `apps/api/Sona.Api/Data/SonaDbContext.cs` — add DbSets
+- `apps/sona.server/Features/Imports/ImportBatch.cs`, `ImportRowError.cs` — entities
+- `apps/sona.server/Data/Configurations/` — two configurations
+- `apps/sona.server/Data/SonaDbContext.cs` — add DbSets
 - New migration
 
 **Steps:**
@@ -184,7 +184,7 @@ Task list for implementing the MVP database tables defined in [data-model.md](..
 
 **Steps:**
 1. Fresh-database test: drop local `SonaDev`, run all migrations from zero, confirm clean apply and seeded template row.
-2. Run the full gate set: `dotnet build apps/api/Sona.slnx`, `pnpm typecheck`, `pnpm build`.
+2. Run the full gate set: `dotnet build apps/sona.server/sona.server.csproj`, `pnpm typecheck`, `pnpm build`.
 3. Compare final schema against [data-model.md](../data-model.md) field-by-field; fix any drift **in the doc** if the implemented choice was deliberate (and noted in a task's completion notes), otherwise fix the code.
 4. Update [architecture.md](../architecture.md) backend section: note EF Core + SQL Server now exist (it currently says "default template").
 5. Confirm no task above left an unticked compliance item: no PHI paths, Restrict deletes on audit FKs, no credential columns, no free-text message endpoint.
