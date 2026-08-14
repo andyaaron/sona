@@ -1,0 +1,84 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  major: 0
+  minor: 1
+  solution: '**/Sona.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  NUGET.PLUGIN.HANDSHAKE.TIMEOUT.IN.SECONDS: '30'
+  NUGET.PLUGIN.REQUEST.TIMEOUT.IN.SECONDS: '30'
+  #name: $(major).$(minor).$(Date:yyMMdd).$(Rev:r)
+  #using YY(day of year) instead of YYMMDD: build fails on assembly due to revision maximum 65534, so date format 220905 is too many digits
+  name: $(major).$(minor).$(Year:yy)$(DayOfYear).$(Build.BuildId)
+  appVersion: '$(major).$(minor).$(date:YYDDDD).$(Build.BuildId)'
+
+steps:
+
+- task: Assembly-Info-NetCore@3
+  displayName: 'Update Assembly Info'
+  inputs:
+    Path: '$(Build.SourcesDirectory)'
+    FileNames: '**/Sona.Api.csproj'
+    InsertAttributes: true
+    FileEncoding: 'auto'
+    WriteBOM: true
+    GeneratePackageOnBuild: 'true'
+    PackageRequireLicenseAcceptance: 'false'
+    PackageId: 'vsts-assemblyinfo-task_KJS'
+    Company: 'HCA Healthcare'
+    Copyright: '$(date:yyyy)'
+    Product: 'AppCat'
+    VersionNumber: '$(appVersion)'
+    FileVersionNumber: '$(appVersion)'
+    InformationalVersion: '$(appVersion)'
+    PackageVersion: '$(appVersion)'
+    LogLevel: 'verbose'
+    FailOnWarning: false
+    DisableTelemetry: false
+    UpdateBuildNumber: '$(appVersion)'
+    AddBuildTag: '$(appVersion)'
+
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: 'Install Node.js'
+
+- task: NuGetToolInstaller@1
+
+- task: NuGetCommand@2
+  inputs:
+    restoreSolution: '$(solution)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Publish Application'
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: '**/Sona.Api.csproj'
+    zipAfterPublish: false
+    modifyOutputPath: false
+    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/temp_publish'
+  
+- task: ArchiveFiles@2
+  displayName: 'Flatten and Zip'
+  inputs:
+    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/temp_publish'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/deploy.zip'
+    replaceExistingArchive: true
+    
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/deploy.zip'
+    ArtifactName: 'drop'
