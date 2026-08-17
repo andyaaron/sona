@@ -85,44 +85,32 @@ namespace Sona.Api.Data.Migrations
                     b.Property<int?>("AccessLevelId")
                         .HasColumnType("int");
 
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("DefaultFacilityId")
-                        .HasColumnType("int");
-
                     b.Property<string>("DisplayName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Email")
-                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EmpDept")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FirstName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Hca34id")
-                        .IsRequired()
+                    b.Property<string>("HCAID")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsDarkMode")
-                        .HasColumnType("bit");
+                    b.Property<DateTime>("InDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("LastLogin")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("LastName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Thumbnail")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<DateTime>("ModDate")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -133,11 +121,11 @@ namespace Sona.Api.Data.Migrations
 
             modelBuilder.Entity("Sona.Api.Data.DbModels.AppUser", b =>
                 {
-                    b.HasOne("Sona.Api.Data.DbModels.AccessLevel", "AccessLevel")
+                    b.HasOne("Sona.Api.Data.DbModels.AccessLevel", "GetAccessLevel")
                         .WithMany()
                         .HasForeignKey("AccessLevelId");
 
-                    b.Navigation("AccessLevel");
+                    b.Navigation("GetAccessLevel");
                 });
 #pragma warning restore 612, 618
         }
