@@ -2,6 +2,7 @@
   <PropertyGroup>
     <StartupCommand>pnpm dev</StartupCommand>
     <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
     <BuildOutputFolder>$(MSBuildProjectDirectory)..\sona.server\wwwroot</BuildOutputFolder>
   </PropertyGroup>
 </Project>

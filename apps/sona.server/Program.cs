@@ -74,6 +74,25 @@ builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     });
 #endregion
 
+#region AppUser Service - update user or create new user in db
+builder.Services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+{
+    options.Events ??= new OpenIdConnectEvents();
+    //azureAdConfigSection.Bind(options);
+    options.Events.OnTokenValidated = async context =>
+    {
+        IAppUserUtil appUserUtil = context.HttpContext.RequestServices.GetRequiredService<IAppUserUtil>();
+
+        //This util method will pull the claims and check if:
+        //1. it's a brand new user, in which case it will provision them in the AppUser table
+        //2. Specific claims (or MSGraph info it pulls for more details) have changed.  If so it may update that info in the AppUser table
+        //3. update the lastLogin stamp for the user to datetime.now.
+        await appUserUtil.CheckAndSetEmployee(context.Principal);
+    };
+});
+#endregion
+
+
 // Setup antiforgery & authorization
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-XSRF-TOKEN");
 builder.Services.AddAuthorization();

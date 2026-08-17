@@ -4,7 +4,10 @@
 <Solution>
   <Folder Name="/apps/">
     <Project Path="apps/sona.server/sona.server.csproj" />
-    <Project Path="apps/sona.client/sona.client.esproj" />
+    <Project Path="apps/sona.client/sona.client.esproj">
+      <Build />
+      <Deploy />
+    </Project>
   </Folder>
   <Folder Name="/docs/">
     <File Path="docs/architecture.md" />
