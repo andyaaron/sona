@@ -1,18 +1,17 @@
-import { useQuery } from '@tanstack/react-query'
+import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
 import { NotifyPatientButton } from '@/features/notifications/components/notify-patient-button'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
 
 export const Route = createFileRoute('/patients/')({
+  loader: ({ context: { queryClient } }) =>
+    queryClient.ensureQueryData(patientsQueryOptions),
   component: PatientsPage,
 })
 
 function PatientsPage() {
-  const { data: patients, isPending, isError } = useQuery(patientsQueryOptions())
-
-  if (isPending) return <p className="text-gray-500">Loading patients…</p>
-  if (isError) return <p className="text-red-600">Failed to load patients.</p>
+  const { data: patients } = useSuspenseQuery(patientsQueryOptions)
 
   return (
     <div>

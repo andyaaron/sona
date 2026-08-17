@@ -1,20 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { CallApi } from '@/types/api.ts';
+import { apiFetch } from '@sona/api-client';
 import type { User } from '@sona/shared';
 
-export async function getCurrentUser(callApi: CallApi): Promise<User | null> {
-    return callApi('/api/user');
-}
-
-export const userQueryOptions = (callApi: CallApi) =>
-    queryOptions<User>({
-        queryKey: ['currentUser'],
-        queryFn: async () => {
-            const data = await getCurrentUser(callApi);
-            if (!data) {
-                throw new Error('No data returned from API');
-            }
-            return data;
-        },
-        staleTime: Infinity, // User profile rarely changes
-    });
+export const userQueryOptions = queryOptions({
+    queryKey: ['currentUser'],
+    queryFn: () => apiFetch<User>('/api/user'),
+    staleTime: Infinity, // User profile rarely changes
+});

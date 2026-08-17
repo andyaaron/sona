@@ -7,9 +7,12 @@ export function useNotifyPatient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: NotifyPatientInput) => notificationsApi.notifyReady(input),
+    mutationFn: (input: NotifyPatientInput) =>
+      notificationsApi.notifyReady(input),
     onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', input.patientId] })
+      queryClient.invalidateQueries({
+        queryKey: ['notifications', input.patientId],
+      })
     },
   })
 }

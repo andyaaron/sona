@@ -105,6 +105,18 @@ builder.Services.AddSingleton<IMSGraphHelper, MSGraphHelper>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAppUserUtil, AppUserUtil>();
 
+// CORS — allow the Vite dev server during development
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevCors", policy =>
+    {
+        policy.WithOrigins("https://localhost:5173", "http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 
 var app = builder.Build();
 
@@ -116,6 +128,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("DevCors");
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();

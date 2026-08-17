@@ -11,15 +11,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 })
 
 function RootComponent() {
-    const { callApi } = Route.useRouteContext()
-
     const {
         data: user,
         isPending,
         error,
-    } = useQuery({
-        ...userQueryOptions(callApi),
-    })
+    } = useQuery(userQueryOptions)
 
     return (
         <UserContext value={user}>
