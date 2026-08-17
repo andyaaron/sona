@@ -1,14 +1,28 @@
-export type UserRole = "nurse" | "provider" | "admin";
+export type AccessLevel = {
+  id: number;
+  levelName: string;
+  description: string;
+};
 
 /** Internal staff user of the admin platform (nurse, provider, admin). */
-export interface AppUser {
-  id: string;
+export type User = {
+  id: number;
+  hca34id: string;
+  displayName: string;
   firstName: string;
   lastName: string;
-  role: UserRole;
   email: string;
-  isActive: boolean;
-}
+  accessLevelId: number;
+  defaultFacilityId?: number | null;
+  lastLogin: string;
+  isDarkMode: boolean;
+  dateCreated: string;
+  createdBy: string;
+  accessLevel?: AccessLevel | null;
+  facility?: string | null;
+};
+
+export type UserRole = "nurse" | "provider" | "admin";
 
 export type PatientImportSource = "flatfile" | "ui" | "cerner";
 

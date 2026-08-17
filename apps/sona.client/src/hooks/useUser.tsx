@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { User } from '@/types/user.ts';
+import type { User } from '@sona/shared';
 
 /**
  * Made this custom context hook because we initialize user context as undefined.

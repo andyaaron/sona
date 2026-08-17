@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { CallApi } from '@/types/api.ts';
-import type { User } from '@/types/user';
+import type { User } from '@sona/shared';
 
 export async function getCurrentUser(callApi: CallApi): Promise<User | null> {
     return callApi('/api/user');
