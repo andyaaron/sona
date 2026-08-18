@@ -1,0 +1,42 @@
+using Sona.Api.Data;
+
+namespace Sona.Api.Data.DbModels;
+
+/// <summary>
+/// Outbound "ready to be seen" message to a patient. This IS the audit log for
+/// sends: every send path writes a row here before dispatch — no fire-and-forget
+/// (docs/compliance.md). Body is a snapshot of an approved MessageTemplate
+/// render; nothing may write caller-supplied free text here.
+/// </summary>
+public class MessageOut : EntityBase
+{
+    public Guid PatientId { get; set; }
+    public Patient? Patient { get; set; }
+
+    public Guid SentByUserId { get; set; }
+    public AppUser? SentByUser { get; set; }
+
+    /// <summary>One of: sms, push. MVP is always sms.</summary>
+    public required string Channel { get; set; }
+
+    public Guid? MessageTemplateId { get; set; }
+    public MessageTemplate? MessageTemplate { get; set; }
+
+    /// <summary>Rendered template text as actually sent — audit snapshot, never free text.</summary>
+    public string? Body { get; set; }
+
+    /// <summary>Number dialed at send time (patients change numbers later). Null for push.</summary>
+    public string? MobileNumber { get; set; }
+
+    /// <summary>One of: pending, sent, delivered, failed.</summary>
+    public required string Status { get; set; }
+
+    /// <summary>Twilio message SID / push ticket id — correlation key for delivery webhooks.</summary>
+    public string? ProviderMessageSid { get; set; }
+
+    public string? FailureReason { get; set; }
+
+    public DateTime? SentDateTime { get; set; }
+
+    public DateTime? DeliveredDateTime { get; set; }
+}

@@ -5,7 +5,7 @@
   "description": "Nurse/provider-to-patient communication platform: web admin, mobile app, API",
   "scripts": {
     "dev": "turbo run dev",
-    "dev:admin": "turbo run dev --filter=admin",
+    "dev:admin": "turbo run dev --filter=sona.client",
     "dev:mobile": "turbo run dev --filter=mobile",
     "build": "turbo run build",
     "lint": "turbo run lint",

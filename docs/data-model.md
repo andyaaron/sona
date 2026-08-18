@@ -1,6 +1,6 @@
 # Data Model
 
-Proposed database tables for Sona. Status: **draft for review — not yet implemented.**
+Database tables for Sona. Status: **MVP tables implemented** (SQL Server via EF Core, migrations in `apps/sona.server/Migrations/`); Enhancement tables remain design-only. Physical table names are pluralized (`Patients`, `AppUsers`, `MessagesOut`, ...).
 
 Phasing follows the product roadmap:
 
@@ -26,7 +26,7 @@ Conventions (all tables):
 
 Patient demographics, ingested via flat-file import, manual UI entry, or (later) Cerner.
 
-Renamed from the original `appUser` proposal — "app user" reads as an internal login account, which is a different table (see [User](#user-staff--mvp)).
+Renamed from the original proposal (which used `appUser` for patient data) — patient demographics and internal login accounts are different tables. Internal staff live in [AppUser](#appuser-staff--mvp).
 
 | Field | Type | Notes |
 |---|---|---|
@@ -49,7 +49,7 @@ Renamed from the original `appUser` proposal — "app user" reads as an internal
 
 ---
 
-## User (Staff) — MVP
+## AppUser (Staff) — MVP
 
 Internal users of the admin platform (nurses, providers, admins). **Missing from the original proposal** — required for MVP: the admin platform needs authenticated accounts, and the audit requirement ("who sent it") needs a staff id to reference.
 
@@ -80,7 +80,7 @@ Corresponds to `ReadyNotification` in `@sona/shared`.
 |---|---|---|
 | `Id` | uuid PK | |
 | `PatientId` | uuid FK → Patient | Original proposal had `34ID` (assumed FK typo) — a proper FK to the patient. |
-| `SentByUserId` | uuid FK → User | **Added — compliance requirement.** Who triggered the send. |
+| `SentByUserId` | uuid FK → AppUser | **Added — compliance requirement.** Who triggered the send. |
 | `Channel` | string enum: `sms` \| `push` | MVP is always `sms`; column exists now so Enhancement 2 doesn't need a migration + the TS contract already has it. |
 | `MessageTemplateId` | uuid FK → MessageTemplate, nullable | Which approved template was sent. Prefer this over free text — see PHI note below. |
 | `Body` | string, nullable | Rendered text as actually sent. Snapshot for audit; must come from an approved template, never operator free-text. |
@@ -127,7 +127,7 @@ Audit trail for flat-file patient imports: which file, who uploaded it, what hap
 |---|---|---|
 | `Id` | uuid PK | |
 | `FileName` | string | |
-| `UploadedByUserId` | uuid FK → User | |
+| `UploadedByUserId` | uuid FK → AppUser | |
 | `Status` | string enum: `processing` \| `completed` \| `failed` | |
 | `RowsTotal` | int | |
 | `RowsImported` | int | |
@@ -145,7 +145,7 @@ Audit trail for flat-file patient imports: which file, who uploaded it, what hap
 | `ErrorMessage` | string | Validation error only (e.g. "invalid phone format") — do not echo the full raw row here; it contains PHI and error tables tend to get read/exported casually. |
 | `CreateDate` | datetime | |
 
-Optionally add `ImportBatchId` FK on `Patient` to trace each row to its source file.
+`Patient.ImportBatchId` (nullable FK, SetNull on delete) traces each imported patient row to its source file — implemented.
 
 ---
 
@@ -162,7 +162,7 @@ Inbound SMS from patients. Original proposal was the right skeleton; additions b
 | `Body` | string | Raw inbound text. Treat as PHI — patients will type anything. |
 | `ProviderMessageSid` | string, unique, indexed | Twilio inbound SID. Unique constraint = dedupe on webhook retries. |
 | `ProcessedStatus` | string enum: `unread` \| `handled` \| `ignored` | Staff triage queue state. |
-| `HandledByUserId` | uuid FK → User, nullable | Who processed it. |
+| `HandledByUserId` | uuid FK → AppUser, nullable | Who processed it. |
 | `ReceivedDateTime` | datetime | |
 | `CreateDate` | datetime | |
 | `ModDate` | datetime | |
@@ -213,9 +213,9 @@ Once this table exists, `Patient.IsUsingMobileApp` = "has ≥1 active device" (d
 
 ```mermaid
 erDiagram
-    User ||--o{ MessageOut : sends
-    User ||--o{ ImportBatch : uploads
-    User ||--o{ MessageIn : handles
+    AppUser ||--o{ MessageOut : sends
+    AppUser ||--o{ ImportBatch : uploads
+    AppUser ||--o{ MessageIn : handles
     Patient ||--o{ MessageOut : receives
     Patient ||--o{ MessageIn : "matched to (nullable)"
     Patient ||--o{ Encounter : has
@@ -227,6 +227,6 @@ erDiagram
 
 ## Open questions
 
-- **Auth approach for `User`** — hosted identity provider vs local credentials. Blocks the `User` table's final shape.
+- **Auth approach for `AppUser`** — hosted identity provider vs local credentials. Blocks the `AppUser` table's final shape.
 - **Retention policy** — how long to keep `MessageOut`/`MessageIn` rows; HIPAA-adjacent records typically 6+ years, confirm in compliance review.
 - **Cerner integration shape** — `Encounter` fields are placeholders until the integration contract (HL7? FHIR? file drop?) is known.

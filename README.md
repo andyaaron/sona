@@ -6,9 +6,9 @@ Nurse/provider-to-patient communication platform. Providers use the web admin to
 
 ```
 ├── apps/
-│   ├── admin/        # Web admin (React + Vite + TanStack Router)
+│   ├── sona.client/  # Web admin (React + Vite + TanStack Router)
 │   ├── mobile/       # Patient mobile app (Expo / React Native)
-│   └── api/          # Backend (ASP.NET Core, .NET 10)
+│   └── sona.server/  # Backend (ASP.NET Core, .NET 10)
 ├── packages/
 │   ├── shared/       # Shared TypeScript types + zod schemas
 │   └── api-client/   # Typed API client used by admin + mobile
@@ -21,9 +21,9 @@ Prerequisites: Node ≥ 22, pnpm ≥ 11 (`corepack enable`), .NET SDK 10.
 
 ```bash
 pnpm install                          # JS workspace deps
-pnpm dev:admin                        # web admin → http://localhost:5173
+pnpm dev:admin                        # web admin → https://localhost:5173
 pnpm dev:mobile                       # Expo dev server (press i for iOS simulator)
-dotnet run --project apps/api/Sona.Api  # API → http://localhost:5032
+dotnet run --project apps/sona.server  # API → http://localhost:5032
 ```
 
 ## Documentation

@@ -1,0 +1,23 @@
+import { Link } from "@tanstack/react-router";
+
+function Header() {
+  return (
+      <nav className="flex items-center gap-6 border-b border-gray-200 bg-white px-6 py-3">
+          <span className="font-semibold text-gray-900">Sona Admin</span>
+          <Link
+              to="/"
+              className="text-sm text-gray-600 hover:text-gray-900 [&.active]:font-medium [&.active]:text-gray-900"
+          >
+              Dashboard
+          </Link>
+          <Link
+              to="/patients"
+              className="text-sm text-gray-600 hover:text-gray-900 [&.active]:font-medium [&.active]:text-gray-900"
+          >
+              Patients
+          </Link>
+      </nav>
+  );
+}
+
+export default Header;
