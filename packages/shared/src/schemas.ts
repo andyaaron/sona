@@ -5,17 +5,17 @@ export const e164Phone = z
   .regex(/^\+[1-9]\d{1,14}$/, "Phone number must be E.164 format (+15551234567)");
 
 export const createPatientSchema = z.object({
-  mrn: z.string().min(1).max(50),
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
+  mrn: z.string().min(1, "MRN is required").max(50),
+  firstName: z.string().min(1, "First name is required").max(100),
+  lastName: z.string().min(1, "Last name is required").max(100),
   /** ISO date (YYYY-MM-DD) */
-  dob: z.iso.date(),
+  dob: z.iso.date({ error: "Date of birth is required" }),
   phoneNumber: e164Phone,
   /**
    * Must be explicitly captured from the patient — no default. The server
    * stamps smsConsentDate when this is true; sends are blocked while false.
    */
-  smsConsent: z.boolean(),
+  smsConsent: z.boolean({ error: "SMS consent is required" }),
 });
 
 export const updatePatientSchema = createPatientSchema.partial().extend({

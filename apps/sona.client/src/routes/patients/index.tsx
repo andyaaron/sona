@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { toast } from 'sonner'
 
 import type { CreatePatientInput, Patient } from '@sona/shared'
 
@@ -36,6 +37,7 @@ function PatientsPage() {
     createPatient.mutate(values, {
       onSuccess: () => {
         setFormState(null)
+        toast.success('Patient added successfully')
       },
     })
   }
