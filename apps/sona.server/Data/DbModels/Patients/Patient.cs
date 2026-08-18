@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Sona.Api.Data;
 
 namespace Sona.Api.Data.DbModels;
@@ -7,8 +8,11 @@ namespace Sona.Api.Data.DbModels;
 /// (later) Cerner. FIN is deliberately absent — it is an encounter-level
 /// identifier and belongs on the future Encounter table (docs/data-model.md).
 /// </summary>
-public class Patient : EntityBase
+public class Patient
 {
+    [Key]
+    public int Id { get; set; }
+
     /// <summary>Person-level medical record number. Unique business identifier.</summary>
     public required string Mrn { get; set; }
 

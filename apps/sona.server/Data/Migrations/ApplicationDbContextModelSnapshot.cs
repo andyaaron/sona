@@ -119,6 +119,60 @@ namespace Sona.Api.Data.Migrations
                     b.ToTable("AppUsers");
                 });
 
+            modelBuilder.Entity("Sona.Api.Data.DbModels.Patient", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Dob")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("ImportBatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ImportSource")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("InCerner")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsUsingMobileApp")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MobileNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Mrn")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("SmsConsent")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("SmsConsentDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Patients");
+                });
+
             modelBuilder.Entity("Sona.Api.Data.DbModels.AppUser", b =>
                 {
                     b.HasOne("Sona.Api.Data.DbModels.AccessLevel", "GetAccessLevel")

@@ -14,7 +14,7 @@ namespace Sona.Api.Data
         // public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
         public virtual DbSet<AccessLevel> AccessLevels { get; set; }
         public virtual DbSet<AppUser> AppUsers { get; set; }
-        // public DbSet<Patient> Patients => Set<Patient>();
+        public virtual DbSet<Patient> Patients { get; set; }
         // public DbSet<MessageOut> MessagesOut => Set<MessageOut>();
         // public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
         // public DbSet<ImportRowError> ImportRowErrors => Set<ImportRowError>();
