@@ -3,6 +3,7 @@ import type {
   MessageOut,
   NotifyPatientInput,
   Patient,
+  UpdatePatientInput,
 } from "@sona/shared";
 import { apiFetch } from "./client";
 
@@ -11,6 +12,13 @@ export const patientsApi = {
   get: (id: string) => apiFetch<Patient>(`/api/patients/${id}`),
   create: (input: CreatePatientInput) =>
     apiFetch<Patient>("/api/patients", { method: "POST", body: input }),
+  update: (input: UpdatePatientInput) =>
+    apiFetch<Patient>(`/api/patients/${input.id}`, {
+      method: "PUT",
+      body: input,
+    }),
+  delete: (id: string) =>
+    apiFetch<void>(`/api/patients/${id}`, { method: "DELETE" }),
 };
 
 export const notificationsApi = {

@@ -18,9 +18,14 @@ export const createPatientSchema = z.object({
   smsConsent: z.boolean(),
 });
 
+export const updatePatientSchema = createPatientSchema.partial().extend({
+  id: z.string().min(1),
+});
+
 export const notifyPatientSchema = z.object({
   patientId: z.string().uuid(),
 });
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
+export type UpdatePatientInput = z.infer<typeof updatePatientSchema>;
 export type NotifyPatientInput = z.infer<typeof notifyPatientSchema>;
