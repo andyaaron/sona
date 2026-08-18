@@ -7,7 +7,7 @@ export type AccessLevel = {
 /** Internal staff user of the admin platform (nurse, provider, admin). */
 export type User = {
   id: number;
-  hca34id: string;
+  hca34Id: string;
   displayName: string;
   firstName: string;
   lastName: string;
