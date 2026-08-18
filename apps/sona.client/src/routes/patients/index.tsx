@@ -16,6 +16,7 @@ function PatientsPage() {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-gray-900">Patients</h1>
+        <button>Add Patient</button>
       <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
         {patients.map((patient) => (
           <li key={patient.id} className="flex items-center justify-between px-4 py-3">
