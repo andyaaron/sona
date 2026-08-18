@@ -1,8 +1,8 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-
-import { NotifyPatientButton } from '@/features/notifications/components/notify-patient-button'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
+import Button from "@/components/button.tsx";
+import {useNotifyPatient} from "@/features/notifications/api/notify-patient.ts";
 
 export const Route = createFileRoute('/patients/')({
   loader: ({ context: { queryClient } }) =>
@@ -12,10 +12,14 @@ export const Route = createFileRoute('/patients/')({
 
 function PatientsPage() {
   const { data: patients } = useSuspenseQuery(patientsQueryOptions)
+  const notify = useNotifyPatient()
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900">Patients</h1>
+      <div className={"flex flex-row gap-4"}>
+        <h1 className="text-2xl font-semibold text-gray-900">Patients</h1>
+        <Button variant={"primary"} size={"sm"}>Add Patient</Button>
+      </div>
       <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
         {patients.map((patient) => (
           <li key={patient.id} className="flex items-center justify-between px-4 py-3">
@@ -27,7 +31,14 @@ function PatientsPage() {
                 {patient.hasApp ? 'App user — will receive push' : 'No app — will receive SMS'}
               </p>
             </div>
-            <NotifyPatientButton patientId={patient.id} />
+            <Button 
+              variant="primary"
+              size="sm"
+              disabled={notify.isPending}
+              onClick={() => notify.mutate({ patientId: patient.id })}
+            >
+              {notify.isPending ? 'Notifying…' : 'Ready to be seen'}
+            </Button>
           </li>
         ))}
       </ul>
