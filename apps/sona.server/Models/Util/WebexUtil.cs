@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 
-namespace Sona.Api.Models.Util;
+namespace Sona.Server.Models.Util;
 
 public interface IWebexConnectUtil
 {

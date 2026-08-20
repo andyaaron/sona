@@ -8,8 +8,8 @@ using Microsoft.Identity.Web.UI;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.MSSqlServer;
-using Sona.Api.Data;
-using Sona.Api.Models.Util;
+using Sona.Server.Data;
+using Sona.Server.Models.Util;
 
 var builder = WebApplication.CreateBuilder(args);
 

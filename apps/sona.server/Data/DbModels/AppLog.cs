@@ -1,6 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace Sona.Api.Data.DbModels
+namespace Sona.Server.Data.DbModels
 {
     public class AppLog
     {

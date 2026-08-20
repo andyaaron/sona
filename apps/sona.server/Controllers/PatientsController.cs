@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Sona.Api.Data;
-using PatientEntity = Sona.Api.Data.DbModels.Patient;
+using Sona.Server.Data;
+using PatientEntity = Sona.Server.Data.DbModels.Patient;
 
-namespace Sona.Api.Controllers;
+namespace Sona.Server.Controllers;
 
 [Authorize]
 [Route("api/[controller]")]

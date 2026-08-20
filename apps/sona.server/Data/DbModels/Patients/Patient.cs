@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using Sona.Api.Data;
+using Sona.Server.Data;
 
-namespace Sona.Api.Data.DbModels;
+namespace Sona.Server.Data.DbModels;
 
 /// <summary>
 /// Patient demographics, ingested via flat-file import, manual UI entry, or

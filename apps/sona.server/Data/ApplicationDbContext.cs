@@ -1,7 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Sona.Api.Data.DbModels;
+using Microsoft.EntityFrameworkCore;
+using Sona.Server.Data.DbModels;
 
-namespace Sona.Api.Data
+namespace Sona.Server.Data
 {
     public class ApplicationDbContext : DbContext
     {

@@ -1,6 +1,6 @@
-using Sona.Api.Data;
+using Sona.Server.Data;
 
-namespace Sona.Api.Data.DbModels;
+namespace Sona.Server.Data.DbModels;
 
 /// <summary>
 /// Outbound "ready to be seen" message to a patient. This IS the audit log for

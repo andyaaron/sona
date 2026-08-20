@@ -1,4 +1,4 @@
-namespace Sona.Api.Data;
+namespace Sona.Server.Data;
 
 /// <summary>
 /// Base for all persisted entities: UUID v7 primary key (time-ordered, avoids

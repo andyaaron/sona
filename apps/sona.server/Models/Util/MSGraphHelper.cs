@@ -5,12 +5,12 @@ using Microsoft.Identity.Client;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
-using Sona.Api.Models.Commons;
+using Sona.Server.Models.Commons;
 using System.Globalization;
 using System.Net.Http.Headers;
 
 
-namespace Sona.Api.Models.Util
+namespace Sona.Server.Models.Util
 {
     public interface IMSGraphHelper
     {
