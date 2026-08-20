@@ -13,17 +13,18 @@ export default function TextField({ label, placeholder = "", canEdit = true }: T
     meta: { isTouched },
   } = field.state;
 
-  // is form submitted?
   const isSubmitted = useStore(field.form.store, (state) => state.isSubmitted);
   const errors = useStore(field.store, (state) => state.meta.errors);
+  const hasError = (isSubmitted || isTouched) && errors.length > 0;
 
   return (
-    <div className={'w-full mb-4'}>
+    <div className="w-full mb-4">
       <label>
-        <div className={'text-gray-500 text-xs mb-1'}>
+        <div className="text-gray-500 font-semibold text-sm mb-1">
           {label}
         </div>
         <input
+          className={`w-full rounded-md border bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50 ${hasError ? 'border-red-400' : 'border-gray-300'}`}
           value={value}
           onChange={(e) => field.handleChange(e.target.value)}
           onBlur={field.handleBlur}
@@ -33,7 +34,7 @@ export default function TextField({ label, placeholder = "", canEdit = true }: T
       </label>
       {(isSubmitted || isTouched) &&
         errors.map((error, i) => (
-          <div key={i} className={'text-sm text-red-600'}>
+          <div key={i} className="text-sm text-red-600 mt-1">
             {typeof error === 'object' && error !== null && 'message' in error
               ? (error as any).message
               : String(error)}

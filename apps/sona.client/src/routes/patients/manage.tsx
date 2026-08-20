@@ -5,6 +5,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
 import type { CreatePatientInput, Patient } from '@sona/shared'
+import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
 import { SearchInput } from '@/components/search-input'
@@ -25,6 +26,17 @@ type FormState =
   | { mode: 'edit'; patient: Patient }
   | null
 
+function getErrorMessage(error: Error): string {
+  if (error instanceof ApiError) {
+    const body = error.body as Record<string, unknown> | null
+    if (body && typeof body.error === 'string') {
+      return body.error
+    }
+    return `Request failed (${error.status})`
+  }
+  return error.message || 'An unexpected error occurred'
+}
+
 function ManagePatientsPage() {
   const { data: patients } = useSuspenseQuery(patientsQueryOptions)
   const [formState, setFormState] = useState<FormState>(null)
@@ -38,6 +50,9 @@ function ManagePatientsPage() {
       onSuccess: () => {
         setFormState(null)
         toast.success('Patient added successfully')
+      },
+      onError: (error) => {
+        toast.error(getErrorMessage(error))
       },
     })
   }
@@ -53,6 +68,9 @@ function ManagePatientsPage() {
         onSuccess: () => {
           setFormState(null)
           toast.success('Patient updated successfully')
+        },
+        onError: (error) => {
+          toast.error(getErrorMessage(error))
         },
       },
     )

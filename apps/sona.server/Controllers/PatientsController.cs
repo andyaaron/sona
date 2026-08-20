@@ -56,6 +56,11 @@ public class PatientsController : Controller
     [HttpPost]
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest input)
     {
+        var mrnExists = await _db.Patients.AnyAsync(p =>
+            p.Mrn == input.Mrn && p.IsActive);
+        if (mrnExists)
+            return Conflict(new { error = "A patient with this MRN already exists." });
+
         var now = DateTime.UtcNow;
         var patient = new PatientEntity
         {
@@ -91,7 +96,13 @@ public class PatientsController : Controller
             return NotFound();
 
         if (input.Mrn != null)
+        {
+            var mrnTaken = await _db.Patients.AnyAsync(p =>
+                p.Mrn == input.Mrn && p.IsActive && p.Id != patientId);
+            if (mrnTaken)
+                return Conflict(new { error = "A patient with this MRN already exists." });
             patient.Mrn = input.Mrn;
+        }
         if (input.FirstName != null)
             patient.FirstName = input.FirstName;
         if (input.LastName != null)

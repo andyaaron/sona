@@ -24,6 +24,15 @@ namespace Sona.Api.Data
         //     // do something here..
         // }
 
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // Enforce unique MRN among active patients at the database level
+            modelBuilder.Entity<Patient>()
+                .HasIndex(p => p.Mrn)
+                .HasFilter("\"IsActive\" = 1")
+                .IsUnique();
+        }
+
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
             // @TODO: Insert audit logging
