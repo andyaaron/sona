@@ -9,7 +9,7 @@ interface ButtonProps extends ComponentProps<"button"> {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary: "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800",
+  primary: "bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800",
   secondary:
     "bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300 border border-gray-300",
   ghost: "text-gray-600 hover:bg-gray-100 active:bg-gray-200",

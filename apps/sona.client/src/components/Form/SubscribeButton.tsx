@@ -1,6 +1,6 @@
 import { Send } from 'lucide-react';
 import { useFormContext } from '../../hooks/form-context.tsx';
-import { Button } from '@/components/button.tsx';
+import Button from '@/components/button';
 
 interface SubscribeButtonProps {
   label: string;
@@ -8,7 +8,6 @@ interface SubscribeButtonProps {
   showReset?: boolean;
   showCancel?: boolean;
   onCancel?: () => void;
-  buttonClassName?: string;
 }
 
 export default function SubscribeButton({
@@ -17,7 +16,6 @@ export default function SubscribeButton({
   showReset = false,
   showCancel = false,
   onCancel,
-  buttonClassName,
 }: SubscribeButtonProps) {
   const form = useFormContext();
   return (
@@ -36,7 +34,6 @@ export default function SubscribeButton({
               >
                 Cancel
               </button>
-              
             )}
             <Button
               className={'disabled:bg-gray-500 disabled:text-gray-300 disabled:cursor-not-allowed rounded p-1 w-1/4 cursor-pointer'}
