@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import type { CreatePatientInput, Patient } from '@sona/shared'
 
 import Button from '@/components/button'
+import { SearchInput } from '@/components/search-input'
 import { useCreatePatient } from '@/features/patients/api/create-patient'
 import { useDeletePatient } from '@/features/patients/api/delete-patient'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
@@ -27,6 +28,7 @@ type FormState =
 function ManagePatientsPage() {
   const { data: patients } = useSuspenseQuery(patientsQueryOptions)
   const [formState, setFormState] = useState<FormState>(null)
+  const [search, setSearch] = useState('')
   const createPatient = useCreatePatient()
   const updatePatient = useUpdatePatient()
   const deletePatient = useDeletePatient()
@@ -74,6 +76,16 @@ function ManagePatientsPage() {
   const isCreating = formState?.mode === 'create'
   const editingPatient = formState?.mode === 'edit' ? formState.patient : null
 
+  const filteredPatients = patients.filter((patient) => {
+    if (!search) return true
+    const query = search.toLowerCase()
+    return (
+      patient.firstName.toLowerCase().includes(query) ||
+      patient.lastName.toLowerCase().includes(query) ||
+      patient.mrn.toLowerCase().includes(query)
+    )
+  })
+
   return (
     <div>
       <div className="flex items-center gap-4">
@@ -87,6 +99,7 @@ function ManagePatientsPage() {
         >
           {isCreating ? 'Cancel' : 'Add Patient'}
         </Button>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search by name or MRN…" />
       </div>
 
       {formState ? (
@@ -112,7 +125,7 @@ function ManagePatientsPage() {
       ) : null}
 
       <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
-        {patients.map((patient) => (
+        {filteredPatients.map((patient) => (
           <li key={patient.id} className="flex items-center justify-between px-4 py-3">
             <div>
               <p className="font-medium text-gray-900">
