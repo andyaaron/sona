@@ -1,8 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Sona.Api.Data.Migrations
+namespace Sona.Server.Data.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

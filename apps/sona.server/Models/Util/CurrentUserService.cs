@@ -1,7 +1,7 @@
-using Sona.Api.Models.Commons;
+using Sona.Server.Models.Commons;
 using System.Security.Claims;
 
-namespace Sona.Api.Models.Util;
+namespace Sona.Server.Models.Util;
 
 public interface ICurrentUserService
 {

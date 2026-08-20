@@ -1,5 +1,6 @@
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import { Toaster } from 'sonner'
 import { useQuery } from '@tanstack/react-query'
 import { userQueryOptions } from '@/features/user/api/getUser'
 import { UserContext } from '@/hooks/useUser'
@@ -35,6 +36,7 @@ function RootComponent() {
             </div>
 
             <TanStackRouterDevtools />
+            <Toaster position="top-right" richColors />
         </UserContext>
     )
 }

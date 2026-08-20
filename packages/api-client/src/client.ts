@@ -2,6 +2,8 @@ export interface ApiClientConfig {
   baseUrl: string;
   /** Called before each request; return the current auth token or null. */
   getToken?: () => Promise<string | null> | string | null;
+  /** Called when the server returns 401; each app handles this differently. */
+  onUnauthorized?: () => void;
 }
 
 export class ApiError extends Error {
@@ -45,6 +47,11 @@ export async function apiFetch<T>(
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+  
+  if (response.status === 401) {
+    config.onUnauthorized?.();
+    return new Promise(() => {});
+  }
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);

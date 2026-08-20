@@ -1,7 +1,11 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
 
-import { NotifyPatientButton } from '@/features/notifications/components/notify-patient-button'
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { createFileRoute, Link } from '@tanstack/react-router'
+
+import Button from '@/components/button'
+import { SearchInput } from '@/components/search-input'
+import { useNotifyPatient } from '@/features/notifications/api/notify-patient'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
 
 export const Route = createFileRoute('/patients/')({
@@ -12,12 +16,33 @@ export const Route = createFileRoute('/patients/')({
 
 function PatientsPage() {
   const { data: patients } = useSuspenseQuery(patientsQueryOptions)
+  const notify = useNotifyPatient()
+  const [search, setSearch] = useState('')
+
+  const filteredPatients = patients.filter((patient) => {
+    if (!search) return true
+    const query = search.toLowerCase()
+    return (
+      patient.firstName.toLowerCase().includes(query) ||
+      patient.lastName.toLowerCase().includes(query) ||
+      patient.mrn.toLowerCase().includes(query)
+    )
+  })
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900">Patients</h1>
+      <div className="flex items-center gap-4">
+        <h1 className="text-2xl font-semibold text-gray-900">Patients</h1>
+        <Link to="/patients/manage">
+          <Button variant="secondary" size="sm">
+            Manage Patients
+          </Button>
+        </Link>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search by name or MRN…" />
+      </div>
+
       <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
-        {patients.map((patient) => (
+        {filteredPatients.map((patient) => (
           <li key={patient.id} className="flex items-center justify-between px-4 py-3">
             <div>
               <p className="font-medium text-gray-900">
@@ -27,7 +52,14 @@ function PatientsPage() {
                 {patient.hasApp ? 'App user — will receive push' : 'No app — will receive SMS'}
               </p>
             </div>
-            <NotifyPatientButton patientId={patient.id} />
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={notify.isPending}
+              onClick={() => notify.mutate({ patientId: patient.id })}
+            >
+              {notify.isPending ? 'Notifying…' : 'Ready to be seen'}
+            </Button>
           </li>
         ))}
       </ul>

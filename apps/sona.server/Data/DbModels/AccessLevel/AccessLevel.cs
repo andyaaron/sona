@@ -1,8 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Sona.Api.Data;
+using Sona.Server.Data;
 
-namespace Sona.Api.Data.DbModels;
+namespace Sona.Server.Data.DbModels;
 
 public class AccessLevel
 {

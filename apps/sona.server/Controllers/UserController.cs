@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Sona.Api.Data.DbModels;
-using Sona.Api.Models.Util;
+using Sona.Server.Data.DbModels;
+using Sona.Server.Models.Util;
 
-namespace Sona.Api.Controllers;
+namespace Sona.Server.Controllers;
 
 [Authorize]
 [Route("api/[controller]")]

@@ -1,4 +1,4 @@
-﻿namespace Sona.Api.Models.Commons
+namespace Sona.Server.Models.Commons
 {
     public class ConstantDefaults
     {

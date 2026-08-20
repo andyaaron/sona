@@ -8,8 +8,8 @@ using Microsoft.Identity.Web.UI;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.MSSqlServer;
-using Sona.Api.Data;
-using Sona.Api.Models.Util;
+using Sona.Server.Data;
+using Sona.Server.Models.Util;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -147,28 +147,6 @@ app.Use((context, next) =>
         new CookieOptions { HttpOnly = false });
     return next(context);
 });
-
-
-// @TODO: Remove this weather api stuff
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-// end todo
 
 app.MapControllers();
 app.MapRazorPages();

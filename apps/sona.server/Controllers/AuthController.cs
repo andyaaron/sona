@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Sona.Api.Controllers;
+namespace Sona.Server.Controllers;
 
 [ApiController]
 [Route("auth")]

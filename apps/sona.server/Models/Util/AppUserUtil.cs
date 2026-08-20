@@ -1,11 +1,11 @@
-using Sona.Api.Data;
-using Sona.Api.Data.DbModels;
-using Sona.Api.Models.Commons;
-using Sona.Api.Data;
-using Sona.Api.Data.DbModels;
+using Sona.Server.Data;
+using Sona.Server.Data.DbModels;
+using Sona.Server.Models.Commons;
+using Sona.Server.Data;
+using Sona.Server.Data.DbModels;
 using System.Security.Claims;
 
-namespace Sona.Api.Models.Util
+namespace Sona.Server.Models.Util
 {
 
     public interface IAppUserUtil
