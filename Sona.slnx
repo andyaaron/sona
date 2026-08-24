@@ -14,6 +14,16 @@
     <File Path="docs/compliance.md" />
     <File Path="docs/data-model.md" />
     <File Path="docs/getting-started.md" />
+    <File Path="docs/patient-tasks.md" />
+    <File Path="docs/tasks/00-fix-migration-baseline.md" />
+    <File Path="docs/tasks/02-provider-assignment.md" />
+    <File Path="docs/tasks/03-notifications-backend-history.md" />
+    <File Path="docs/tasks/04-notify-confirmation.md" />
+    <File Path="docs/tasks/05-bulk-csv-import.md" />
+    <File Path="docs/tasks/06-pagination-and-sorting.md" />
+    <File Path="docs/tasks/07-webex-sms-dispatch.md" />
+    <File Path="docs/tasks/mvp-database.md" />
+    <File Path="docs/tasks/_context.md" />
     <File Path="docs/tech-stack.md" />
   </Folder>
   <Folder Name="/config/">
