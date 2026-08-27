@@ -1,6 +1,6 @@
 # Task 06 — Patient list pagination + sortable columns (server-driven)
 
-**Prerequisite:** Task 00 merged. Combines the two "Lower Priority" items in `docs/patient-tasks.md` (pagination + sortable columns) — they touch the same endpoint, contract, and UI; doing them separately churns the same code twice.
+**Prerequisite:** none — migration baseline fixed 2026-08-27; add migrations with `--output-dir Data/Migrations`. Combines the two "Lower Priority" items in `docs/patient-tasks.md` (pagination + sortable columns) — they touch the same endpoint, contract, and UI; doing them separately churns the same code twice.
 Read `docs/tasks/_context.md` and `AGENTS.md` first.
 
 ## Goal

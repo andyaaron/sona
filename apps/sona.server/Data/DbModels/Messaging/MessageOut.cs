@@ -10,10 +10,10 @@ namespace Sona.Server.Data.DbModels;
 /// </summary>
 public class MessageOut : EntityBase
 {
-    public Guid PatientId { get; set; }
+    public int PatientId { get; set; }
     public Patient? Patient { get; set; }
 
-    public Guid SentByUserId { get; set; }
+    public int SentByUserId { get; set; }
     public AppUser? SentByUser { get; set; }
 
     /// <summary>One of: sms, push. MVP is always sms.</summary>

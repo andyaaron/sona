@@ -11,12 +11,12 @@ namespace Sona.Server.Data
         }
 
         public DbSet<AppLog> AppLogs { get; set; }
-        // public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
+        public virtual DbSet<MessageTemplate> MessageTemplates { get; set; }
         public virtual DbSet<AccessLevel> AccessLevels { get; set; }
         public virtual DbSet<AppUser> AppUsers { get; set; }
         public virtual DbSet<Patient> Patients { get; set; }
         public virtual DbSet<Provider> Providers { get; set; }
-        // public DbSet<MessageOut> MessagesOut => Set<MessageOut>();
+        public virtual DbSet<MessageOut> MessagesOut { get; set; }
         // public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
         // public DbSet<ImportRowError> ImportRowErrors => Set<ImportRowError>();
 
@@ -47,6 +47,34 @@ namespace Sona.Server.Data
                 .WithMany()
                 .HasForeignKey(p => p.AppUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // MessageTemplate: send paths look templates up by key
+            modelBuilder.Entity<MessageTemplate>()
+                .HasIndex(t => t.Key)
+                .IsUnique();
+
+            // MessageOut is the send audit log — rows must survive their references,
+            // so both FKs restrict deletes (patients and users are soft-deleted anyway)
+            modelBuilder.Entity<MessageOut>()
+                .HasOne(m => m.Patient)
+                .WithMany()
+                .HasForeignKey(m => m.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MessageOut>()
+                .HasOne(m => m.SentByUser)
+                .WithMany()
+                .HasForeignKey(m => m.SentByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MessageOut>()
+                .HasOne(m => m.MessageTemplate)
+                .WithMany()
+                .HasForeignKey(m => m.MessageTemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MessageOut>()
+                .HasIndex(m => m.PatientId);
         }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)

@@ -1,6 +1,6 @@
 # Task 05 — Bulk patient import via CSV upload
 
-**Prerequisite:** Task 00 (migration baseline fix) merged.
+**Prerequisite:** none — migration baseline fixed 2026-08-27; add migrations with `--output-dir Data/Migrations`.
 Read `docs/tasks/_context.md`, `AGENTS.md`, and the `ImportBatch`/`ImportRowError` sections of `docs/data-model.md` first.
 
 ## Goal

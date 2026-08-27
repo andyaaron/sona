@@ -9,11 +9,11 @@ using Sona.Server.Data;
 
 #nullable disable
 
-namespace Sona.Server.Data.Migrations
+namespace sona.server.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260820194331_UniqueMrnIndex")]
-    partial class UniqueMrnIndex
+    [Migration("20260827173132_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -165,6 +165,9 @@ namespace Sona.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<Guid?>("PrimaryProviderId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("SmsConsent")
                         .HasColumnType("bit");
 
@@ -177,7 +180,60 @@ namespace Sona.Server.Data.Migrations
                         .IsUnique()
                         .HasFilter("\"IsActive\" = 1");
 
+                    b.HasIndex("PrimaryProviderId");
+
                     b.ToTable("Patients");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Provider", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("AppUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Credentials")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("ModDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Npi")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Specialty")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppUserId");
+
+                    b.HasIndex("Npi")
+                        .IsUnique()
+                        .HasFilter("[Npi] IS NOT NULL");
+
+                    b.ToTable("Providers");
                 });
 
             modelBuilder.Entity("Sona.Server.Data.DbModels.AppUser", b =>
@@ -187,6 +243,26 @@ namespace Sona.Server.Data.Migrations
                         .HasForeignKey("AccessLevelId");
 
                     b.Navigation("GetAccessLevel");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Patient", b =>
+                {
+                    b.HasOne("Sona.Server.Data.DbModels.Provider", "PrimaryProvider")
+                        .WithMany()
+                        .HasForeignKey("PrimaryProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("PrimaryProvider");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Provider", b =>
+                {
+                    b.HasOne("Sona.Server.Data.DbModels.AppUser", "AppUser")
+                        .WithMany()
+                        .HasForeignKey("AppUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AppUser");
                 });
 #pragma warning restore 612, 618
         }

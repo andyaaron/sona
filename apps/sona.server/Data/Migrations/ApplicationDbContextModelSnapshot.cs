@@ -8,7 +8,7 @@ using Sona.Server.Data;
 
 #nullable disable
 
-namespace Sona.Server.Data.Migrations
+namespace sona.server.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     partial class ApplicationDbContextModelSnapshot : ModelSnapshot
@@ -117,6 +117,95 @@ namespace Sona.Server.Data.Migrations
                     b.HasIndex("AccessLevelId");
 
                     b.ToTable("AppUsers");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.MessageOut", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeliveredDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FailureReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("MessageTemplateId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("MobileNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PatientId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProviderMessageSid")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SentByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("SentDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageTemplateId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("SentByUserId");
+
+                    b.ToTable("MessagesOut");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.MessageTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("ModDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("MessageTemplates");
                 });
 
             modelBuilder.Entity("Sona.Server.Data.DbModels.Patient", b =>
@@ -240,6 +329,32 @@ namespace Sona.Server.Data.Migrations
                         .HasForeignKey("AccessLevelId");
 
                     b.Navigation("GetAccessLevel");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.MessageOut", b =>
+                {
+                    b.HasOne("Sona.Server.Data.DbModels.MessageTemplate", "MessageTemplate")
+                        .WithMany()
+                        .HasForeignKey("MessageTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Sona.Server.Data.DbModels.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sona.Server.Data.DbModels.AppUser", "SentByUser")
+                        .WithMany()
+                        .HasForeignKey("SentByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MessageTemplate");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("SentByUser");
                 });
 
             modelBuilder.Entity("Sona.Server.Data.DbModels.Patient", b =>
