@@ -1,6 +1,6 @@
 # Data Model
 
-Database tables for Sona. Status: **MVP tables implemented** (SQL Server via EF Core, migrations in `apps/sona.server/Migrations/`); Enhancement tables remain design-only. Physical table names are pluralized (`Patients`, `AppUsers`, `MessagesOut`, ...).
+Database tables for Sona. Status: **MVP tables implemented** (SQL Server via EF Core, migrations in `apps/sona.server/Data/Migrations/`); Enhancement tables remain design-only. Physical table names are pluralized (`Patients`, `AppUsers`, `MessagesOut`, ...).
 
 Phasing follows the product roadmap:
 
@@ -22,6 +22,59 @@ Conventions (all tables):
 
 ---
 
+## Organization hierarchy — MVP (Task 08, design settled 2026-08-27)
+
+Users are managed by their practice; hospitals are the same structure with more rows. Fixed 3-level chain — no generic tree, no Region table (a health-system grouping would become a nullable `Organization.ParentOrganizationId` later if ever needed). **Department is the unit that messages patients**; everything above it is admin/grouping structure. Creating a practice auto-creates one "Main" site + one "General" department; the UI hides a level while it has a single row.
+
+### Organization
+
+| Field | Type | Notes |
+|---|---|---|
+| `Id` | uuid PK | |
+| `Name` | string | |
+| `Type` | string enum: `practice` \| `hospital` | Same tables either way — hospital just uses more sites/departments. |
+| `IsActive` | bool, default true | Deactivate, never delete. |
+| `CreateDate` / `ModDate` | datetime | |
+
+Created by `system_admin` only.
+
+### Site
+
+| Field | Type | Notes |
+|---|---|---|
+| `Id` | uuid PK | |
+| `OrganizationId` | uuid FK → Organization | Restrict. |
+| `Name` | string | "Main" auto-created for practices; hospital campuses otherwise. |
+| `IsActive` | bool | |
+| `CreateDate` / `ModDate` | datetime | |
+
+### Department
+
+| Field | Type | Notes |
+|---|---|---|
+| `Id` | uuid PK | |
+| `SiteId` | uuid FK → Site | Restrict. |
+| `Name` | string | "General" auto-created for practices; ED waiting, Lab, Imaging for hospitals. ⚠️ A department name can imply a condition — never render it into a notification payload, log line, or URL. |
+| `IsActive` | bool | |
+| `CreateDate` / `ModDate` | datetime | |
+
+### UserDepartmentAccess
+
+Scopes `staff` users to departments (float nurse = multiple rows). Irrelevant for `org_admin` (org-wide access implied) and `system_admin`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `Id` | uuid PK | |
+| `AppUserId` | int FK → AppUser | Cascade. |
+| `DepartmentId` | uuid FK → Department | Cascade. Unique `(AppUserId, DepartmentId)`. |
+| `CreateDate` / `ModDate` | datetime | |
+
+### Multi-practice patients
+
+A person seen at two practices exists as **two `Patient` rows, one per organization — deliberately**. A patient row is "this practice's record of a person," not a global human: tenant isolation forbids cross-org visibility, and `SmsConsent` is legally per-practice (TCPA). Consequence: MRN uniqueness is composite `(OrganizationId, Mrn)`, not global. Person-level identity (one human ↔ many patient rows) only becomes relevant for the Enhancement 2 mobile app (one device, one login, N patient rows) — deferred; per-org rows migrate cleanly under a future linking layer.
+
+---
+
 ## Patient — MVP
 
 Patient demographics, ingested via flat-file import, manual UI entry, or (later) Cerner.
@@ -31,7 +84,8 @@ Renamed from the original proposal (which used `appUser` for patient data) — p
 | Field | Type | Notes |
 |---|---|---|
 | `Id` | uuid PK | |
-| `Mrn` | string, unique, indexed | Person-level medical record number. Business identifier — unique constraint, but keep `Id` as PK (MRNs can be re-issued/merged in HIS migrations). |
+| `OrganizationId` | uuid FK → Organization | **Task 08.** Tenancy scope — every patient query filters on it. Patients belong to the org only, never to a department (see [MessageOut](#messageout--mvp) `DepartmentId` for send-time department audit). |
+| `Mrn` | string, indexed | Person-level medical record number. Unique **per organization** — composite `(OrganizationId, Mrn)` (Task 08; was global). Business identifier — keep `Id` as PK (MRNs can be re-issued/merged in HIS migrations, and schemes collide across orgs). |
 | `FirstName` | string | Split from the original single `PatientName` field — matches the `Patient` type in `@sona/shared`, and import files typically arrive split. |
 | `LastName` | string | |
 | `Dob` | date | PHI — fine at rest (encrypted DB), never in messages. |
@@ -61,12 +115,31 @@ Corresponds to the `Provider` type in `@sona/shared`.
 | `FirstName` | string | |
 | `LastName` | string | |
 | `Email` | string, unique | Login identifier. |
-| `Role` | string enum: `nurse` \| `provider` \| `admin` | Matches `UserRole` in `@sona/shared`. Role checks are server-side, never client-only ([compliance.md](compliance.md)). |
+| `OrganizationId` | uuid FK → Organization, nullable | **Task 08.** Single-org membership (MVP rule). Null for `system_admin` (global) and `unassigned` (not yet provisioned). |
+| `Role` | string enum: `system_admin` \| `org_admin` \| `staff` \| `unassigned` | **Task 08** (was `nurse`/`provider`/`admin`; replaces the flat `AccessLevels` table). Matches `UserRole` in `@sona/shared`. Plain column is justified by single-org membership — multi-org would split it into a scoped assignment table. Role checks are server-side, never client-only ([compliance.md](compliance.md)). New Entra logins JIT-create as `unassigned` and appear in the org admin's approval queue; invite-first provisioning (MSGraph directory search) pre-creates the row with org + role + departments. |
 | `IsActive` | bool, default true | Deactivate instead of delete — sent messages keep a valid sender reference. |
 | `CreateDate` | datetime | |
 | `ModDate` | datetime | |
 
 Credential storage depends on the auth approach (hosted identity provider vs local) — decide before implementation; no password column until then.
+
+---
+
+## Provider — MVP (implemented)
+
+Directory of providers who see patients — **separate from `AppUser`** (front desk sends on behalf of providers; some providers never log in). Implemented in Task 02; was missing from this doc until 2026-08-27.
+
+| Field | Type | Notes |
+|---|---|---|
+| `Id` | uuid PK | |
+| `OrganizationId` | uuid FK → Organization | **Task 08.** Provider directory is org-scoped. |
+| `FirstName` / `LastName` | string, required | |
+| `Credentials` | string, nullable | |
+| `Npi` | string(10), nullable | Unique filtered index when present. |
+| `Specialty` | string, nullable | ⚠️ Never in any notification payload, log line, or URL. |
+| `AppUserId` | int FK → AppUser, nullable | Optional link to a staff login account. |
+| `IsActive` | bool, default true | Deactivate, never delete (`Patient.PrimaryProviderId` references must stay valid). |
+| `CreateDate` / `ModDate` | datetime | |
 
 ---
 
@@ -81,6 +154,7 @@ Corresponds to `ReadyNotification` in `@sona/shared`.
 | `Id` | uuid PK | |
 | `PatientId` | uuid FK → Patient | Original proposal had `34ID` (assumed FK typo) — a proper FK to the patient. |
 | `SentByUserId` | uuid FK → AppUser | **Added — compliance requirement.** Who triggered the send. |
+| `DepartmentId` | uuid FK → Department, nullable | **Task 08.** Sender's active department at send time (multi-department staff pick a context in the UI). This — not a department FK on Patient — is how "what did ED send today" is answered. Opaque id only; the department *name* never enters a payload/log/URL. |
 | `Channel` | string enum: `sms` \| `push` | MVP is always `sms`; column exists now so Enhancement 2 doesn't need a migration + the TS contract already has it. |
 | `MessageTemplateId` | uuid FK → MessageTemplate, nullable | Which approved template was sent. Prefer this over free text — see PHI note below. |
 | `Body` | string, nullable | Rendered text as actually sent. Snapshot for audit; must come from an approved template, never operator free-text. |
@@ -213,6 +287,15 @@ Once this table exists, `Patient.IsUsingMobileApp` = "has ≥1 active device" (d
 
 ```mermaid
 erDiagram
+    Organization ||--o{ Site : has
+    Site ||--o{ Department : has
+    Organization ||--o{ AppUser : employs
+    Organization ||--o{ Provider : "directory of"
+    Organization ||--o{ Patient : owns
+    Provider o|--o{ Patient : "primary for (nullable)"
+    AppUser ||--o{ UserDepartmentAccess : granted
+    Department ||--o{ UserDepartmentAccess : scopes
+    Department o|--o{ MessageOut : "sent from (nullable)"
     AppUser ||--o{ MessageOut : sends
     AppUser ||--o{ ImportBatch : uploads
     AppUser ||--o{ MessageIn : handles
@@ -227,6 +310,6 @@ erDiagram
 
 ## Open questions
 
-- **Auth approach for `AppUser`** — hosted identity provider vs local credentials. Blocks the `AppUser` table's final shape.
+- ~~**Auth approach for `AppUser`**~~ — settled: HCA Entra ID, single tenant, deployment stays inside the HCA network. No local credentials; multi-tenant auth explicitly out of scope (see `docs/tasks/08-org-hierarchy-user-management.md`).
 - **Retention policy** — how long to keep `MessageOut`/`MessageIn` rows; HIPAA-adjacent records typically 6+ years, confirm in compliance review.
 - **Cerner integration shape** — `Encounter` fields are placeholders until the integration contract (HL7? FHIR? file drop?) is known.

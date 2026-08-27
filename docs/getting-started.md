@@ -134,8 +134,30 @@ dotnet dotnet-ef database update --project apps/sona.server
 Re-run `database update` whenever you pull new migrations. To add a migration after changing entities:
 
 ```bash
-dotnet dotnet-ef migrations add <Name> --project apps/sona.server
+dotnet dotnet-ef migrations add <Name> --project apps/sona.server --output-dir Data/Migrations
 ```
+
+Migrations live in `apps/sona.server/Data/Migrations/` (not the EF default `Migrations/` — pass `--output-dir` as above). Design-time tooling uses `Data/DesignTimeDbContextFactory.cs` with a placeholder connection string, so `dotnet ef migrations add/remove/script` works without Azure credentials or a reachable database.
+
+### One-time: Azure dev db reconciliation after the 2026-08-27 baseline rebuild
+
+The migration history was rebuilt on 2026-08-27: the original `InitialCreate` had an empty `Up()` (tables were created out-of-band on the Azure dev db), so all prior migrations (`20260811191806_InitialCreate`, `20260811192219_serilog`, `20260820194331_UniqueMrnIndex`, `20260824175305_AddProviderTable`) were replaced by a single `20260827173132_InitialCreate` capturing the full model. A **fresh** database now builds correctly from `database update` alone.
+
+The existing Azure dev db already has all tables and rows in `__EFMigrationsHistory` naming the old migration ids. **A human with db access must reconcile it once** — either:
+
+- **Option A (keep data):** rewrite the history table so EF considers the new baseline applied:
+
+  ```sql
+  DELETE FROM __EFMigrationsHistory;
+  INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion)
+  VALUES ('20260827173132_InitialCreate', '10.0.11');
+  ```
+
+  Do **not** run `database update` before this — EF would try to re-create existing tables and fail.
+
+- **Option B (disposable data):** drop and recreate the dev database, then run `dotnet dotnet-ef database update --project apps/sona.server`.
+
+Until one of these is done, `database update` against the Azure dev db will fail with "object already exists" errors. Local/fresh databases are unaffected.
 
 ## Environment
 

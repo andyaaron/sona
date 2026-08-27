@@ -1,16 +1,16 @@
 # Sona — Patient Management Task List
 
-> **Agent prompts:** each open task has an implementation prompt in [`docs/tasks/`](tasks/) (start with [`_context.md`](tasks/_context.md), then [Task 00](tasks/00-fix-migration-baseline.md) — a prerequisite for every task that adds a migration).
+> **Agent prompts:** each open task has an implementation prompt in [`docs/tasks/`](tasks/) (start with [`_context.md`](tasks/_context.md)).
 >
-> **Audit trail:** an earlier version of this file flagged the checked tasks below as missing — they lived on `feat/patient-functionality`, merged to `main` (b958983) on 2026-08-20 and re-verified there. Two findings from that audit still stand on `main`: the broken EF migration baseline ([Task 00](tasks/00-fix-migration-baseline.md)) and the absent notifications backend ([Task 03](tasks/03-notifications-backend-history.md)). One new bug found post-merge: `notifyPatientSchema` validates `patientId` as `.uuid()` but real patient ids are int-strings — fixed in Task 03.
+> **Audit trail:** an earlier version of this file flagged the checked tasks below as missing — they lived on `feat/patient-functionality`, merged to `main` (b958983) on 2026-08-20 and re-verified there. Two findings from that audit stood on `main`: the broken EF migration baseline (Task 00 — **fixed 2026-08-27**, baseline rebuilt as a single `InitialCreate`; Azure dev db needs a one-time history reconciliation, see `docs/getting-started.md`) and the absent notifications backend ([Task 03](tasks/03-notifications-backend-history.md)). One new bug found post-merge: `notifyPatientSchema` validates `patientId` as `.uuid()` but real patient ids are int-strings — fixed in Task 03.
 
 ## Task order (dependencies)
 
 | Order | Task | Prompt |
 |---|---|---|
-| 1 | Fix EF migration baseline | [tasks/00](tasks/00-fix-migration-baseline.md) |
-| 1 | Confirmation before notifying (client-only, independent of 00) | [tasks/04](tasks/04-notify-confirmation.md) |
-| 2 | Provider–patient assignment | [tasks/02](tasks/02-provider-assignment.md) |
+| ~~1~~ | ~~Fix EF migration baseline~~ done 2026-08-27 | ~~tasks/00~~ |
+| 1 | Confirmation before notifying (client-only) | [tasks/04](tasks/04-notify-confirmation.md) |
+| ~~2~~ | ~~Provider–patient assignment~~ done, verified 2026-08-27 | ~~tasks/02~~ |
 | 2 | Notifications backend + history UI | [tasks/03](tasks/03-notifications-backend-history.md) |
 | 3 | Bulk CSV import | [tasks/05](tasks/05-bulk-csv-import.md) |
 | 3 | Pagination + sortable columns + server-side search (merged) | [tasks/06](tasks/06-pagination-and-sorting.md) |
@@ -24,7 +24,7 @@ Rows sharing an order number are parallelizable; higher numbers depend on lower 
 - [x] **Duplicate MRN validation** — server returns 409 on create and update; unique `Mrn` index migration in place. *(verified on `main` 2026-08-20)*
 - [x] **SMS consent date stamping** — server stamps on first consent, preserves on repeat, clears on revoke; schemas never accept `smsConsentDate`. *(verified on `main` 2026-08-20)*
 - [x] **Convert patient form to TanStack Form** — `patient-form.tsx` + shared `Form/` field components, zod validation from `@sona/shared`. *(verified on `main` 2026-08-20)*
-- [ ] **Provider-to-patient assignment** — Create a relationship between providers and patients so that providers see only their assigned patients and notifications can be scoped accordingly. See design notes below. *(prompt: [tasks/02](tasks/02-provider-assignment.md))*
+- [x] **Provider-to-patient assignment** — `Provider` table, `Patient.PrimaryProviderId`, assignment UI + provider filter shipped. *(verified on `main` 2026-08-27; task prompt deleted)* Per-login "providers see only their assigned patients" scoping was explicitly out of scope — org/role-based scoping arrives with [tasks/08](tasks/08-org-hierarchy-user-management.md).
 
 ### Design Notes: Provider–Patient Assignment (audited 2026-08-20)
 

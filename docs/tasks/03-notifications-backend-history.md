@@ -1,6 +1,6 @@
 # Task 03 — Notifications backend (send + persist) and per-patient history UI
 
-**Prerequisite:** Task 00 merged.
+**Prerequisite:** none — migration baseline fixed 2026-08-27; add migrations with `--output-dir Data/Migrations`.
 Read `docs/tasks/_context.md`, `AGENTS.md`, and `docs/compliance.md` first. This is the most compliance-sensitive task in the folder.
 
 ## Why this is bigger than the original task-list entry
