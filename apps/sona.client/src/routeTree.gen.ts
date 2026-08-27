@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PatientsIndexRouteImport } from './routes/patients/index'
 import { Route as PatientsManageRouteImport } from './routes/patients/manage'
+import { Route as ProvidersManageRouteImport } from './routes/providers/manage'
 import { Route as UserManagementIndexRouteImport } from './routes/user-management/index'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const PatientsManageRoute = PatientsManageRouteImport.update({
   path: '/patients/manage',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProvidersManageRoute = ProvidersManageRouteImport.update({
+  id: '/providers/manage',
+  path: '/providers/manage',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UserManagementIndexRoute = UserManagementIndexRouteImport.update({
   id: '/user-management/',
   path: '/user-management/',
@@ -38,12 +44,14 @@ const UserManagementIndexRoute = UserManagementIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/patients/manage': typeof PatientsManageRoute
+  '/providers/manage': typeof ProvidersManageRoute
   '/patients/': typeof PatientsIndexRoute
   '/user-management/': typeof UserManagementIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/patients/manage': typeof PatientsManageRoute
+  '/providers/manage': typeof ProvidersManageRoute
   '/patients': typeof PatientsIndexRoute
   '/user-management': typeof UserManagementIndexRoute
 }
@@ -51,20 +59,38 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/patients/manage': typeof PatientsManageRoute
+  '/providers/manage': typeof ProvidersManageRoute
   '/patients/': typeof PatientsIndexRoute
   '/user-management/': typeof UserManagementIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/patients/manage' | '/patients/' | '/user-management/'
+  fullPaths:
+    | '/'
+    | '/patients/manage'
+    | '/providers/manage'
+    | '/patients/'
+    | '/user-management/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/patients/manage' | '/patients' | '/user-management'
-  id: '__root__' | '/' | '/patients/manage' | '/patients/' | '/user-management/'
+  to:
+    | '/'
+    | '/patients/manage'
+    | '/providers/manage'
+    | '/patients'
+    | '/user-management'
+  id:
+    | '__root__'
+    | '/'
+    | '/patients/manage'
+    | '/providers/manage'
+    | '/patients/'
+    | '/user-management/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PatientsManageRoute: typeof PatientsManageRoute
+  ProvidersManageRoute: typeof ProvidersManageRoute
   PatientsIndexRoute: typeof PatientsIndexRoute
   UserManagementIndexRoute: typeof UserManagementIndexRoute
 }
@@ -92,6 +118,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PatientsManageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/providers/manage': {
+      id: '/providers/manage'
+      path: '/providers/manage'
+      fullPath: '/providers/manage'
+      preLoaderRoute: typeof ProvidersManageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/user-management/': {
       id: '/user-management/'
       path: '/user-management'
@@ -105,6 +138,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PatientsManageRoute: PatientsManageRoute,
+  ProvidersManageRoute: ProvidersManageRoute,
   PatientsIndexRoute: PatientsIndexRoute,
   UserManagementIndexRoute: UserManagementIndexRoute,
 }

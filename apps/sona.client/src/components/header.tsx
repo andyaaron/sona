@@ -25,6 +25,19 @@ function Header() {
           >
               Patients
           </Link>
+          <Link
+              to="/providers/manage"
+              className="text-sm text-gray-600 hover:text-gray-900 [&.active]:font-medium [&.active]:text-gray-900"
+          >
+              Providers
+          </Link>
+                  <Link
+              to="/user-management"
+              className="text-sm text-gray-600 hover:text-gray-900 [&.active]:font-medium [&.active]:text-gray-900"
+          >
+              User Management
+          </Link>
+        
       </nav>
 
       <div className={'flex flex-row items-center gap-3'}>

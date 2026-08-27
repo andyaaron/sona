@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Sona.Server.Data;
+using Sona.Server.Data.DbModels;
 using PatientEntity = Sona.Server.Data.DbModels.Patient;
 
 namespace Sona.Server.Controllers;
@@ -18,13 +19,19 @@ public class PatientsController : Controller
         _db = db;
     }
 
-    // GET: /api/patients
+    // GET: /api/patients?providerId={guid}
     [HttpGet]
-    public async Task<IActionResult> GetPatients()
+    public async Task<IActionResult> GetPatients([FromQuery] Guid? providerId)
     {
-        var patients = await _db.Patients
+        var query = _db.Patients
             .AsNoTracking()
-            .Where(patient => patient.IsActive)
+            .Include(p => p.PrimaryProvider)
+            .Where(patient => patient.IsActive);
+
+        if (providerId.HasValue)
+            query = query.Where(patient => patient.PrimaryProviderId == providerId.Value);
+
+        var patients = await query
             .OrderBy(patient => patient.LastName)
             .ThenBy(patient => patient.FirstName)
             .Select(patient => ToResponse(patient))
@@ -42,6 +49,7 @@ public class PatientsController : Controller
 
         var patient = await _db.Patients
             .AsNoTracking()
+            .Include(p => p.PrimaryProvider)
             .Where(existingPatient => existingPatient.Id == patientId && existingPatient.IsActive)
             .Select(existingPatient => ToResponse(existingPatient))
             .FirstOrDefaultAsync();
@@ -61,6 +69,18 @@ public class PatientsController : Controller
         if (mrnExists)
             return Conflict(new { error = "A patient with this MRN already exists." });
 
+        Guid? primaryProviderId = null;
+        if (input.PrimaryProviderId.HasValue)
+        {
+            var provider = await _db.Providers.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == input.PrimaryProviderId.Value);
+            if (provider == null)
+                return BadRequest(new { error = "Provider not found." });
+            if (!provider.IsActive)
+                return BadRequest(new { error = "Cannot assign an inactive provider." });
+            primaryProviderId = provider.Id;
+        }
+
         var now = DateTime.UtcNow;
         var patient = new PatientEntity
         {
@@ -75,10 +95,14 @@ public class PatientsController : Controller
             InCerner = false,
             ImportSource = "ui",
             IsActive = true,
+            PrimaryProviderId = primaryProviderId,
         };
 
         _db.Patients.Add(patient);
         await _db.SaveChangesAsync();
+
+        // Reload with provider navigation for response
+        await _db.Entry(patient).Reference(p => p.PrimaryProvider).LoadAsync();
 
         return CreatedAtAction(nameof(GetPatient), new { id = patient.Id }, ToResponse(patient));
     }
@@ -90,8 +114,10 @@ public class PatientsController : Controller
         if (id != input.Id || !TryParseId(id, out var patientId))
             return BadRequest();
 
-        var patient = await _db.Patients.FirstOrDefaultAsync(existingPatient =>
-            existingPatient.Id == patientId && existingPatient.IsActive);
+        var patient = await _db.Patients
+            .Include(p => p.PrimaryProvider)
+            .FirstOrDefaultAsync(existingPatient =>
+                existingPatient.Id == patientId && existingPatient.IsActive);
         if (patient == null)
             return NotFound();
 
@@ -117,6 +143,26 @@ public class PatientsController : Controller
             patient.SmsConsentDate = input.SmsConsent.Value
                 ? patient.SmsConsentDate ?? DateTime.UtcNow
                 : null;
+        }
+        if (input.PrimaryProviderId.HasValue)
+        {
+            if (input.PrimaryProviderId.Value == Guid.Empty)
+            {
+                patient.PrimaryProviderId = null;
+                patient.PrimaryProvider = null;
+            }
+            else
+            {
+                var provider = await _db.Providers.AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == input.PrimaryProviderId.Value);
+                if (provider == null)
+                    return BadRequest(new { error = "Provider not found." });
+                if (!provider.IsActive)
+                    return BadRequest(new { error = "Cannot assign an inactive provider." });
+                patient.PrimaryProviderId = provider.Id;
+                // Reload navigation for response
+                await _db.Entry(patient).Reference(p => p.PrimaryProvider).LoadAsync();
+            }
         }
 
         await _db.SaveChangesAsync();
@@ -147,8 +193,17 @@ public class PatientsController : Controller
         return int.TryParse(id, out patientId);
     }
 
+    // @TODO: Look into moving Dtos
     private static PatientResponseDto ToResponse(PatientEntity patient)
     {
+        string? providerName = null;
+        if (patient.PrimaryProvider != null)
+        {
+            providerName = string.IsNullOrEmpty(patient.PrimaryProvider.Credentials)
+                ? $"{patient.PrimaryProvider.FirstName} {patient.PrimaryProvider.LastName}"
+                : $"{patient.PrimaryProvider.FirstName} {patient.PrimaryProvider.LastName}, {patient.PrimaryProvider.Credentials}";
+        }
+
         return new PatientResponseDto
         {
             Id = patient.Id.ToString(),
@@ -163,6 +218,8 @@ public class PatientsController : Controller
             InCerner = patient.InCerner,
             ImportSource = patient.ImportSource,
             IsActive = patient.IsActive,
+            PrimaryProviderId = patient.PrimaryProviderId?.ToString(),
+            PrimaryProviderName = providerName,
         };
     }
 
@@ -180,6 +237,8 @@ public class PatientsController : Controller
         public bool InCerner { get; set; }
         public string ImportSource { get; set; } = "";
         public bool IsActive { get; set; }
+        public string? PrimaryProviderId { get; set; }
+        public string? PrimaryProviderName { get; set; }
     }
 
     public sealed class CreatePatientRequest
@@ -190,6 +249,7 @@ public class PatientsController : Controller
         public string Dob { get; set; } = "";
         public string PhoneNumber { get; set; } = "";
         public bool SmsConsent { get; set; }
+        public Guid? PrimaryProviderId { get; set; }
     }
 
     public sealed class UpdatePatientRequest
@@ -201,5 +261,6 @@ public class PatientsController : Controller
         public string? Dob { get; set; }
         public string? PhoneNumber { get; set; }
         public bool? SmsConsent { get; set; }
+        public Guid? PrimaryProviderId { get; set; }
     }
 }

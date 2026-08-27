@@ -1,12 +1,13 @@
 import { useState } from 'react'
 
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useSuspenseQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 
 import Button from '@/components/button'
 import { SearchInput } from '@/components/search-input'
 import { useNotifyPatient } from '@/features/notifications/api/notify-patient'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
+import { activeProvidersQueryOptions } from '@/features/providers/api/get-providers'
 
 export const Route = createFileRoute('/patients/')({
   loader: ({ context: { queryClient } }) =>
@@ -16,10 +17,15 @@ export const Route = createFileRoute('/patients/')({
 
 function PatientsPage() {
   const { data: patients } = useSuspenseQuery(patientsQueryOptions)
+  const { data: providers } = useQuery(activeProvidersQueryOptions)
   const notify = useNotifyPatient()
   const [search, setSearch] = useState('')
+  const [providerFilter, setProviderFilter] = useState('')
 
   const filteredPatients = patients.filter((patient) => {
+    if (providerFilter) {
+      if (patient.primaryProviderId !== providerFilter) return false
+    }
     if (!search) return true
     const query = search.toLowerCase()
     return (
@@ -39,6 +45,18 @@ function PatientsPage() {
           </Button>
         </Link>
         <SearchInput value={search} onChange={setSearch} placeholder="Search by name or MRN…" />
+        <select
+          className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm"
+          value={providerFilter}
+          onChange={(e) => setProviderFilter(e.target.value)}
+        >
+          <option value="">All Providers</option>
+          {providers?.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.firstName} {p.lastName}
+            </option>
+          ))}
+        </select>
       </div>
 
       <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
@@ -50,6 +68,10 @@ function PatientsPage() {
               </p>
               <p className="text-sm text-gray-500">
                 {patient.hasApp ? 'App user — will receive push' : 'No app — will receive SMS'}
+                {' · '}
+                <span className="text-gray-400">
+                  {patient.primaryProviderName ?? 'Unassigned'}
+                </span>
               </p>
             </div>
             <Button
