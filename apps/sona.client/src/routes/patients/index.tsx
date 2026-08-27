@@ -6,6 +6,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import Button from '@/components/button'
 import { SearchInput } from '@/components/search-input'
 import { useNotifyPatient } from '@/features/notifications/api/notify-patient'
+import { NotificationHistory } from '@/features/notifications/components/notification-history'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
 import { activeProvidersQueryOptions } from '@/features/providers/api/get-providers'
 
@@ -21,6 +22,7 @@ function PatientsPage() {
   const notify = useNotifyPatient()
   const [search, setSearch] = useState('')
   const [providerFilter, setProviderFilter] = useState('')
+  const [historyPatientId, setHistoryPatientId] = useState<string | null>(null)
 
   const filteredPatients = patients.filter((patient) => {
     if (providerFilter) {
@@ -61,27 +63,45 @@ function PatientsPage() {
 
       <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
         {filteredPatients.map((patient) => (
-          <li key={patient.id} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <p className="font-medium text-gray-900">
-                {patient.firstName} {patient.lastName}
-              </p>
-              <p className="text-sm text-gray-500">
-                {patient.hasApp ? 'App user — will receive push' : 'No app — will receive SMS'}
-                {' · '}
-                <span className="text-gray-400">
-                  {patient.primaryProviderName ?? 'Unassigned'}
-                </span>
-              </p>
+          <li key={patient.id} className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">
+                  {patient.firstName} {patient.lastName}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {patient.hasApp ? 'App user — will receive push' : 'No app — will receive SMS'}
+                  {' · '}
+                  <span className="text-gray-400">
+                    {patient.primaryProviderName ?? 'Unassigned'}
+                  </span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    setHistoryPatientId(historyPatientId === patient.id ? null : patient.id)
+                  }
+                >
+                  {historyPatientId === patient.id ? 'Hide history' : 'History'}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={notify.isPending}
+                  onClick={() => notify.mutate({ patientId: patient.id })}
+                >
+                  {notify.isPending ? 'Notifying…' : 'Ready to be seen'}
+                </Button>
+              </div>
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={notify.isPending}
-              onClick={() => notify.mutate({ patientId: patient.id })}
-            >
-              {notify.isPending ? 'Notifying…' : 'Ready to be seen'}
-            </Button>
+            {historyPatientId === patient.id && (
+              <div className="mt-3 rounded-md border border-gray-100 bg-gray-50">
+                <NotificationHistory patientId={patient.id} />
+              </div>
+            )}
           </li>
         ))}
       </ul>

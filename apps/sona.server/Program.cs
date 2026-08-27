@@ -105,6 +105,10 @@ builder.Services.AddSingleton<IMSGraphHelper, MSGraphHelper>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAppUserUtil, AppUserUtil>();
 
+// Message dispatch — logging stubs until Task 07 wires Webex Connect / Expo push
+builder.Services.AddSingleton<Sona.Server.Models.Messaging.ISmsSender, Sona.Server.Models.Messaging.LoggingStubSmsSender>();
+builder.Services.AddSingleton<Sona.Server.Models.Messaging.IPushSender, Sona.Server.Models.Messaging.LoggingStubPushSender>();
+
 // CORS — allow the Vite dev server during development
 builder.Services.AddCors(options =>
 {

@@ -40,10 +40,15 @@ export const updateProviderSchema = createProviderSchema.partial().extend({
 });
 
 export const notifyPatientSchema = z.object({
-  patientId: z.string().uuid(),
+  /** Patient ids are int-strings ("1"), not uuids — matches PatientsController */
+  patientId: z.string().regex(/^\d+$/, "Invalid patient id"),
 });
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
+/** Pre-validation shape (z.input) — use for form defaultValues so TanStack Form's
+ *  standard-schema validator types line up with the zod schema. */
+export type CreatePatientFormValues = z.input<typeof createPatientSchema>;
+export type CreateProviderFormValues = z.input<typeof createProviderSchema>;
 export type UpdatePatientInput = z.infer<typeof updatePatientSchema>;
 export type CreateProviderInput = z.infer<typeof createProviderSchema>;
 export type UpdateProviderInput = z.infer<typeof updateProviderSchema>;

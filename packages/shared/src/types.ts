@@ -85,7 +85,8 @@ export type NotificationStatus =
 export interface MessageOut {
   id: string;
   patientId: string;
-  sentByUserId: string;
+  /** AppUser ids are numeric (int PK), unlike the uuid-string ids elsewhere */
+  sentByUserId: number;
   channel: NotificationChannel;
   /** Approved template the body was rendered from; never caller-supplied text */
   messageTemplateId: string | null;

@@ -143,17 +143,17 @@ Directory of providers who see patients — **separate from `AppUser`** (front d
 
 ---
 
-## MessageOut — MVP
+## MessageOut — MVP (implemented)
 
-Outbound "ready to be seen" message to a patient. This **is** the audit log for sends — every send code path must write a row here first; no fire-and-forget ([compliance.md](compliance.md) requires who / to whom / when / channel / outcome).
+Outbound "ready to be seen" message to a patient. This **is** the audit log for sends — every send code path must write a row here first; no fire-and-forget ([compliance.md](compliance.md) requires who / to whom / when / channel / outcome). Implemented in Task 03 (2026-08-27) as table `MessagesOut`; consent-blocked attempts are also persisted (`Status = failed`, `FailureReason = sms-consent-missing`).
 
-Corresponds to `ReadyNotification` in `@sona/shared`.
+Corresponds to `MessageOut` in `@sona/shared`.
 
 | Field | Type | Notes |
 |---|---|---|
 | `Id` | uuid PK | |
-| `PatientId` | uuid FK → Patient | Original proposal had `34ID` (assumed FK typo) — a proper FK to the patient. |
-| `SentByUserId` | uuid FK → AppUser | **Added — compliance requirement.** Who triggered the send. |
+| `PatientId` | **int** FK → Patient | Patient uses an int identity PK as shipped (see `docs/tasks/_context.md` PK conventions). Restrict delete — audit rows must survive. |
+| `SentByUserId` | **int** FK → AppUser | **Compliance requirement.** Who triggered the send. Restrict delete. |
 | `DepartmentId` | uuid FK → Department, nullable | **Task 08.** Sender's active department at send time (multi-department staff pick a context in the UI). This — not a department FK on Patient — is how "what did ED send today" is answered. Opaque id only; the department *name* never enters a payload/log/URL. |
 | `Channel` | string enum: `sms` \| `push` | MVP is always `sms`; column exists now so Enhancement 2 doesn't need a migration + the TS contract already has it. |
 | `MessageTemplateId` | uuid FK → MessageTemplate, nullable | Which approved template was sent. Prefer this over free text — see PHI note below. |
@@ -174,7 +174,7 @@ Corresponds to `ReadyNotification` in `@sona/shared`.
 
 ---
 
-## MessageTemplate — MVP (small but recommended)
+## MessageTemplate — MVP (implemented)
 
 Approved outbound message texts. The PHI review gate: content is reviewed once here, and send paths can only pick from this table.
 

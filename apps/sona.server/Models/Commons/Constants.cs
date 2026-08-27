@@ -13,6 +13,9 @@ namespace Sona.Server.Models.Commons
         public const string ENTRAID_CLAIMS_USER_LAST_NAME = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname";
         public const string ENTRAID_CLAIMS_USER_EMAIL = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
 
+        //MESSAGING - approved template keys (content lives in the MessageTemplates table)
+        public const string MESSAGE_TEMPLATE_KEY_READY = "ready-to-be-seen";
+
     }
 
     //enum for access levels - MUST MATCH DATABASE ID VALUES

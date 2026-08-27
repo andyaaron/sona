@@ -84,7 +84,7 @@ Contact fields (email/phone) on Provider: deliberately omitted for now — direc
 ## Medium Priority
 
 - [ ] **Bulk patient import** — Support importing patients via flat file (CSV) upload, aligning with the `flatfile` import source *(prompt: [tasks/05](tasks/05-bulk-csv-import.md))*
-- [ ] **Notification history per patient** — UI to display past notifications for a patient. ~~API endpoint `listForPatient` already exists~~ *(audit correction: it exists only in `packages/api-client` — there is no server endpoint and no NotificationsController; [tasks/03](tasks/03-notifications-backend-history.md) builds the backend + history UI)*
+- [x] **Notification history per patient** — Task 03 shipped 2026-08-27: `NotificationsController` (`POST /api/notifications/ready` with TCPA gate + audited `MessageOut` row on every attempt, `GET /api/patients/{id}/notifications`), `MessagesOut`/`MessageTemplates` tables + seeded `ready-to-be-seen` template, history panel on the patients list. Dispatch is a logging stub until [tasks/07](tasks/07-webex-sms-dispatch.md).
 - [ ] **Confirmation before notifying** — Add a confirmation step before sending a "ready to be seen" notification to prevent accidental pings *(prompt: [tasks/04](tasks/04-notify-confirmation.md))*
 - [ ] **SMS via Webex Connect** — "Ready to be seen" sends a real text to the patient's number through the existing `WebexUtil` (currently unregistered dead code); vendor switch Twilio → Webex incl. BAA confirmation *(prompt: [tasks/07](tasks/07-webex-sms-dispatch.md), depends on tasks/03)*
 
