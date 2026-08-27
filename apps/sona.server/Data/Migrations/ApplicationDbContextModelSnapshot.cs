@@ -8,7 +8,7 @@ using Sona.Server.Data;
 
 #nullable disable
 
-namespace Sona.Server.Data.Migrations
+namespace sona.server.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     partial class ApplicationDbContextModelSnapshot : ModelSnapshot
