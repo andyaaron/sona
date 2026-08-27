@@ -26,6 +26,20 @@ export type UserRole = "nurse" | "provider" | "admin";
 
 export type PatientImportSource = "flatfile" | "ui" | "cerner";
 
+/** A provider who sees patients. Separate from AppUser. */
+export interface Provider {
+  id: string;
+  firstName: string;
+  lastName: string;
+  credentials: string | null;
+  npi: string | null;
+  specialty: string | null;
+  appUserId: number | null;
+  isActive: boolean;
+  createDate: string;
+  modDate: string;
+}
+
 export interface Patient {
   id: string;
   /** Person-level medical record number — unique business identifier */
@@ -48,6 +62,10 @@ export interface Patient {
   importSource: PatientImportSource;
   /** Soft delete — inactive patients are hidden, never hard-deleted */
   isActive: boolean;
+  /** Assigned primary provider (nullable) */
+  primaryProviderId: string | null;
+  /** Display name of assigned provider, resolved server-side */
+  primaryProviderName: string | null;
 }
 
 export type NotificationChannel = "push" | "sms";

@@ -42,4 +42,9 @@ public class Patient
 
     /// <summary>Traces this row to the flat-file import that created it, when applicable.</summary>
     public Guid? ImportBatchId { get; set; }
+
+    /// <summary>Assigned primary provider (nullable).</summary>
+    public Guid? PrimaryProviderId { get; set; }
+
+    public Provider? PrimaryProvider { get; set; }
 }

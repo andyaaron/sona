@@ -14,10 +14,14 @@ import { useDeletePatient } from '@/features/patients/api/delete-patient'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
 import { useUpdatePatient } from '@/features/patients/api/update-patient'
 import { PatientForm } from '@/features/patients/components/patient-form'
+import { activeProvidersQueryOptions } from '@/features/providers/api/get-providers'
 
 export const Route = createFileRoute('/patients/manage')({
   loader: ({ context: { queryClient } }) =>
-    queryClient.ensureQueryData(patientsQueryOptions),
+    Promise.all([
+      queryClient.ensureQueryData(patientsQueryOptions),
+      queryClient.ensureQueryData(activeProvidersQueryOptions),
+    ]),
   component: ManagePatientsPage,
 })
 
@@ -39,6 +43,7 @@ function getErrorMessage(error: Error): string {
 
 function ManagePatientsPage() {
   const { data: patients } = useSuspenseQuery(patientsQueryOptions)
+  const { data: providers } = useSuspenseQuery(activeProvidersQueryOptions)
   const [formState, setFormState] = useState<FormState>(null)
   const [search, setSearch] = useState('')
   const createPatient = useCreatePatient()
@@ -46,7 +51,11 @@ function ManagePatientsPage() {
   const deletePatient = useDeletePatient()
 
   function handleCreate(values: CreatePatientInput) {
-    createPatient.mutate(values, {
+    const input = {
+      ...values,
+      primaryProviderId: values.primaryProviderId || null,
+    }
+    createPatient.mutate(input, {
       onSuccess: () => {
         setFormState(null)
         toast.success('Patient added successfully')
@@ -63,7 +72,7 @@ function ManagePatientsPage() {
     }
 
     updatePatient.mutate(
-      { id: formState.patient.id, ...values },
+      { id: formState.patient.id, ...values, primaryProviderId: values.primaryProviderId || null },
       {
         onSuccess: () => {
           setFormState(null)
@@ -124,6 +133,7 @@ function ManagePatientsPage() {
         <PatientForm
           title={editingPatient ? 'Edit patient' : 'Add patient'}
           submitLabel={editingPatient ? 'Save changes' : 'Create patient'}
+          providers={providers}
           initialValues={
             editingPatient
               ? {
@@ -133,6 +143,7 @@ function ManagePatientsPage() {
                   dob: editingPatient.dob,
                   phoneNumber: editingPatient.phoneNumber,
                   smsConsent: editingPatient.smsConsent,
+                  primaryProviderId: editingPatient.primaryProviderId,
                 }
               : undefined
           }
@@ -151,6 +162,10 @@ function ManagePatientsPage() {
               </p>
               <p className="text-sm text-gray-500">
                 MRN: {patient.mrn} · {patient.phoneNumber}
+                {' · '}
+                <span className="text-gray-400">
+                  {patient.primaryProviderName ?? 'Unassigned'}
+                </span>
               </p>
             </div>
             <div className="flex items-center gap-2">
