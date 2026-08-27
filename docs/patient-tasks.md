@@ -4,19 +4,21 @@
 >
 > **Audit trail:** an earlier version of this file flagged the checked tasks below as missing — they lived on `feat/patient-functionality`, merged to `main` (b958983) on 2026-08-20 and re-verified there. Two findings from that audit stood on `main`: the broken EF migration baseline (Task 00 — **fixed 2026-08-27**, baseline rebuilt as a single `InitialCreate`; Azure dev db needs a one-time history reconciliation, see `docs/getting-started.md`) and the absent notifications backend ([Task 03](tasks/03-notifications-backend-history.md)). One new bug found post-merge: `notifyPatientSchema` validates `patientId` as `.uuid()` but real patient ids are int-strings — fixed in Task 03.
 
-## Task order (dependencies)
+## Task order (reassessed 2026-08-27)
 
-| Order | Task | Prompt |
-|---|---|---|
-| ~~1~~ | ~~Fix EF migration baseline~~ done 2026-08-27 | ~~tasks/00~~ |
-| 1 | Confirmation before notifying (client-only) | [tasks/04](tasks/04-notify-confirmation.md) |
-| ~~2~~ | ~~Provider–patient assignment~~ done, verified 2026-08-27 | ~~tasks/02~~ |
-| 2 | Notifications backend + history UI | [tasks/03](tasks/03-notifications-backend-history.md) |
-| 3 | Bulk CSV import | [tasks/05](tasks/05-bulk-csv-import.md) |
-| 3 | Pagination + sortable columns + server-side search (merged) | [tasks/06](tasks/06-pagination-and-sorting.md) |
-| 3 | Real SMS dispatch via Webex Connect | [tasks/07](tasks/07-webex-sms-dispatch.md) |
+Done: Task 00 (migration baseline, 2026-08-27) and Task 02 (provider assignment, verified 2026-08-27) — both prompts deleted.
 
-Rows sharing an order number are parallelizable; higher numbers depend on lower ones being merged. 02 and 03 both may implement the `EntityBase` timestamp stamping — whichever lands second rebases on the first.
+| Order | Task | Prompt | Why here |
+|---|---|---|---|
+| 1 | Notifications backend + history UI | [tasks/03](tasks/03-notifications-backend-history.md) | Core function is broken without it (client's notify calls 404) and the `MessageOut` audit trail is a compliance requirement; also unblocks 07 and fixes the `patientId` `.uuid()` bug |
+| 1 | Confirmation before notifying (client-only) | [tasks/04](tasks/04-notify-confirmation.md) | Tiny, no server dependency — parallel/filler work any time |
+| 2 | Org hierarchy + user management, **schema + scoping only (8a–8c)** | [tasks/08](tasks/08-org-hierarchy-user-management.md) | Schema changes get riskier as data grows (org backfill, composite MRN index); tenant isolation (8c) must exist before a second org's data enters |
+| 3 | Real SMS dispatch via Webex Connect | [tasks/07](tasks/07-webex-sms-dispatch.md) | The "patient actually gets a text" milestone; depends on 03; after 8c so sends are born org-scoped |
+| 4 | Org hierarchy UI, **8d–8e** (user management, org structure, system admin) | [tasks/08](tasks/08-org-hierarchy-user-management.md) | Admin surfaces on a settled, enforced schema |
+| 5 | Bulk CSV import | [tasks/05](tasks/05-bulk-csv-import.md) | After 8a so imports stamp `OrganizationId` from day one instead of retrofitting |
+| 5 | Pagination + sortable columns + server-side search (merged) | [tasks/06](tasks/06-pagination-and-sorting.md) | Pure scale/UX — schedule whenever lists get slow |
+
+Rows sharing an order number are parallelizable; higher numbers depend on lower ones being merged. Ordering assumes multiple practices/hospital onboarding is the near-term goal; if the goal shifts to a single-practice pilot sending real texts ASAP, pull 07 ahead of 08a–8c (single-org world works fine; the default-org backfill catches up later).
 
 ## High Priority
 
