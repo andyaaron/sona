@@ -1,4 +1,4 @@
-import type { CreatePatientInput } from '@sona/shared'
+import type { CreatePatientInput, Provider } from '@sona/shared'
 
 import Button from '@/components/button'
 import { useAppForm } from '@/hooks/form.tsx'
@@ -9,6 +9,7 @@ interface PatientFormProps {
   isSubmitting?: boolean
   submitLabel: string
   title: string
+  providers?: Provider[]
   onCancel: () => void
   onSubmit: (values: CreatePatientInput) => void
 }
@@ -18,16 +19,39 @@ export function PatientForm({
   isSubmitting = false,
   submitLabel,
   title,
+  providers = [],
   onCancel,
   onSubmit,
 }: PatientFormProps) {
   const form = useAppForm({
     ...addPatientFormOpts,
-    defaultValues: initialValues ?? addPatientFormOpts.defaultValues,
+    defaultValues: initialValues
+      ? {
+          mrn: initialValues.mrn,
+          firstName: initialValues.firstName,
+          lastName: initialValues.lastName,
+          dob: initialValues.dob,
+          phoneNumber: initialValues.phoneNumber,
+          smsConsent: initialValues.smsConsent,
+          primaryProviderId: initialValues.primaryProviderId ?? '',
+        }
+      : addPatientFormOpts.defaultValues,
     onSubmit: ({ value }) => {
-      onSubmit(value)
+      onSubmit({
+        ...value,
+        primaryProviderId: value.primaryProviderId || null,
+      })
     },
   })
+
+  const providerOptions = providers
+    .filter((p) => p.isActive)
+    .map((p) => ({
+      value: p.id,
+      label: p.credentials
+        ? `${p.firstName} ${p.lastName}, ${p.credentials}`
+        : `${p.firstName} ${p.lastName}`,
+    }))
 
   return (
     <form
@@ -84,6 +108,17 @@ export function PatientForm({
               />
               SMS consent captured
             </label>
+          )}
+        </form.AppField>
+
+        <form.AppField name="primaryProviderId">
+          {(field) => (
+            <field.SelectField
+              label="Primary Provider"
+              options={providerOptions}
+              emptyOptionLabel="Unassigned"
+              emptyOptionValue=""
+            />
           )}
         </form.AppField>
       </div>
