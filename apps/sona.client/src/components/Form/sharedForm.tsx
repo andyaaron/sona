@@ -9,9 +9,9 @@ export const addPatientFormOpts = formOptions({
     lastName: '',
     dob: '',
     phoneNumber: '',
-    smsConsent: false as boolean,
-    primaryProviderId: '' as string,
-  },
+    smsConsent: false,
+    primaryProviderId: null,
+  } as CreatePatientInput,
   validators: {
     onChangeAsync: createPatientSchema,
   },
