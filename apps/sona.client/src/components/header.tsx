@@ -1,7 +1,8 @@
 import { useContext } from "react";
-import { Link } from "@tanstack/react-router";
+import NavLink from "@/components/NavLink.tsx"
 import {UserContext} from "@/hooks/useUser.tsx";
 import { CircleUserRound } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 function Header() {
   
@@ -14,32 +15,19 @@ function Header() {
       <nav className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
               <img src="/logo.svg" alt="Sona" className="h-7 w-auto" />
-              <span className="text-sm text-gray-500">Admin</span>
           </Link>
-          <Link
-              to="/"
-              className="text-sm text-gray-600 hover:text-gray-900 [&.active]:font-medium [&.active]:text-gray-900"
-          >
+          <NavLink to="/">
               Dashboard
-          </Link>
-          <Link
-              to="/patients"
-              className="text-sm text-gray-600 hover:text-gray-900 [&.active]:font-medium [&.active]:text-gray-900"
-          >
+          </NavLink>
+          <NavLink to="/patients">
               Patients
-          </Link>
-          <Link
-              to="/providers/manage"
-              className="text-sm text-gray-600 hover:text-gray-900 [&.active]:font-medium [&.active]:text-gray-900"
-          >
+          </NavLink>
+          <NavLink to="/providers/manage">
               Providers
-          </Link>
-                  <Link
-              to="/user-management"
-              className="text-sm text-gray-600 hover:text-gray-900 [&.active]:font-medium [&.active]:text-gray-900"
-          >
+          </NavLink>
+          <NavLink to="/user-management">
               User Management
-          </Link>
+          </NavLink>
         
       </nav>
 
