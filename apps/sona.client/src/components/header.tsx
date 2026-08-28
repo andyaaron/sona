@@ -12,7 +12,10 @@ function Header() {
       className={"p-4 flex justify-between items-center border-b border-gray-200"}
     >
       <nav className="flex items-center gap-6">
-          <span className="font-semibold text-gray-900">Sona Admin</span>
+          <Link to="/" className="flex items-center gap-2">
+              <img src="/logo.svg" alt="Sona" className="h-7 w-auto" />
+              <span className="text-sm text-gray-500">Admin</span>
+          </Link>
           <Link
               to="/"
               className="text-sm text-gray-600 hover:text-gray-900 [&.active]:font-medium [&.active]:text-gray-900"

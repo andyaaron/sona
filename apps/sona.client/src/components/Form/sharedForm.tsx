@@ -1,9 +1,8 @@
 import { formOptions } from '@tanstack/react-form';
 import { createPatientSchema } from '@sona/shared';
-import type { CreatePatientFormValues } from '@sona/shared';
+import type { CreatePatientInput } from '@sona/shared';
 
 export const addPatientFormOpts = formOptions({
-  // Typed as the schema's z.input shape so the zod validator below typechecks
   defaultValues: {
     mrn: '',
     firstName: '',
@@ -11,8 +10,8 @@ export const addPatientFormOpts = formOptions({
     dob: '',
     phoneNumber: '',
     smsConsent: false,
-    primaryProviderId: '',
-  } as CreatePatientFormValues,
+    primaryProviderId: null,
+  } as CreatePatientInput,
   validators: {
     onChangeAsync: createPatientSchema,
   },

@@ -1,17 +1,16 @@
 import { formOptions } from '@tanstack/react-form'
 import { createProviderSchema } from '@sona/shared'
-import type { CreateProviderFormValues } from '@sona/shared'
+import type { CreateProviderInput } from '@sona/shared'
 
 export const addProviderFormOpts = formOptions({
-  // Typed as the schema's z.input shape so the zod validator below typechecks
   defaultValues: {
     firstName: '',
     lastName: '',
-    credentials: '',
-    npi: '',
-    specialty: '',
+    credentials: null,
+    npi: null,
+    specialty: null,
     appUserId: null,
-  } as CreateProviderFormValues,
+  } as CreateProviderInput,
   validators: {
     onChangeAsync: createProviderSchema,
   },
