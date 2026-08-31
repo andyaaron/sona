@@ -1,16 +1,21 @@
 import { useNotifyPatient } from '../api/notify-patient'
+import Button from "@/components/button.tsx";
 
-export function NotifyPatientButton({ patientId }: { patientId: string }) {
+export function NotifyPatientButton({ patientName, patientId }: { patientName: string, patientId: string }) {
   const notify = useNotifyPatient()
 
+  const confirmDialog = () => {
+    alert(`Send notification to ${patientName}?`)
+  }
+  
   return (
-    <button
-      type="button"
-      onClick={() => notify.mutate({ patientId })}
+    <Button
+      variant="primary"
+      size="sm"
       disabled={notify.isPending}
-      className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+      onClick={confirmDialog}
     >
       {notify.isPending ? 'Notifying…' : 'Ready to be seen'}
-    </button>
+    </Button>
   )
 }

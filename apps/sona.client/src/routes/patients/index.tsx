@@ -9,6 +9,7 @@ import { useNotifyPatient } from '@/features/notifications/api/notify-patient'
 import { NotificationHistory } from '@/features/notifications/components/notification-history'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
 import { activeProvidersQueryOptions } from '@/features/providers/api/get-providers'
+import {NotifyPatientButton} from "@/features/notifications/components/notify-patient-button.tsx";
 
 export const Route = createFileRoute('/patients/')({
   loader: ({ context: { queryClient } }) =>
@@ -87,14 +88,9 @@ function PatientsPage() {
                 >
                   {historyPatientId === patient.id ? 'Hide history' : 'History'}
                 </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={notify.isPending}
-                  onClick={() => notify.mutate({ patientId: patient.id })}
-                >
-                  {notify.isPending ? 'Notifying…' : 'Ready to be seen'}
-                </Button>
+                <NotifyPatientButton
+                  patientName={`${patient.firstName} ${patient.lastName}`}
+                  patientId={patient.id} />
               </div>
             </div>
             {historyPatientId === patient.id && (
