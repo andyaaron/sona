@@ -68,6 +68,15 @@ export interface Patient {
   primaryProviderName: string | null;
 }
 
+export interface PagedResult<T> {
+  items: T[];
+  page: number;        // 1-based
+  pageSize: number;
+  totalCount: number;
+}
+export type PatientSortField = "lastName" | "firstName" | "mrn" | "dob";
+export type SortDirection = "asc" | "desc";
+
 export type NotificationChannel = "push" | "sms";
 
 export type NotificationStatus =
