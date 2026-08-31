@@ -81,7 +81,7 @@ The compliance-critical step: after this, no cross-org data access is possible.
 1. `PatientsController`: every query filtered by current user's `OrganizationId` (system_admin: allow `?organizationId=` override). GET-by-id/PUT/DELETE on a patient of another org → 404 (not 403 — don't leak existence). POST stamps the creator's org. Duplicate-MRN 409 check becomes org-scoped (matches the composite index).
 2. `ProvidersController`: same pattern. Provider dropdown data is org-scoped.
 3. `unassigned` users: blocked from all patient/provider endpoints by the `AssignedUser` policy (verify it landed in 8b everywhere).
-4. Import path (`ImportBatch`, if Task 05 landed): stamp `OrganizationId` on imported patients from the uploader's org.
+4. Import path (`ImportBatch`, if Task 09 (bulk CSV import, deferred) landed): stamp `OrganizationId` on imported patients from the uploader's org.
 5. Notification send path (if Task 03 landed): sender must share org with the patient; persist `MessageOut.DepartmentId` from the request (validated: department must belong to sender's org, and to sender's `UserDepartmentAccess` set when role is `staff`).
 6. Tests or at minimum a manual verification matrix in the PR description: org_admin/staff of org A cannot read/write org B's patients by id.
 

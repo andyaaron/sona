@@ -5,11 +5,10 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import Button from '@/components/button'
 import { SearchInput } from '@/components/search-input'
-import { useNotifyPatient } from '@/features/notifications/api/notify-patient'
 import { NotificationHistory } from '@/features/notifications/components/notification-history'
+import { NotifyPatientButton } from '@/features/notifications/components/notify-patient-button'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
 import { activeProvidersQueryOptions } from '@/features/providers/api/get-providers'
-import {NotifyPatientButton} from "@/features/notifications/components/notify-patient-button.tsx";
 
 export const Route = createFileRoute('/patients/')({
   loader: ({ context: { queryClient } }) =>
@@ -20,7 +19,6 @@ export const Route = createFileRoute('/patients/')({
 function PatientsPage() {
   const { data: patients } = useSuspenseQuery(patientsQueryOptions)
   const { data: providers } = useQuery(activeProvidersQueryOptions)
-  const notify = useNotifyPatient()
   const [search, setSearch] = useState('')
   const [providerFilter, setProviderFilter] = useState('')
   const [historyPatientId, setHistoryPatientId] = useState<string | null>(null)

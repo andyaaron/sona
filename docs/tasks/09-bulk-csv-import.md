@@ -1,4 +1,6 @@
-# Task 05 — Bulk patient import via CSV upload
+# Task 09 — Bulk patient import via CSV upload
+
+> **DEFERRED (2026-08-31, was Task 05):** the provider's import file documentation is not yet available, so the CSV column spec below is provisional. Do not start this task until the provider's docs arrive and the format in §2 is confirmed/updated against them.
 
 **Prerequisite:** none — migration baseline fixed 2026-08-27; add migrations with `--output-dir Data/Migrations`.
 Read `docs/tasks/_context.md`, `AGENTS.md`, and the `ImportBatch`/`ImportRowError` sections of `docs/data-model.md` first.
