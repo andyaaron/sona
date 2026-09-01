@@ -7,13 +7,14 @@ namespace Sona.Server.Models.Messaging;
 public sealed record DispatchResult(bool Success, string? ProviderMessageId = null, string? FailureReason = null);
 
 /// <summary>
-/// SMS dispatch boundary. Task 07 supplies the real Webex Connect implementation;
-/// until then a logging stub is registered. Callers must persist a MessageOut row
-/// BEFORE invoking this (docs/compliance.md — no fire-and-forget sends).
+/// SMS dispatch boundary — implemented by WebexSmsSender (Webex Connect).
+/// Callers must persist a MessageOut row BEFORE invoking this
+/// (docs/compliance.md — no fire-and-forget sends); messageOutId is that row's
+/// id and is the only correlation key implementations may log.
 /// </summary>
 public interface ISmsSender
 {
-    Task<DispatchResult> SendAsync(string mobileNumber, string body, CancellationToken cancellationToken = default);
+    Task<DispatchResult> SendAsync(Guid messageOutId, string mobileNumber, string body, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Push dispatch boundary (Enhancement 2 — Expo). Stub until then.</summary>

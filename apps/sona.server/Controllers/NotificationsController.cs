@@ -94,7 +94,7 @@ public class NotificationsController : Controller
 
         var result = channel == "push"
             ? await _pushSender.SendAsync(patient.Id, template.Body)
-            : await _smsSender.SendAsync(patient.MobileNumber, template.Body);
+            : await _smsSender.SendAsync(message.Id, patient.MobileNumber, template.Body);
 
         if (result.Success)
         {

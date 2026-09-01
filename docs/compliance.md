@@ -10,7 +10,7 @@ Sona sends communications from healthcare providers to patients, which very like
 
 ## Vendors
 
-- **SMS provider must sign a BAA** (Business Associate Agreement). Twilio does; budget SMS APIs generally don't. This constrains vendor choice — check before integrating.
+- **SMS provider must sign a BAA** (Business Associate Agreement). The chosen provider is **Webex Connect** (Cisco) — **BAA status with Webex/Cisco is NOT yet confirmed and must be before any production traffic**: patient phone numbers (identifiers tied to patient identity) flow to the vendor on every send. This is a launch-blocker decision, not a code question.
 - Same for any hosting, logging, or analytics vendor that could touch PHI.
 
 ## Data handling
@@ -22,7 +22,7 @@ Sona sends communications from healthcare providers to patients, which very like
 
 ## Practical checklist before launch
 
-- [ ] BAA signed with SMS provider
+- [ ] BAA signed with SMS provider (Webex Connect/Cisco — unconfirmed; required before production sends)
 - [ ] BAA signed with hosting provider
 - [ ] Notification templates reviewed — zero PHI
 - [ ] Audit log on all notification sends
