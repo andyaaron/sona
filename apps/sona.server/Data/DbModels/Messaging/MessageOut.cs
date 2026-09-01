@@ -31,7 +31,7 @@ public class MessageOut : EntityBase
     /// <summary>One of: pending, sent, delivered, failed.</summary>
     public required string Status { get; set; }
 
-    /// <summary>Twilio message SID / push ticket id — correlation key for delivery webhooks.</summary>
+    /// <summary>Webex Connect messageId / push ticket id — correlation key for delivery webhooks.</summary>
     public string? ProviderMessageSid { get; set; }
 
     public string? FailureReason { get; set; }

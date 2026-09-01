@@ -170,6 +170,24 @@ cp apps/mobile/.env.example apps/mobile/.env
 
 For mobile on a **physical device**, replace `localhost` with your machine's LAN IP.
 
+### SMS via Webex Connect (optional for local dev)
+
+The API sends "ready to be seen" texts through **Webex Connect**. Without configuration the API still starts and runs normally — SMS dispatch is simply disabled, and every notify attempt is audited as `failed` with `FailureReason = "sms-not-configured"`.
+
+To enable real sends, fill the `WebexConnect` section (placeholders live in `apps/sona.server/appsettings.json` — `TODO(config)`: the real values are being pulled from another app by the team). Put them in `apps/sona.server/appsettings.Development.json` (git-ignored values only) or environment variables — never commit real values:
+
+```jsonc
+"WebexConnect": {
+  "keyvaultUri": "https://<vault>.vault.azure.net/", // vault holding the service key
+  "baseApiUrl": "https://<region>.webexconnect.io",  // tenant region base URL
+  "defaultFromSMS": "<sender number/id>"             // required — Webex rejects a missing "from"
+}
+```
+
+Environment-variable form: `WebexConnect__keyvaultUri`, `WebexConnect__baseApiUrl`, `WebexConnect__defaultFromSMS`.
+
+The Webex **service key is never placed in a settings file** — it lives in Azure Key Vault as secret `WebexConnectServiceKey` and is fetched lazily on the first send (so developers without Azure/Key Vault access can still run the API; their sends fail cleanly as `sms-not-configured`).
+
 ## Run
 
 ```bash
