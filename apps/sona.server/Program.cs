@@ -104,8 +104,21 @@ builder.Services.AddSingleton<IMSGraphHelper, MSGraphHelper>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAppUserUtil, AppUserUtil>();
 
-// Message dispatch — logging stubs until Task 07 wires Webex Connect / Expo push
-builder.Services.AddSingleton<Sona.Server.Models.Messaging.ISmsSender, Sona.Server.Models.Messaging.LoggingStubSmsSender>();
+// Message dispatch — SMS is real via Webex Connect (Task 07); push stays a stub until Enhancement 2.
+// Named client fixes the new-HttpClient-per-call socket exhaustion; singleton util so the
+// Key Vault service key is fetched once per process (lazily, on first send).
+builder.Services.AddHttpClient(WebexConnectUtil.HttpClientName, client =>
+{
+    var baseApiUrl = builder.Configuration["WebexConnect:baseApiUrl"];
+    if (!string.IsNullOrWhiteSpace(baseApiUrl))
+    {
+        // Trailing slash so the relative "v2/messages" combines with any path in baseApiUrl.
+        client.BaseAddress = new Uri(baseApiUrl.TrimEnd('/') + "/");
+    }
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddSingleton<IWebexConnectUtil, WebexConnectUtil>();
+builder.Services.AddSingleton<Sona.Server.Models.Messaging.ISmsSender, Sona.Server.Models.Messaging.WebexSmsSender>();
 builder.Services.AddSingleton<Sona.Server.Models.Messaging.IPushSender, Sona.Server.Models.Messaging.LoggingStubPushSender>();
 
 // CORS — allow the Vite dev server during development
