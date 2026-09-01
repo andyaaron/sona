@@ -9,7 +9,7 @@ using Sona.Server.Models.Util;
 
 namespace Sona.Server.Controllers;
 
-[Authorize]
+[Authorize(Policy = Sona.Server.Models.Auth.Policies.AssignedUser)]
 [ApiController]
 public class NotificationsController : Controller
 {

@@ -7,7 +7,7 @@ using PatientEntity = Sona.Server.Data.DbModels.Patient;
 
 namespace Sona.Server.Controllers;
 
-[Authorize]
+[Authorize(Policy = Sona.Server.Models.Auth.Policies.AssignedUser)]
 [Route("api/[controller]")]
 [ApiController]
 public class PatientsController : Controller

@@ -6,7 +6,7 @@ using Sona.Server.Data.DbModels;
 
 namespace Sona.Server.Controllers;
 
-[Authorize]
+[Authorize(Policy = Sona.Server.Models.Auth.Policies.AssignedUser)]
 [Route("api/[controller]")]
 [ApiController]
 public class ProvidersController : Controller

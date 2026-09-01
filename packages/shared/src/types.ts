@@ -15,6 +15,58 @@ export type User = {
   department: string | null;
 };
 
+export type OrganizationType = "practice" | "hospital";
+
+/** Tenant root of the fixed 3-level chain Organization → Site → Department. */
+export interface Organization {
+  id: string;
+  name: string;
+  type: OrganizationType;
+  isActive: boolean;
+  createDate: string;
+  modDate: string;
+}
+
+/** Campus/location grouping — admin structure only; departments message patients. */
+export interface Site {
+  id: string;
+  organizationId: string;
+  name: string;
+  isActive: boolean;
+  createDate: string;
+  modDate: string;
+}
+
+/** The unit that messages patients (ED waiting, Lab, Imaging). */
+export interface Department {
+  id: string;
+  siteId: string;
+  name: string;
+  isActive: boolean;
+  createDate: string;
+  modDate: string;
+}
+
+/** A managed user row as listed in user management (GET /api/users). */
+export interface AppUserSummary {
+  /** AppUser ids are numeric (int PK), unlike the uuid-string ids elsewhere */
+  id: number;
+  hca34Id: string | null;
+  displayName: string | null;
+  email: string | null;
+  role: UserRole;
+  organizationId: string | null;
+  departmentIds: string[];
+  lastLogin: string | null;
+}
+
+/** HCA directory search hit for the invite-first flow — name/email/34Id only. */
+export interface DirectoryUser {
+  hca34Id: string;
+  displayName: string | null;
+  email: string | null;
+}
+
 export type PatientImportSource = "flatfile" | "ui" | "cerner";
 
 /** A provider who sees patients. Separate from AppUser. */
