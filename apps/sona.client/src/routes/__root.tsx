@@ -6,6 +6,7 @@ import { userQueryOptions } from '@/features/user/api/getUser'
 import { UserContext } from '@/hooks/useUser'
 import type { MyRouterContext } from '@/main'
 import Header from '@/components/header'
+import { PendingApproval } from '@/components/pending-approval'
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
     component: RootComponent,
@@ -17,6 +18,17 @@ function RootComponent() {
         isPending,
         error,
     } = useQuery(userQueryOptions)
+
+    // Unprovisioned users get a holding screen instead of the app shell.
+    // UX only — the server's AssignedUser policy is what actually blocks them.
+    if (user?.role === 'unassigned') {
+        return (
+            <>
+                <PendingApproval displayName={user.displayName} />
+                <Toaster position="top-right" richColors />
+            </>
+        )
+    }
 
     return (
         <UserContext value={user}>

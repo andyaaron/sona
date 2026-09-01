@@ -7,7 +7,7 @@ import { Link } from "@tanstack/react-router";
 function Header() {
   
   const user = useContext(UserContext);
-  console.log("user", user);
+  const isAdmin = user?.role === 'org_admin' || user?.role === 'system_admin';
   return (
     <header
       className={"p-4 flex justify-between items-center border-b border-gray-200"}
@@ -25,9 +25,11 @@ function Header() {
           <NavLink to="/providers/manage">
               Providers
           </NavLink>
-          <NavLink to="/user-management">
-              User Management
-          </NavLink>
+          {isAdmin && (
+              <NavLink to="/user-management">
+                  User Management
+              </NavLink>
+          )}
         
       </nav>
 
