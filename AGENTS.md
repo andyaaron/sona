@@ -106,6 +106,8 @@ A task is complete only when ALL of these hold:
 - [ ] No PHI introduced into notification content, logs, or URLs (rule 0.1).
 - [ ] New notification-send code paths persist a `ReadyNotification` record (audit requirement — no fire-and-forget sends).
 - [ ] Docs updated if behavior/stack/structure changed (`docs/` is living documentation).
+- [ ] **Tests ship with the change (rule since 2026-09-01).** New or changed behaviour comes with tests in the same task: unit/component (Vitest) for logic and validation, Playwright E2E for any user-visible flow — see `docs/admin-ui-guide.md` (verification playbook) once it exists. Until the toolchain lands (Tasks 12–14), state explicitly in the report that no automated test covers the change and what was exercised by hand.
+- [ ] Frontend changes were **exercised in a running app** (Local profile, Task 13) and the report quotes what was observed — typecheck/build alone never satisfies "done" for UI work.
 
 ---
 
