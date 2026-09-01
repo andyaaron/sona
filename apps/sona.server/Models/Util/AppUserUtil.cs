@@ -1,8 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Sona.Server.Data;
 using Sona.Server.Data.DbModels;
 using Sona.Server.Models.Commons;
-using Sona.Server.Data;
-using Sona.Server.Data.DbModels;
 using System.Security.Claims;
 
 namespace Sona.Server.Models.Util
@@ -68,8 +67,11 @@ namespace Sona.Server.Models.Util
         {
             try
             {
-                //return Task.FromResult(_db.AppUsers.First(m => m.HCAID == HCAID));
-                return Task.FromResult(_db.AppUsers.Where(m => m.HCAID == HCAID).FirstOrDefault());
+                //DepartmentAccess included so CurrentUserService can expose DepartmentIds
+                return Task.FromResult(_db.AppUsers
+                    .Include(m => m.DepartmentAccess)
+                    .Where(m => m.HCAID == HCAID)
+                    .FirstOrDefault());
             }
             catch
             {
@@ -127,7 +129,9 @@ namespace Sona.Server.Models.Util
                         //EmpDept - will be populated later via msgraph
 
                         LastLogin = DateTime.Now,
-                        AccessLevelId = (int)AccessLevels.Standard,
+                        //JIT sign-in lands as unassigned: pending-approval queue for the
+                        //org admin; invite-first flow pre-provisions with a real role.
+                        Role = UserRoles.Unassigned,
                         //IsDarkMode = false,
                         //IsManagerOverride = false,
                         InDate = DateTime.Now,

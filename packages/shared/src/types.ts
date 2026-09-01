@@ -1,28 +1,19 @@
-export type AccessLevel = {
-  id: number;
-  levelName: string;
-  description: string;
-};
+/** Mirrors the server's UserRoles string constants (docs/tasks/08 design decision 3). */
+export type UserRole = "system_admin" | "org_admin" | "staff" | "unassigned";
 
-/** Internal staff user of the admin platform (nurse, provider, admin). */
+/** The authenticated user — shape of GET /api/user (CurrentUserDto server-side). */
 export type User = {
-  id: number;
-  hca34Id: string;
-  displayName: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  accessLevelId: number;
-  defaultFacilityId?: number | null;
-  lastLogin: string;
-  isDarkMode: boolean;
-  dateCreated: string;
-  createdBy: string;
-  accessLevel?: AccessLevel | null;
-  facility?: string | null;
+  hca34Id: string | null;
+  displayName: string | null;
+  email: string | null;
+  role: UserRole;
+  /** Tenant — null for system_admin/unassigned */
+  organizationId: string | null;
+  /** UserDepartmentAccess scoping; only populated for staff */
+  departmentIds: string[];
+  /** Informational MSGraph department string — not authorization data */
+  department: string | null;
 };
-
-export type UserRole = "nurse" | "provider" | "admin";
 
 export type PatientImportSource = "flatfile" | "ui" | "cerner";
 

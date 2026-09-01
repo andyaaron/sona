@@ -14,8 +14,16 @@ public class CurrentUserDto
     public string? DisplayName { get; set; }
     public string? Email { get; set; }
 
-    public string? AccessLevel { get; set; } = "unknown";
+    /// <summary>One of UserRoles (system_admin, org_admin, staff, unassigned).</summary>
+    public string Role { get; set; } = UserRoles.Unassigned;
 
+    /// <summary>Tenant — null for system_admin/unassigned.</summary>
+    public Guid? OrganizationId { get; set; }
+
+    /// <summary>UserDepartmentAccess scoping rows; only populated for staff.</summary>
+    public List<Guid> DepartmentIds { get; set; } = new();
+
+    /// <summary>Informational MSGraph department string, not authorization data.</summary>
     public string? Department { get; set; } = "unknown";
 }
 
@@ -73,7 +81,9 @@ public class CurrentUserService : ICurrentUserService
 
 
             //KJS - include database info
-            var accessLevel = "unknown";
+            var role = UserRoles.Unassigned;
+            Guid? organizationId = null;
+            var departmentIds = new List<Guid>();
             var department = "unknown";
 
             //default claims from context, to be overridden by db table
@@ -93,9 +103,10 @@ public class CurrentUserService : ICurrentUserService
                         //override email with the one they actually use instead of @hca.corpad.net
                         emailClaim = dbUser.Email ?? emailClaim;
 
-                        //access level
-                        var access = (AccessLevels)dbUser.AccessLevelId;
-                        accessLevel = access.ToString() ?? "unknown";
+                        //role + tenant scoping (server-side authorization data)
+                        role = dbUser.Role;
+                        organizationId = dbUser.OrganizationId;
+                        departmentIds = dbUser.DepartmentAccess.Select(a => a.DepartmentId).ToList();
 
                         //department
                         department = dbUser.EmpDept ?? "unknown";
@@ -115,7 +126,9 @@ public class CurrentUserService : ICurrentUserService
                 Hca34Id = hca34id,
                 DisplayName = displayName,
                 Email = emailClaim, //from claim or overridden by db @hcahealthcare version
-                AccessLevel = accessLevel,
+                Role = role,
+                OrganizationId = organizationId,
+                DepartmentIds = departmentIds,
                 Department = department
             };
         }

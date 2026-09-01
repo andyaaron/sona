@@ -13,7 +13,15 @@ public class Patient
     [Key]
     public int Id { get; set; }
 
-    /// <summary>Person-level medical record number. Unique business identifier.</summary>
+    /// <summary>
+    /// Owning tenant. A person seen at two practices = two Patient rows, one per
+    /// org (deliberate — tenant isolation + per-practice TCPA consent).
+    /// </summary>
+    public Guid OrganizationId { get; set; }
+
+    public Organization? Organization { get; set; }
+
+    /// <summary>This practice's medical record number. Unique per organization, not globally.</summary>
     public required string Mrn { get; set; }
 
     public required string FirstName { get; set; }
