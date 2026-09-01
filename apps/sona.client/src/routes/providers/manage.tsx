@@ -9,6 +9,8 @@ import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
 import { SearchInput } from '@/components/search-input'
+import TableComponent from '@/components/Table/Table'
+import type { AppColumnDef } from '@/components/Table/Table'
 import { useCreateProvider } from '@/features/providers/api/create-provider'
 import { useUpdateProvider } from '@/features/providers/api/update-provider'
 import { providersQueryOptions } from '@/features/providers/api/get-providers'
@@ -97,6 +99,65 @@ function ManageProvidersPage() {
     )
   })
 
+  // Defined per render — the actions column closes over the mutation handlers
+  // and update-pending state.
+  const columns: AppColumnDef<Provider>[] = [
+    {
+      accessorKey: 'lastName',
+      header: 'Name',
+      cell: ({ row }) => {
+        const provider = row.original
+        return (
+          <p className="font-medium text-gray-900">
+            {provider.firstName} {provider.lastName}
+            {provider.credentials ? `, ${provider.credentials}` : ''}
+            {!provider.isActive && (
+              <span className="ml-2 text-xs text-red-500">(Inactive)</span>
+            )}
+          </p>
+        )
+      },
+    },
+    {
+      accessorKey: 'npi',
+      header: 'NPI',
+      cell: ({ row }) =>
+        row.original.npi ?? <span className="text-gray-400">No NPI</span>,
+    },
+    {
+      accessorKey: 'specialty',
+      header: 'Specialty',
+      cell: ({ row }) =>
+        row.original.specialty ?? <span className="text-gray-400">—</span>,
+    },
+    {
+      id: 'actions',
+      header: '',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setFormState({ mode: 'edit', provider: row.original })}
+          >
+            Edit
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={updateProvider.isPending}
+            onClick={() => handleToggleActive(row.original)}
+          >
+            {row.original.isActive ? 'Deactivate' : 'Reactivate'}
+          </Button>
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div>
       <div className="flex items-center gap-4">
@@ -134,44 +195,12 @@ function ManageProvidersPage() {
         />
       ) : null}
 
-      <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
-        {filteredProviders.map((provider) => (
-          <li key={provider.id} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <p className="font-medium text-gray-900">
-                {provider.firstName} {provider.lastName}
-                {provider.credentials ? `, ${provider.credentials}` : ''}
-                {!provider.isActive && (
-                  <span className="ml-2 text-xs text-red-500">(Inactive)</span>
-                )}
-              </p>
-              <p className="text-sm text-gray-500">
-                {provider.npi ? `NPI: ${provider.npi}` : 'No NPI'}
-                {provider.specialty ? ` · ${provider.specialty}` : ''}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setFormState({ mode: 'edit', provider })}
-              >
-                Edit
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={updateProvider.isPending}
-                onClick={() => handleToggleActive(provider)}
-              >
-                {provider.isActive ? 'Deactivate' : 'Reactivate'}
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <TableComponent
+        data={filteredProviders}
+        columns={columns}
+        getRowId={(provider) => provider.id}
+        emptyMessage="No providers found."
+      />
     </div>
   )
 }
