@@ -25,7 +25,8 @@ Nothing in the repo tells an agent *where things are* in the admin. To verify "t
    ### /<route>
    - Purpose (one line)
    - Who can see it (role gating: client UX-only vs server policy)
-   - Regions (table, filters, dialogs) with their data-testid
+   - Layout — where each region sits (e.g. "toolbar above the table: search input left, Add patient button right") so a moved control is a visible doc diff
+   - Regions (table, filters, dialogs) with their data-testid; controls listed in on-screen order within each region
    - Interactions — numbered click paths: "1. click [testid] → 2. dialog [testid] opens → 3. …" incl. validation messages and toasts to expect
    - API calls made (method + path, from packages/api-client) and what a 4xx looks like in the UI
    - Empty / loading / error states
@@ -49,12 +50,14 @@ Steps an agent runs for any frontend change:
 1. `pnpm typecheck && pnpm build && pnpm test` (Vitest unit/component — Task 12).
 2. Start Local API + admin (Task 13). Run `pnpm e2e` (Playwright — Task 12 §3) — the tagged smoke suite at minimum.
 3. Manually exercise the changed path per the guide's numbered interactions **in the browser** (the agent's browser tool or `playwright codegen`), and quote what was observed in the report — screenshots for visual changes.
-4. New/changed behaviour gets a test in the same commit (unit for logic/validation, Playwright for a user-visible flow). Update the guide if a route, region, interaction, or testid changed.
-5. Report honestly: executed vs. code-reviewed (this repo's rule already; the playbook makes "executed" achievable).
+4. New/changed behaviour gets a test in the same commit (unit for logic/validation, Playwright for a user-visible flow).
+5. **Update the guide in the same commit for anything a user could notice** — new/removed/moved/renamed controls (placement changes included: left↔right, toolbar↔row, dialog↔inline), changed click paths, validation text, toasts, empty states, role gates, testids. The guide is the source of truth for "where is X"; if it disagrees with the app, the commit is incomplete. This is a Definition-of-Done gate in `AGENTS.md` §4.
+6. Report honestly: executed vs. code-reviewed (this repo's rule already; the playbook makes "executed" achievable).
 
 ### 4. Docs wiring
 
-- `AGENTS.md`: §1 doc map gets `docs/admin-ui-guide.md` ("where things are in the admin + how to verify"); §4 DoD already says tests are required (added 2026-09-01) — link the playbook.
+- `AGENTS.md`: §1 doc map gets `docs/admin-ui-guide.md` ("where things are in the admin + how to verify"); §4 DoD already requires tests and a guide update for every user-noticeable change (both added 2026-09-01) — link the playbook from those bullets.
+- Optional guard (nice-to-have, not required): a CI step that fails when a PR touches `apps/sona.client/src/**` but not `docs/admin-ui-guide.md` unless the PR body contains `no-ui-change`.
 - `_context.md`: point agents at the guide before any client task.
 
 ## Out of scope
