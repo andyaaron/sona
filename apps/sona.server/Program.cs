@@ -10,9 +10,15 @@ using Serilog.Events;
 using Serilog.Sinks.MSSqlServer;
 using Sona.Server.Data;
 using Sona.Server.Models.Auth;
+using Sona.Server.Models.Local;
 using Sona.Server.Models.Util;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// "Local" is the personal-machine profile (docs/tasks/13): no Key Vault, no Entra, local
+// SQL Server. Every branch below is gated on this flag, so any other environment name
+// keeps the exact Azure code path it has always had.
+var isLocal = builder.Environment.IsEnvironment(LocalDevAuthDefaults.LocalEnvironmentName);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -20,15 +26,34 @@ builder.Services.AddOpenApi();
 
 #region Keyvault data pull + Database Context
 
-var keyVaultUri = builder.Configuration["Keyvault:_keyvaultURI"];
-var keyVaultClient = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
+string connectionString;
 
-var connectionString = keyVaultClient.GetSecret("DefaultConnection").Value.Value;
+if (isLocal)
+{
+    connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException(
+            "Local mode requires ConnectionStrings:DefaultConnection in appsettings.Local.json "
+            + "(copy apps/sona.server/appsettings.Local.example.json).");
+
+    LocalDevMode.EnsureNotAzure(connectionString);
+}
+else
+{
+    var keyVaultUri = builder.Configuration["Keyvault:_keyvaultURI"];
+    var keyVaultClient = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
+
+    connectionString = keyVaultClient.GetSecret("DefaultConnection").Value.Value;
+}
 
 //SERILOG
 #region SERILOG
 
-Log.Logger = new LoggerConfiguration()
+// The MSSqlServer sink needs the AppLogs table on a reachable server — console only in Local.
+Log.Logger = isLocal
+? new LoggerConfiguration()
+.WriteTo.Console()
+.CreateLogger()
+: new LoggerConfiguration()
 .WriteTo
 .MSSqlServer(
     connectionString: connectionString,
@@ -49,45 +74,62 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlSer
 builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
 builder.Services.AddRazorPages();
 
-builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApp(options =>
-    {
-        builder.Configuration.Bind("AzureAd", options);
-
-        options.Events = new OpenIdConnectEvents
+if (isLocal)
+{
+    // Stub scheme: nobody can reach the HCA tenant from a personal machine. Roles still
+    // resolve from AppUsers.Role, so authorization policies are exercised for real.
+    builder.Services.AddAuthentication(LocalDevAuthDefaults.AuthenticationScheme)
+        .AddScheme<LocalDevAuthOptions, LocalDevAuthHandler>(
+            LocalDevAuthDefaults.AuthenticationScheme,
+            options => builder.Configuration.GetSection(LocalDevAuthDefaults.ConfigSection).Bind(options));
+}
+else
+{
+    builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+        .AddMicrosoftIdentityWebApp(options =>
         {
-            OnRedirectToIdentityProvider = context =>
-            {
-                // Return 401 for API calls instead of redirecting to login
-                if (context.Request.Path.StartsWithSegments("/api")
-                    || context.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-                {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    context.HandleResponse();
-                }
+            builder.Configuration.Bind("AzureAd", options);
 
-                return Task.CompletedTask;
-            },
-        };
-    });
+            options.Events = new OpenIdConnectEvents
+            {
+                OnRedirectToIdentityProvider = context =>
+                {
+                    // Return 401 for API calls instead of redirecting to login
+                    if (context.Request.Path.StartsWithSegments("/api")
+                        || context.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.HandleResponse();
+                    }
+
+                    return Task.CompletedTask;
+                },
+            };
+        });
+}
 #endregion
 
 #region AppUser Service - update user or create new user in db
-builder.Services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+// OIDC-only: in Local there is no token to validate, so LocalDevJitUserMiddleware runs
+// CheckAndSetEmployee on the first authenticated request instead.
+if (!isLocal)
 {
-    options.Events ??= new OpenIdConnectEvents();
-    //azureAdConfigSection.Bind(options);
-    options.Events.OnTokenValidated = async context =>
+    builder.Services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
     {
-        IAppUserUtil appUserUtil = context.HttpContext.RequestServices.GetRequiredService<IAppUserUtil>();
+        options.Events ??= new OpenIdConnectEvents();
+        //azureAdConfigSection.Bind(options);
+        options.Events.OnTokenValidated = async context =>
+        {
+            IAppUserUtil appUserUtil = context.HttpContext.RequestServices.GetRequiredService<IAppUserUtil>();
 
-        //This util method will pull the claims and check if:
-        //1. it's a brand new user, in which case it will provision them in the AppUser table
-        //2. Specific claims (or MSGraph info it pulls for more details) have changed.  If so it may update that info in the AppUser table
-        //3. update the lastLogin stamp for the user to datetime.now.
-        await appUserUtil.CheckAndSetEmployee(context.Principal);
-    };
-});
+            //This util method will pull the claims and check if:
+            //1. it's a brand new user, in which case it will provision them in the AppUser table
+            //2. Specific claims (or MSGraph info it pulls for more details) have changed.  If so it may update that info in the AppUser table
+            //3. update the lastLogin stamp for the user to datetime.now.
+            await appUserUtil.CheckAndSetEmployee(context.Principal);
+        };
+    });
+}
 #endregion
 
 
@@ -136,8 +178,13 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+if (isLocal)
+{
+    await LocalDevMode.SeedAsync(app.Services);
+}
+
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || isLocal)
 {
     app.MapOpenApi();
 }
@@ -145,12 +192,19 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || isLocal)
 {
     app.UseCors("DevCors");
 }
 
 app.UseAuthentication();
+
+if (isLocal)
+{
+    // Stands in for the OIDC OnTokenValidated JIT provisioning hook.
+    app.UseMiddleware<LocalDevJitUserMiddleware>();
+}
+
 app.UseAuthorization();
 app.UseAntiforgery();
 
