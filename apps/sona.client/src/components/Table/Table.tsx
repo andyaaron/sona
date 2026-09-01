@@ -1,225 +1,267 @@
-import { useState } from 'react';
-import type { Row, SortingState } from '@tanstack/react-table';
-import {
-  type ColumnDef,
-  type ColumnResizeDirection,
-  type ColumnResizeMode,
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
-import LoadingCat from '@/components/Loading/LoadingCat.tsx';
-import Pagination from '@/components/Table/Pagination.tsx';
-import { MoveDown, MoveUp } from 'lucide-react';
-import type { ApplicationIntakeRequest } from '@/types/applicationIntakeRequests.ts';
+import { Fragment } from 'react'
+import { useState } from 'react'
+import type { ReactElement } from 'react'
 
-type TableProps<TData, TValue = unknown> = {
-  data: TData[];
-  columns: ColumnDef<TData, TValue>[];
-  subRowsKey?: keyof TData;
-  isLoading?: boolean;
-  renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
-  getRowCanExpand?: (row: Row<TData>) => boolean;
-  title?: string;
-  onRowClick?: (request: ApplicationIntakeRequest) => void;
-};
+import {
+  createExpandedRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  flexRender,
+  rowExpandingFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_datetime,
+  sortFn_text,
+  tableFeatures,
+  useTable,
+} from '@tanstack/react-table'
+import type {
+  ColumnDef,
+  OnChangeFn,
+  PaginationState,
+  Row,
+  RowData,
+  SortingState,
+} from '@tanstack/react-table'
+import { MoveDown, MoveUp } from 'lucide-react'
+
+import Pagination from '@/components/Table/Pagination'
 
 /**
- * Built with Tanstack Table: https://tanstack.com/table/latest/docs/introduction
- * @param data
- * @param columns
- * @param isLoading
- * @param enableExpandedRows
- * @constructor
+ * Feature set shared by every table (TanStack Table v9 requires explicit
+ * feature registration). Column defs are typed against it — use
+ * `AppColumnDef<TData>` / `AppRow<TData>` in consumers.
  */
+const features = tableFeatures({
+  rowSortingFeature,
+  rowPaginationFeature,
+  rowExpandingFeature,
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  expandedRowModel: createExpandedRowModel(),
+  sortFns: {
+    alphanumeric: sortFn_alphanumeric,
+    datetime: sortFn_datetime,
+    text: sortFn_text,
+  },
+})
 
-function TableComponent<TData>({
+export type AppTableFeatures = typeof features
+
+// TValue is `any` so one array can mix columns of different value types —
+// the same containment the library's own columnHelper.columns() uses.
+export type AppColumnDef<TData extends RowData> = ColumnDef<AppTableFeatures, TData, any>
+
+export type AppRow<TData extends RowData> = Row<AppTableFeatures, TData>
+
+/**
+ * Server-driven mode: the API sorts and pages; the table renders exactly the
+ * rows it is given and reports state changes through the handlers (which the
+ * routes map to search params).
+ */
+export interface ManualTableState {
+  sorting: SortingState
+  onSortingChange: OnChangeFn<SortingState>
+  pagination: PaginationState
+  onPaginationChange: OnChangeFn<PaginationState>
+  /** Total row count across all pages, from the server. */
+  rowCount: number
+}
+
+interface TableProps<TData extends RowData> {
+  data: TData[]
+  columns: AppColumnDef<TData>[]
+  title?: string
+  isLoading?: boolean
+  emptyMessage?: string
+  /** Stable row identity (keeps expansion tied to the row, not its index). */
+  getRowId?: (row: TData, index: number) => string
+  onRowClick?: (row: TData) => void
+  /** Rendered in an extra full-width row under each expanded row. */
+  renderSubComponent?: (props: { row: AppRow<TData> }) => ReactElement
+  getRowCanExpand?: (row: AppRow<TData>) => boolean
+  /** Rounded border + white background wrapper (off for embedded panels). */
+  bordered?: boolean
+  /** Client-side toggles; ignored when `manual` is set (both forced on). */
+  enableSorting?: boolean
+  enablePagination?: boolean
+  /** Present = manual (server-driven) sorting + pagination. */
+  manual?: ManualTableState
+}
+
+/**
+ * Shared table renderer built on TanStack Table v9:
+ * https://tanstack.com/table/latest/docs/introduction
+ *
+ * Client-side mode owns its own sorting/pagination state; manual mode is
+ * fully controlled via the `manual` prop for server-driven tables.
+ */
+function TableComponent<TData extends RowData>({
   data,
   columns,
-  subRowsKey,
-  isLoading = false,
-  getRowCanExpand,
   title,
+  isLoading = false,
+  emptyMessage = 'No data to render.',
+  getRowId,
   onRowClick,
+  renderSubComponent,
+  getRowCanExpand,
+  bordered = true,
+  enableSorting = true,
+  enablePagination = true,
+  manual,
 }: TableProps<TData>) {
-  const [pagination, setPagination] = useState({
+  const [clientPagination, setClientPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
-  });
-  const [sorting, setSorting] = useState<SortingState>([]);
+  })
+  const [clientSorting, setClientSorting] = useState<SortingState>([])
 
-  const columnResizeMode: ColumnResizeMode = 'onChange';
-  const columnResizeDirection: ColumnResizeDirection = 'ltr';
+  const isManual = manual !== undefined
+  const paginationEnabled = isManual || enablePagination
 
-  const table = useReactTable<TData>({
+  const table = useTable({
+    features,
     data,
     columns,
-    columnResizeMode,
-    columnResizeDirection,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
+    getRowId,
     getRowCanExpand,
-    getSubRows: (row) => {
-      return subRowsKey ? (row[subRowsKey] as unknown as TData[]) : undefined;
-    },
-    getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: setSorting,
-    onPaginationChange: setPagination,
-    enableColumnResizing: true,
-    // columnResizeMode: 'onChange',
-    // no need to pass pageCount or rowCount with client-side pagination as it is calculated automatically
+    enableSorting: isManual || enableSorting,
+    // Keep single-column always-sorted semantics: clicks toggle asc/desc.
+    enableSortingRemoval: false,
+    enableMultiSort: false,
+    manualSorting: isManual,
+    // With pagination off, the data passes through as a single page.
+    manualPagination: isManual || !enablePagination,
+    // Page state lives in the URL in manual mode — never auto-reset it here.
+    ...(isManual ? { rowCount: manual.rowCount, autoResetPageIndex: false } : {}),
     state: {
-      pagination,
-      sorting,
+      sorting: isManual ? manual.sorting : clientSorting,
+      pagination: isManual ? manual.pagination : clientPagination,
     },
-    debugTable: true,
-    debugHeaders: true,
-    debugColumns: true,
-    // autoresetPageIndex: false, // turn off page index reset when sorting or filtering
-  });
+    onSortingChange: isManual ? manual.onSortingChange : setClientSorting,
+    onPaginationChange: isManual ? manual.onPaginationChange : setClientPagination,
+  })
 
-  if (isLoading) return <LoadingCat />;
-  if (data?.length === 0)
-    return <div className={'p-4'}>No data to render.</div>;
+  if (isLoading) {
+    return <p className="px-4 py-6 text-center text-sm text-gray-500">Loading…</p>
+  }
+
+  const rows = table.getRowModel().rows
+  const columnCount = table.getAllLeafColumns().length
 
   return (
     <div>
-      <div className={'flex flex-row items-center justify-between p-2'}>
-        <div>
-          <h1 className={'font-semibold'}>{title}</h1>
+      {(title || paginationEnabled) && (
+        <div className="mt-4 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">{title}</h2>
+          {paginationEnabled && (
+            <label className="text-sm text-gray-600">
+              Show{' '}
+              <select
+                className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm"
+                value={table.state.pagination.pageSize}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+              >
+                {[10, 25, 50, 100].map((pageSize) => (
+                  <option key={pageSize} value={pageSize}>
+                    {pageSize}
+                  </option>
+                ))}
+              </select>{' '}
+              entries
+            </label>
+          )}
         </div>
+      )}
 
-        <div className={'text-text-color'}>
-          <span>Show &nbsp;</span>
-          <select
-            className={'border-1 border-border-color rounded px-2 py-1 bg-card shadow-sm'}
-            value={table.getState().pagination.pageSize}
-            onChange={(e) => {
-              table.setPageSize(Number(e.target.value));
-            }}
-          >
-            {[10, 25, 50, 100].map((pageSize) => (
-              <option className={''} key={pageSize} value={pageSize}>
-                {pageSize}
-              </option>
-            ))}
-          </select>
-          <span>&nbsp; entries</span>
-        </div>
-      </div>
-
-      <table
+      <div
         className={
-          'w-full table-fixed text-md text-left border-collapse border'
+          bordered
+            ? 'mt-4 overflow-x-auto rounded-lg border border-gray-200 bg-white'
+            : 'overflow-x-auto'
         }
       >
-        <thead
-          className={
-            'bg-neutral-secondary-soft border-b border-slate-400 align-top'
-          }
-        >
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  style={{
-                    width: header.getSize(),
-                  }}
-                  className={
-                    'text-left p-4 overflow-hidden white-space-nowrap '
-                  }
-                >
-                  <div
-                    {...{
-                      onDoubleClick: () => header.column.resetSize(),
-                      onMouseDown: header.getResizeHandler(),
-                      onTouchStart: header.getResizeHandler(),
-                      className: `resizer ${
-                        table.options.columnResizeDirection
-                      } ${header.column.getIsResizing() ? 'isResizing' : ''}`,
-                      style: {
-                        transform: header.column.getIsResizing()
-                          ? `translateX(${
-                              (table.options.columnResizeDirection === 'rtl'
-                                ? -1
-                                : 1) *
-                              (table.getState().columnSizingInfo.deltaOffset ??
-                                0)
-                            }px)`
-                          : '',
-                      },
-                    }}
-                    className={
-                      header.column.getCanSort()
-                        ? 'cursor-pointer select-none flex flex-row items-center justify-between text-text-color'
-                        : ''
-                    }
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                    {{
-                      asc: <MoveUp size={12} />,
-                      desc: <MoveDown size={12} />,
-                    }[header.column.getIsSorted() as string] ?? null}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              onClick={() =>
-                onRowClick
-                  ? onRowClick(row.original as ApplicationIntakeRequest)
-                  : null
-              }
-              className={'cursor-pointer hover:bg-row-hover  border '}
-            >
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className={'p-3 text-text-color align-top'}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          {table.getFooterGroups().map((footerGroup) => (
-            <tr key={footerGroup.id}>
-              {footerGroup.headers.map((header) => (
-                <th key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.footer,
-                        header.getContext(),
+        <table className="w-full divide-y divide-gray-200">
+          <thead className={bordered ? 'bg-gray-50' : undefined}>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  const sorted = header.column.getIsSorted()
+                  return (
+                    <th
+                      key={header.id}
+                      scope="col"
+                      aria-sort={
+                        sorted === 'asc'
+                          ? 'ascending'
+                          : sorted === 'desc'
+                            ? 'descending'
+                            : undefined
+                      }
+                      className="px-4 py-2 text-left text-sm font-medium text-gray-700"
+                    >
+                      {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                        <button
+                          type="button"
+                          onClick={header.column.getToggleSortingHandler()}
+                          className="inline-flex cursor-pointer items-center gap-1 hover:text-gray-900"
+                        >
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          <span aria-hidden="true" className="text-gray-400">
+                            {sorted === 'asc' ? (
+                              <MoveUp size={12} />
+                            ) : sorted === 'desc' ? (
+                              <MoveDown size={12} />
+                            ) : null}
+                          </span>
+                        </button>
+                      ) : (
+                        flexRender(header.column.columnDef.header, header.getContext())
                       )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </tfoot>
-      </table>
+                    </th>
+                  )
+                })}
+              </tr>
+            ))}
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {rows.map((row) => (
+              <Fragment key={row.id}>
+                <tr
+                  onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                  className={onRowClick ? 'cursor-pointer hover:bg-gray-50' : undefined}
+                >
+                  {row.getAllCells().map((cell) => (
+                    <td key={cell.id} className="px-4 py-3 align-top text-sm text-gray-700">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+                {row.getIsExpanded() && renderSubComponent && (
+                  <tr>
+                    <td colSpan={columnCount} className="px-4 pb-3">
+                      {renderSubComponent({ row })}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={columnCount} className="px-4 py-6 text-center text-sm text-gray-500">
+                  {emptyMessage}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      <div className="h-2" />
-
-      <Pagination table={table} />
-      {/*<pre>{JSON.stringify(table.getState().pagination, null, 2)}</pre>*/}
+      {paginationEnabled && <Pagination table={table} />}
     </div>
-  );
+  )
 }
 
-export default TableComponent;
+export default TableComponent

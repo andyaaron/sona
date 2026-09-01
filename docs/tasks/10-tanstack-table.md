@@ -1,6 +1,6 @@
 # Task 10 — TanStack Table for all tabular data rendering
 
-> **BLOCKED — do not start yet:** the user will supply a reusable table component they already built in another project when this task begins. Wait for it; build the shared table wrapper around/from that component rather than designing one from scratch. If it hasn't been provided when you're asked to start, stop and ask for it.
+> **Unblocked 2026-08-31:** the user provided their reusable component (`src/components/Table/Table.tsx` + `Pagination.tsx`, copied from another project). The shared table was built from it — migrated to TanStack Table v9 and adapted to this repo's idioms.
 
 **Prerequisite:** Task 06 (pagination + sorting) merged — this task builds on its server-driven paging/sorting contract and replaces parts of its UI layer.
 Read `docs/tasks/_context.md` and `AGENTS.md` first.

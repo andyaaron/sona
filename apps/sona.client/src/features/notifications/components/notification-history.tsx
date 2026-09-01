@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 
-import type { NotificationStatus } from '@sona/shared'
+import type { MessageOut, NotificationStatus } from '@sona/shared'
+
+import TableComponent from '@/components/Table/Table'
+import type { AppColumnDef } from '@/components/Table/Table'
 
 import { patientNotificationsQueryOptions } from '../api/get-patient-notifications'
 
@@ -15,6 +18,42 @@ function formatDateTime(iso: string | null) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString()
 }
+
+// Small, unsorted, unpaged dataset — client-side mode with both turned off.
+const columns: AppColumnDef<MessageOut>[] = [
+  {
+    accessorKey: 'channel',
+    header: 'Channel',
+    cell: ({ row }) => <span className="uppercase">{row.original.channel}</span>,
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <span
+        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[row.original.status]}`}
+        title={row.original.failureReason ?? undefined}
+      >
+        {row.original.status}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Created',
+    cell: ({ row }) => formatDateTime(row.original.createdAt),
+  },
+  {
+    accessorKey: 'sentAt',
+    header: 'Sent',
+    cell: ({ row }) => formatDateTime(row.original.sentAt),
+  },
+  {
+    accessorKey: 'deliveredAt',
+    header: 'Delivered',
+    cell: ({ row }) => formatDateTime(row.original.deliveredAt),
+  },
+]
 
 export function NotificationHistory({ patientId }: { patientId: string }) {
   const { data: notifications, isPending, isError } = useQuery(
@@ -32,34 +71,12 @@ export function NotificationHistory({ patientId }: { patientId: string }) {
   }
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-left text-xs uppercase text-gray-500">
-          <th className="px-4 py-1.5 font-medium">Channel</th>
-          <th className="px-4 py-1.5 font-medium">Status</th>
-          <th className="px-4 py-1.5 font-medium">Created</th>
-          <th className="px-4 py-1.5 font-medium">Sent</th>
-          <th className="px-4 py-1.5 font-medium">Delivered</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-100">
-        {notifications.map((n) => (
-          <tr key={n.id}>
-            <td className="px-4 py-1.5 uppercase text-gray-700">{n.channel}</td>
-            <td className="px-4 py-1.5">
-              <span
-                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[n.status]}`}
-                title={n.failureReason ?? undefined}
-              >
-                {n.status}
-              </span>
-            </td>
-            <td className="px-4 py-1.5 text-gray-500">{formatDateTime(n.createdAt)}</td>
-            <td className="px-4 py-1.5 text-gray-500">{formatDateTime(n.sentAt)}</td>
-            <td className="px-4 py-1.5 text-gray-500">{formatDateTime(n.deliveredAt)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <TableComponent
+      data={notifications}
+      columns={columns}
+      bordered={false}
+      enableSorting={false}
+      enablePagination={false}
+    />
   )
 }

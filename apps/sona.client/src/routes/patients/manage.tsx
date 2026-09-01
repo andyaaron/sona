@@ -4,19 +4,22 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
-import type { CreatePatientInput, Patient, PatientSortField } from '@sona/shared'
+import type { CreatePatientInput, Patient } from '@sona/shared'
 import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
-import { PaginationControls } from '@/components/pagination-controls'
 import { SearchInput } from '@/components/search-input'
-import { SortableHeader } from '@/components/sortable-header'
+import TableComponent from '@/components/Table/Table'
+import type { AppColumnDef } from '@/components/Table/Table'
 import { useCreatePatient } from '@/features/patients/api/create-patient'
 import { useDeletePatient } from '@/features/patients/api/delete-patient'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
 import { useUpdatePatient } from '@/features/patients/api/update-patient'
 import { PatientForm } from '@/features/patients/components/patient-form'
-import { validatePatientListSearch } from '@/features/patients/patient-list-search'
+import {
+  patientTableManualState,
+  validatePatientListSearch,
+} from '@/features/patients/patient-list-search'
 import { activeProvidersQueryOptions } from '@/features/providers/api/get-providers'
 
 export const Route = createFileRoute('/patients/manage')({
@@ -48,7 +51,6 @@ function getErrorMessage(error: Error): string {
 
 function ManagePatientsPage() {
   const searchParams = Route.useSearch()
-  const { sortBy = 'lastName', sortDir = 'asc' } = searchParams
   const navigate = Route.useNavigate()
   const { data } = useSuspenseQuery(patientsQueryOptions(searchParams))
   const { data: providers } = useSuspenseQuery(activeProvidersQueryOptions)
@@ -73,17 +75,6 @@ function ManagePatientsPage() {
     }, 300)
     return () => clearTimeout(handle)
   }, [searchInput, searchParams.search, navigate])
-
-  function toggleSort(field: PatientSortField) {
-    navigate({
-      search: (prev) => ({
-        ...prev,
-        sortBy: field,
-        sortDir: field === sortBy && sortDir === 'asc' ? 'desc' : 'asc',
-        page: undefined,
-      }),
-    })
-  }
 
   function handleCreate(values: CreatePatientInput) {
     const input = {
@@ -138,6 +129,67 @@ function ManagePatientsPage() {
   const isCreating = formState?.mode === 'create'
   const editingPatient = formState?.mode === 'edit' ? formState.patient : null
 
+  const manual = patientTableManualState({
+    searchParams,
+    page: data.page,
+    pageSize: data.pageSize,
+    rowCount: data.totalCount,
+    navigate,
+  })
+
+  // Defined per render (not module level) — the actions column closes over the
+  // mutation handlers and delete-pending state.
+  const columns: AppColumnDef<Patient>[] = [
+    {
+      accessorKey: 'lastName',
+      header: 'Name',
+      cell: ({ row }) => {
+        const patient = row.original
+        return (
+          <>
+            <p className="font-medium text-gray-900">
+              {patient.firstName} {patient.lastName}
+            </p>
+            <p className="text-sm text-gray-500">
+              {patient.phoneNumber}
+              {' · '}
+              <span className="text-gray-400">
+                {patient.primaryProviderName ?? 'Unassigned'}
+              </span>
+            </p>
+          </>
+        )
+      },
+    },
+    { accessorKey: 'mrn', header: 'MRN' },
+    { accessorKey: 'dob', header: 'DOB' },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setFormState({ mode: 'edit', patient: row.original })}
+          >
+            Edit
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={deletePatient.isPending}
+            onClick={() => handleDelete(row.original)}
+          >
+            Delete
+          </Button>
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div>
       <div className="flex items-center gap-4">
@@ -182,90 +234,12 @@ function ManagePatientsPage() {
         />
       ) : null}
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 bg-white">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <SortableHeader
-                label="Name"
-                field="lastName"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSort={toggleSort}
-              />
-              <SortableHeader
-                label="MRN"
-                field="mrn"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSort={toggleSort}
-              />
-              <SortableHeader
-                label="DOB"
-                field="dob"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSort={toggleSort}
-              />
-              <th scope="col" className="px-4 py-2" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {data.items.map((patient) => (
-              <tr key={patient.id}>
-                <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900">
-                    {patient.firstName} {patient.lastName}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {patient.phoneNumber}
-                    {' · '}
-                    <span className="text-gray-400">
-                      {patient.primaryProviderName ?? 'Unassigned'}
-                    </span>
-                  </p>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-700">{patient.mrn}</td>
-                <td className="px-4 py-3 text-sm text-gray-700">{patient.dob}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setFormState({ mode: 'edit', patient })}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={deletePatient.isPending}
-                      onClick={() => handleDelete(patient)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {data.items.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">
-                  No patients found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <PaginationControls
-        page={data.page}
-        pageSize={data.pageSize}
-        totalCount={data.totalCount}
-        onPageChange={(page) => navigate({ search: (prev) => ({ ...prev, page: page > 1 ? page : undefined }) })}
+      <TableComponent
+        data={data.items}
+        columns={columns}
+        getRowId={(patient) => patient.id}
+        emptyMessage="No patients found."
+        manual={manual}
       />
     </div>
   )
