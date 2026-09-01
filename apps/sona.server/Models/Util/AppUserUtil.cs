@@ -67,9 +67,12 @@ namespace Sona.Server.Models.Util
         {
             try
             {
-                //DepartmentAccess included so CurrentUserService can expose DepartmentIds
+                //Organization + DepartmentAccess (with names) included so CurrentUserService
+                //can expose tenant context to the client without extra endpoints
                 return Task.FromResult(_db.AppUsers
+                    .Include(m => m.Organization)
                     .Include(m => m.DepartmentAccess)
+                        .ThenInclude(a => a.Department)
                     .Where(m => m.HCAID == HCAID)
                     .FirstOrDefault());
             }

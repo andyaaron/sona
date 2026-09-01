@@ -9,8 +9,11 @@ export type User = {
   role: UserRole;
   /** Tenant — null for system_admin/unassigned */
   organizationId: string | null;
+  organizationName: string | null;
   /** UserDepartmentAccess scoping; only populated for staff */
   departmentIds: string[];
+  /** Names for departmentIds (staff cannot call the org endpoints themselves) */
+  departments: { id: string; name: string }[];
   /** Informational MSGraph department string — not authorization data */
   department: string | null;
 };

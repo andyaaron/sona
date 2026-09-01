@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OrganizationIndexRouteImport } from './routes/organization/index'
+import { Route as OrganizationsIndexRouteImport } from './routes/organizations/index'
 import { Route as PatientsIndexRouteImport } from './routes/patients/index'
 import { Route as PatientsManageRouteImport } from './routes/patients/manage'
 import { Route as ProvidersManageRouteImport } from './routes/providers/manage'
@@ -18,6 +20,16 @@ import { Route as UserManagementIndexRouteImport } from './routes/user-managemen
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrganizationIndexRoute = OrganizationIndexRouteImport.update({
+  id: '/organization/',
+  path: '/organization/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrganizationsIndexRoute = OrganizationsIndexRouteImport.update({
+  id: '/organizations/',
+  path: '/organizations/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PatientsIndexRoute = PatientsIndexRouteImport.update({
@@ -45,6 +57,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/patients/manage': typeof PatientsManageRoute
   '/providers/manage': typeof ProvidersManageRoute
+  '/organization/': typeof OrganizationIndexRoute
+  '/organizations/': typeof OrganizationsIndexRoute
   '/patients/': typeof PatientsIndexRoute
   '/user-management/': typeof UserManagementIndexRoute
 }
@@ -52,6 +66,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/patients/manage': typeof PatientsManageRoute
   '/providers/manage': typeof ProvidersManageRoute
+  '/organization': typeof OrganizationIndexRoute
+  '/organizations': typeof OrganizationsIndexRoute
   '/patients': typeof PatientsIndexRoute
   '/user-management': typeof UserManagementIndexRoute
 }
@@ -60,6 +76,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/patients/manage': typeof PatientsManageRoute
   '/providers/manage': typeof ProvidersManageRoute
+  '/organization/': typeof OrganizationIndexRoute
+  '/organizations/': typeof OrganizationsIndexRoute
   '/patients/': typeof PatientsIndexRoute
   '/user-management/': typeof UserManagementIndexRoute
 }
@@ -69,6 +87,8 @@ export interface FileRouteTypes {
     | '/'
     | '/patients/manage'
     | '/providers/manage'
+    | '/organization/'
+    | '/organizations/'
     | '/patients/'
     | '/user-management/'
   fileRoutesByTo: FileRoutesByTo
@@ -76,6 +96,8 @@ export interface FileRouteTypes {
     | '/'
     | '/patients/manage'
     | '/providers/manage'
+    | '/organization'
+    | '/organizations'
     | '/patients'
     | '/user-management'
   id:
@@ -83,6 +105,8 @@ export interface FileRouteTypes {
     | '/'
     | '/patients/manage'
     | '/providers/manage'
+    | '/organization/'
+    | '/organizations/'
     | '/patients/'
     | '/user-management/'
   fileRoutesById: FileRoutesById
@@ -91,6 +115,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PatientsManageRoute: typeof PatientsManageRoute
   ProvidersManageRoute: typeof ProvidersManageRoute
+  OrganizationIndexRoute: typeof OrganizationIndexRoute
+  OrganizationsIndexRoute: typeof OrganizationsIndexRoute
   PatientsIndexRoute: typeof PatientsIndexRoute
   UserManagementIndexRoute: typeof UserManagementIndexRoute
 }
@@ -102,6 +128,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/organization/': {
+      id: '/organization/'
+      path: '/organization'
+      fullPath: '/organization/'
+      preLoaderRoute: typeof OrganizationIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/organizations/': {
+      id: '/organizations/'
+      path: '/organizations'
+      fullPath: '/organizations/'
+      preLoaderRoute: typeof OrganizationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/patients/': {
@@ -139,6 +179,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PatientsManageRoute: PatientsManageRoute,
   ProvidersManageRoute: ProvidersManageRoute,
+  OrganizationIndexRoute: OrganizationIndexRoute,
+  OrganizationsIndexRoute: OrganizationsIndexRoute,
   PatientsIndexRoute: PatientsIndexRoute,
   UserManagementIndexRoute: UserManagementIndexRoute,
 }
