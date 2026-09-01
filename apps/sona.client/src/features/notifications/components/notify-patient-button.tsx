@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import Button from '@/components/button'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { useDepartmentContext } from '@/hooks/useDepartmentContext'
 
 import { useNotifyPatient } from '../api/notify-patient'
 
@@ -14,6 +15,8 @@ export function NotifyPatientButton({
 }) {
   const notify = useNotifyPatient()
   const [confirming, setConfirming] = useState(false)
+  // Sender's department context is audited on the MessageOut row (docs/tasks/08 §8e)
+  const { effectiveDepartmentId } = useDepartmentContext()
 
   return (
     <>
@@ -32,7 +35,7 @@ export function NotifyPatientButton({
         confirmDisabled={notify.isPending}
         onConfirm={() =>
           notify.mutate(
-            { patientId },
+            { patientId, departmentId: effectiveDepartmentId },
             { onSettled: () => setConfirming(false) },
           )
         }

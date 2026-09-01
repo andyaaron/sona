@@ -1,15 +1,28 @@
 import type {
+  AppUserSummary,
+  CreateDepartmentInput,
+  CreateOrganizationInput,
   CreatePatientInput,
   CreateProviderInput,
+  CreateSiteInput,
+  Department,
+  DirectoryUser,
+  InviteUserInput,
   MessageOut,
   NotifyPatientInput,
+  Organization,
   PagedResult,
   Patient,
   PatientSortField,
   Provider,
+  Site,
   SortDirection,
+  UpdateDepartmentInput,
   UpdatePatientInput,
   UpdateProviderInput,
+  UpdateSiteInput,
+  UpdateUserInput,
+  UserRole,
 } from "@sona/shared";
 import { apiFetch } from "./client";
 
@@ -61,6 +74,48 @@ export const providersApi = {
       method: "PUT",
       body: input,
     }),
+};
+
+export const organizationsApi = {
+  /** system_admin: all orgs; org_admin: own org only. */
+  list: () => apiFetch<Organization[]>("/api/organizations"),
+  create: (input: CreateOrganizationInput) =>
+    apiFetch<Organization>("/api/organizations", { method: "POST", body: input }),
+  listSites: (organizationId: string) =>
+    apiFetch<Site[]>(`/api/organizations/${organizationId}/sites`),
+  createSite: (organizationId: string, input: CreateSiteInput) =>
+    apiFetch<Site>(`/api/organizations/${organizationId}/sites`, {
+      method: "POST",
+      body: input,
+    }),
+  updateSite: (input: UpdateSiteInput) =>
+    apiFetch<Site>(`/api/sites/${input.id}`, { method: "PUT", body: input }),
+  listDepartments: (siteId: string) =>
+    apiFetch<Department[]>(`/api/sites/${siteId}/departments`),
+  createDepartment: (siteId: string, input: CreateDepartmentInput) =>
+    apiFetch<Department>(`/api/sites/${siteId}/departments`, {
+      method: "POST",
+      body: input,
+    }),
+  updateDepartment: (input: UpdateDepartmentInput) =>
+    apiFetch<Department>(`/api/departments/${input.id}`, {
+      method: "PUT",
+      body: input,
+    }),
+};
+
+export const usersApi = {
+  /** org_admin: own org + the unassigned pending queue; system_admin: all. */
+  list: (params?: { role?: UserRole }) => {
+    const query = params?.role ? `?role=${params.role}` : "";
+    return apiFetch<AppUserSummary[]>(`/api/users${query}`);
+  },
+  update: (id: number, input: UpdateUserInput) =>
+    apiFetch<AppUserSummary>(`/api/users/${id}`, { method: "PUT", body: input }),
+  directorySearch: (q: string) =>
+    apiFetch<DirectoryUser[]>(`/api/users/directory-search?q=${encodeURIComponent(q)}`),
+  invite: (input: InviteUserInput) =>
+    apiFetch<AppUserSummary>("/api/users/invite", { method: "POST", body: input }),
 };
 
 export const notificationsApi = {

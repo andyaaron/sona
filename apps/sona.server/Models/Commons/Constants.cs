@@ -18,10 +18,22 @@ namespace Sona.Server.Models.Commons
 
     }
 
-    //enum for access levels - MUST MATCH DATABASE ID VALUES
-    public enum AccessLevels
+    /// <summary>
+    /// AppUser.Role values — string constants, kept in parity with the
+    /// UserRole TS union in @sona/shared (docs/tasks/08 design decision 3).
+    /// </summary>
+    public static class UserRoles
     {
-        Unassigned = 1, //default for new users
-        Standard = 2, //lowest level of access, must be provisioned in app for this elevation from Unassigned?
+        /// <summary>Sona/HCA internal; no org; sees everything; only role that creates organizations.</summary>
+        public const string SystemAdmin = "system_admin";
+
+        /// <summary>Manages users/sites/departments/providers within own org; org-wide access implied.</summary>
+        public const string OrgAdmin = "org_admin";
+
+        /// <summary>Sends notifications, sees patients only; department-scoped via UserDepartmentAccess.</summary>
+        public const string Staff = "staff";
+
+        /// <summary>Authenticated but not yet provisioned — pending approval, sees nothing.</summary>
+        public const string Unassigned = "unassigned";
     }
 }

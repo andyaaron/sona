@@ -8,6 +8,11 @@ namespace Sona.Server.Data.DbModels;
 /// </summary>
 public class Provider : EntityBase
 {
+    /// <summary>Owning tenant — provider dropdowns are org-scoped.</summary>
+    public Guid OrganizationId { get; set; }
+
+    public Organization? Organization { get; set; }
+
     [Required]
     [MaxLength(100)]
     public required string FirstName { get; set; }

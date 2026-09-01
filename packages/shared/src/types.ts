@@ -1,28 +1,74 @@
-export type AccessLevel = {
-  id: number;
-  levelName: string;
-  description: string;
-};
+/** Mirrors the server's UserRoles string constants (docs/tasks/08 design decision 3). */
+export type UserRole = "system_admin" | "org_admin" | "staff" | "unassigned";
 
-/** Internal staff user of the admin platform (nurse, provider, admin). */
+/** The authenticated user — shape of GET /api/user (CurrentUserDto server-side). */
 export type User = {
-  id: number;
-  hca34Id: string;
-  displayName: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  accessLevelId: number;
-  defaultFacilityId?: number | null;
-  lastLogin: string;
-  isDarkMode: boolean;
-  dateCreated: string;
-  createdBy: string;
-  accessLevel?: AccessLevel | null;
-  facility?: string | null;
+  hca34Id: string | null;
+  displayName: string | null;
+  email: string | null;
+  role: UserRole;
+  /** Tenant — null for system_admin/unassigned */
+  organizationId: string | null;
+  organizationName: string | null;
+  /** UserDepartmentAccess scoping; only populated for staff */
+  departmentIds: string[];
+  /** Names for departmentIds (staff cannot call the org endpoints themselves) */
+  departments: { id: string; name: string }[];
+  /** Informational MSGraph department string — not authorization data */
+  department: string | null;
 };
 
-export type UserRole = "nurse" | "provider" | "admin";
+export type OrganizationType = "practice" | "hospital";
+
+/** Tenant root of the fixed 3-level chain Organization → Site → Department. */
+export interface Organization {
+  id: string;
+  name: string;
+  type: OrganizationType;
+  isActive: boolean;
+  createDate: string;
+  modDate: string;
+}
+
+/** Campus/location grouping — admin structure only; departments message patients. */
+export interface Site {
+  id: string;
+  organizationId: string;
+  name: string;
+  isActive: boolean;
+  createDate: string;
+  modDate: string;
+}
+
+/** The unit that messages patients (ED waiting, Lab, Imaging). */
+export interface Department {
+  id: string;
+  siteId: string;
+  name: string;
+  isActive: boolean;
+  createDate: string;
+  modDate: string;
+}
+
+/** A managed user row as listed in user management (GET /api/users). */
+export interface AppUserSummary {
+  /** AppUser ids are numeric (int PK), unlike the uuid-string ids elsewhere */
+  id: number;
+  hca34Id: string | null;
+  displayName: string | null;
+  email: string | null;
+  role: UserRole;
+  organizationId: string | null;
+  departmentIds: string[];
+  lastLogin: string | null;
+}
+
+/** HCA directory search hit for the invite-first flow — name/email/34Id only. */
+export interface DirectoryUser {
+  hca34Id: string;
+  displayName: string | null;
+  email: string | null;
+}
 
 export type PatientImportSource = "flatfile" | "ui" | "cerner";
 
@@ -99,6 +145,8 @@ export interface MessageOut {
   channel: NotificationChannel;
   /** Approved template the body was rendered from; never caller-supplied text */
   messageTemplateId: string | null;
+  /** Sender's department at send time (opaque id — names never reach payloads/logs) */
+  departmentId: string | null;
   /** Rendered text as actually sent (audit snapshot) */
   body: string | null;
   /** Number dialed at send time; null for push */

@@ -9,7 +9,7 @@ using Sona.Server.Models.Util;
 
 namespace Sona.Server.Controllers;
 
-[Authorize]
+[Authorize(Policy = Sona.Server.Models.Auth.Policies.AssignedUser)]
 [ApiController]
 public class NotificationsController : Controller
 {
@@ -43,15 +43,44 @@ public class NotificationsController : Controller
         if (!int.TryParse(input.PatientId, out var patientId))
             return NotFound();
 
+        var currentUser = await _currentUserService.GetCurrentUserAsync();
+        if (currentUser == null)
+            return Unauthorized();
+
         var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Id == patientId);
         if (patient == null)
             return NotFound();
+
+        // Tenant isolation (8c): the sender must share an org with the patient.
+        // Cross-org id ⇒ 404, not 403 — don't leak existence.
+        if (currentUser.Role != UserRoles.SystemAdmin
+            && patient.OrganizationId != currentUser.OrganizationId)
+            return NotFound();
+
         if (!patient.IsActive)
             return BadRequest(new { error = "Patient is inactive." });
 
         var sender = await ResolveCurrentAppUserAsync();
         if (sender == null)
             return Unauthorized();
+
+        // Optional sender department (audit): must belong to the patient's org,
+        // and staff may only use departments in their own access set.
+        Guid? departmentId = null;
+        if (input.DepartmentId.HasValue)
+        {
+            var departmentInOrg = await _db.Departments
+                .AnyAsync(d => d.Id == input.DepartmentId.Value
+                    && d.Site!.OrganizationId == patient.OrganizationId);
+            if (!departmentInOrg)
+                return BadRequest(new { error = "Unknown department." });
+
+            if (currentUser.Role == UserRoles.Staff
+                && !currentUser.DepartmentIds.Contains(input.DepartmentId.Value))
+                return BadRequest(new { error = "You do not have access to this department." });
+
+            departmentId = input.DepartmentId.Value;
+        }
 
         var template = await _db.MessageTemplates
             .AsNoTracking()
@@ -70,6 +99,7 @@ public class NotificationsController : Controller
             SentByUserId = sender.Id,
             Channel = channel,
             MessageTemplateId = template.Id,
+            DepartmentId = departmentId,
             Body = template.Body,
             MobileNumber = channel == "sms" ? patient.MobileNumber : null,
             Status = "pending",
@@ -121,7 +151,13 @@ public class NotificationsController : Controller
         if (!int.TryParse(id, out var patientId))
             return NotFound();
 
-        var patientExists = await _db.Patients.AnyAsync(p => p.Id == patientId);
+        var currentUser = await _currentUserService.GetCurrentUserAsync();
+        if (currentUser == null)
+            return Unauthorized();
+
+        // Tenant isolation (8c): history is only visible within the patient's org
+        var patientExists = await _db.Patients.AnyAsync(p => p.Id == patientId
+            && (currentUser.Role == UserRoles.SystemAdmin || p.OrganizationId == currentUser.OrganizationId));
         if (!patientExists)
             return NotFound();
 
@@ -155,6 +191,7 @@ public class NotificationsController : Controller
             SentByUserId = message.SentByUserId,
             Channel = message.Channel,
             MessageTemplateId = message.MessageTemplateId?.ToString(),
+            DepartmentId = message.DepartmentId?.ToString(),
             Body = message.Body,
             MobileNumber = message.MobileNumber,
             Status = message.Status,
@@ -173,6 +210,7 @@ public class NotificationsController : Controller
         public int SentByUserId { get; set; }
         public string Channel { get; set; } = "";
         public string? MessageTemplateId { get; set; }
+        public string? DepartmentId { get; set; }
         public string? Body { get; set; }
         public string? MobileNumber { get; set; }
         public string Status { get; set; } = "";
@@ -186,5 +224,8 @@ public class NotificationsController : Controller
     public sealed class NotifyReadyRequest
     {
         public string PatientId { get; set; } = "";
+
+        /// <summary>Sender's department context (audit — MessageOut.DepartmentId). Optional.</summary>
+        public Guid? DepartmentId { get; set; }
     }
 }

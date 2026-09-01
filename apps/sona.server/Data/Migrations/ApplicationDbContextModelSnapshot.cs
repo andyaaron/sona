@@ -22,27 +22,6 @@ namespace sona.server.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Sona.Server.Data.DbModels.AccessLevel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("LevelName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AccessLevels");
-                });
-
             modelBuilder.Entity("Sona.Server.Data.DbModels.AppLog", b =>
                 {
                     b.Property<int>("Id")
@@ -82,9 +61,6 @@ namespace sona.server.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AccessLevelId")
-                        .HasColumnType("int");
-
                     b.Property<string>("DisplayName")
                         .HasColumnType("nvarchar(max)");
 
@@ -112,11 +88,49 @@ namespace sona.server.Data.Migrations
                     b.Property<DateTime>("ModDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("AccessLevelId");
+                    b.HasIndex("OrganizationId");
 
                     b.ToTable("AppUsers");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Department", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("ModDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("SiteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SiteId");
+
+                    b.ToTable("Departments");
                 });
 
             modelBuilder.Entity("Sona.Server.Data.DbModels.MessageOut", b =>
@@ -137,6 +151,9 @@ namespace sona.server.Data.Migrations
 
                     b.Property<DateTime?>("DeliveredDateTime")
                         .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DepartmentId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("FailureReason")
                         .HasColumnType("nvarchar(max)");
@@ -167,6 +184,8 @@ namespace sona.server.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
 
                     b.HasIndex("MessageTemplateId");
 
@@ -206,6 +225,36 @@ namespace sona.server.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("MessageTemplates");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Organization", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("ModDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Organizations");
                 });
 
             modelBuilder.Entity("Sona.Server.Data.DbModels.Patient", b =>
@@ -251,6 +300,9 @@ namespace sona.server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("PrimaryProviderId")
                         .HasColumnType("uniqueidentifier");
 
@@ -262,11 +314,11 @@ namespace sona.server.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Mrn")
-                        .IsUnique()
-                        .HasFilter("\"IsActive\" = 1");
-
                     b.HasIndex("PrimaryProviderId");
+
+                    b.HasIndex("OrganizationId", "Mrn")
+                        .IsUnique()
+                        .HasFilter("[IsActive] = 1");
 
                     b.ToTable("Patients");
                 });
@@ -307,6 +359,9 @@ namespace sona.server.Data.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Specialty")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -319,20 +374,97 @@ namespace sona.server.Data.Migrations
                         .IsUnique()
                         .HasFilter("[Npi] IS NOT NULL");
 
+                    b.HasIndex("OrganizationId");
+
                     b.ToTable("Providers");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Site", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("ModDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("Sites");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.UserDepartmentAccess", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AppUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreateDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ModDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("AppUserId", "DepartmentId")
+                        .IsUnique();
+
+                    b.ToTable("UserDepartmentAccesses");
                 });
 
             modelBuilder.Entity("Sona.Server.Data.DbModels.AppUser", b =>
                 {
-                    b.HasOne("Sona.Server.Data.DbModels.AccessLevel", "GetAccessLevel")
+                    b.HasOne("Sona.Server.Data.DbModels.Organization", "Organization")
                         .WithMany()
-                        .HasForeignKey("AccessLevelId");
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("GetAccessLevel");
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Department", b =>
+                {
+                    b.HasOne("Sona.Server.Data.DbModels.Site", "Site")
+                        .WithMany("Departments")
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Site");
                 });
 
             modelBuilder.Entity("Sona.Server.Data.DbModels.MessageOut", b =>
                 {
+                    b.HasOne("Sona.Server.Data.DbModels.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Sona.Server.Data.DbModels.MessageTemplate", "MessageTemplate")
                         .WithMany()
                         .HasForeignKey("MessageTemplateId")
@@ -350,6 +482,8 @@ namespace sona.server.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("Department");
+
                     b.Navigation("MessageTemplate");
 
                     b.Navigation("Patient");
@@ -359,10 +493,18 @@ namespace sona.server.Data.Migrations
 
             modelBuilder.Entity("Sona.Server.Data.DbModels.Patient", b =>
                 {
+                    b.HasOne("Sona.Server.Data.DbModels.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Sona.Server.Data.DbModels.Provider", "PrimaryProvider")
                         .WithMany()
                         .HasForeignKey("PrimaryProviderId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Organization");
 
                     b.Navigation("PrimaryProvider");
                 });
@@ -374,7 +516,60 @@ namespace sona.server.Data.Migrations
                         .HasForeignKey("AppUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Sona.Server.Data.DbModels.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("AppUser");
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Site", b =>
+                {
+                    b.HasOne("Sona.Server.Data.DbModels.Organization", "Organization")
+                        .WithMany("Sites")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.UserDepartmentAccess", b =>
+                {
+                    b.HasOne("Sona.Server.Data.DbModels.AppUser", "AppUser")
+                        .WithMany("DepartmentAccess")
+                        .HasForeignKey("AppUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sona.Server.Data.DbModels.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AppUser");
+
+                    b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.AppUser", b =>
+                {
+                    b.Navigation("DepartmentAccess");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Organization", b =>
+                {
+                    b.Navigation("Sites");
+                });
+
+            modelBuilder.Entity("Sona.Server.Data.DbModels.Site", b =>
+                {
+                    b.Navigation("Departments");
                 });
 #pragma warning restore 612, 618
         }

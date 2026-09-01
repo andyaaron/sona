@@ -9,6 +9,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.MSSqlServer;
 using Sona.Server.Data;
+using Sona.Server.Models.Auth;
 using Sona.Server.Models.Util;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -92,7 +93,8 @@ builder.Services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.Authe
 
 // Setup antiforgery & authorization
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-XSRF-TOKEN");
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddRolePolicies());
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, Sona.Server.Models.Auth.RoleRequirementHandler>();
 
 // Register services
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();

@@ -22,6 +22,13 @@ public class MessageOut : EntityBase
     public Guid? MessageTemplateId { get; set; }
     public MessageTemplate? MessageTemplate { get; set; }
 
+    /// <summary>
+    /// Sender's department at send time (audit). Opaque id only — a department
+    /// name can imply a condition and must never reach payloads/logs/URLs.
+    /// </summary>
+    public Guid? DepartmentId { get; set; }
+    public Department? Department { get; set; }
+
     /// <summary>Rendered template text as actually sent — audit snapshot, never free text.</summary>
     public string? Body { get; set; }
 
