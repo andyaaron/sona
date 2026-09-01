@@ -142,6 +142,8 @@ export interface MessageOut {
   channel: NotificationChannel;
   /** Approved template the body was rendered from; never caller-supplied text */
   messageTemplateId: string | null;
+  /** Sender's department at send time (opaque id — names never reach payloads/logs) */
+  departmentId: string | null;
   /** Rendered text as actually sent (audit snapshot) */
   body: string | null;
   /** Number dialed at send time; null for push */

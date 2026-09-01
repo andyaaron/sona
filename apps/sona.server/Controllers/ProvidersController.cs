@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Sona.Server.Data;
 using Sona.Server.Data.DbModels;
+using Sona.Server.Models.Commons;
+using Sona.Server.Models.Util;
 
 namespace Sona.Server.Controllers;
 
@@ -12,17 +14,38 @@ namespace Sona.Server.Controllers;
 public class ProvidersController : Controller
 {
     private readonly ApplicationDbContext _db;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ProvidersController(ApplicationDbContext db)
+    public ProvidersController(ApplicationDbContext db, ICurrentUserService currentUserService)
     {
         _db = db;
+        _currentUserService = currentUserService;
+    }
+
+    /// <summary>Tenant scope (docs/tasks/08 8c) — same semantics as PatientsController.</summary>
+    private async Task<(bool Ok, Guid? OrgId)> ResolveOrgScopeAsync(Guid? overrideOrgId = null)
+    {
+        var current = await _currentUserService.GetCurrentUserAsync();
+        if (current == null)
+            return (false, null);
+        if (current.Role == UserRoles.SystemAdmin)
+            return (true, overrideOrgId);
+        return current.OrganizationId == null ? (false, null) : (true, current.OrganizationId);
     }
 
     // GET: /api/providers?isActive=true
     [HttpGet]
-    public async Task<IActionResult> GetProviders([FromQuery] bool? isActive)
+    public async Task<IActionResult> GetProviders([FromQuery] bool? isActive, [FromQuery] Guid? organizationId)
     {
+        var (scopeOk, orgId) = await ResolveOrgScopeAsync(organizationId);
+        if (!scopeOk)
+            return Forbid();
+
         var query = _db.Providers.AsNoTracking().AsQueryable();
+
+        // Tenant isolation: provider dropdown data is org-scoped (8c)
+        if (orgId.HasValue)
+            query = query.Where(p => p.OrganizationId == orgId.Value);
 
         if (isActive.HasValue)
             query = query.Where(p => p.IsActive == isActive.Value);
@@ -40,6 +63,12 @@ public class ProvidersController : Controller
     [HttpPost]
     public async Task<IActionResult> CreateProvider([FromBody] CreateProviderRequest input)
     {
+        var (scopeOk, orgId) = await ResolveOrgScopeAsync(input.OrganizationId);
+        if (!scopeOk)
+            return Forbid();
+        if (orgId == null)
+            return BadRequest(new { error = "organizationId is required for system admins." });
+
         if (string.IsNullOrWhiteSpace(input.FirstName) || string.IsNullOrWhiteSpace(input.LastName))
             return BadRequest(new { error = "First name and last name are required." });
 
@@ -55,6 +84,7 @@ public class ProvidersController : Controller
 
         var provider = new Provider
         {
+            OrganizationId = orgId.Value,
             FirstName = input.FirstName.Trim(),
             LastName = input.LastName.Trim(),
             Credentials = input.Credentials?.Trim(),
@@ -74,7 +104,14 @@ public class ProvidersController : Controller
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateProvider(Guid id, [FromBody] UpdateProviderRequest input)
     {
-        var provider = await _db.Providers.FirstOrDefaultAsync(p => p.Id == id);
+        var (scopeOk, orgId) = await ResolveOrgScopeAsync();
+        if (!scopeOk)
+            return Forbid();
+
+        // Cross-org id access ⇒ 404 (don't leak existence)
+        var provider = await _db.Providers
+            .Where(p => orgId == null || p.OrganizationId == orgId)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (provider == null)
             return NotFound();
 
@@ -143,6 +180,8 @@ public class ProvidersController : Controller
 
     public sealed class CreateProviderRequest
     {
+        /// <summary>Only honored for system_admin callers; everyone else's org is stamped from their account.</summary>
+        public Guid? OrganizationId { get; set; }
         public string FirstName { get; set; } = "";
         public string LastName { get; set; } = "";
         public string? Credentials { get; set; }

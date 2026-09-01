@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Sona.Server.Data;
 using Sona.Server.Data.DbModels;
+using Sona.Server.Models.Commons;
+using Sona.Server.Models.Util;
 using PatientEntity = Sona.Server.Data.DbModels.Patient;
 
 namespace Sona.Server.Controllers;
@@ -13,22 +15,44 @@ namespace Sona.Server.Controllers;
 public class PatientsController : Controller
 {
     private readonly ApplicationDbContext _db;
+    private readonly ICurrentUserService _currentUserService;
 
-    public PatientsController(ApplicationDbContext db)
+    public PatientsController(ApplicationDbContext db, ICurrentUserService currentUserService)
     {
         _db = db;
+        _currentUserService = currentUserService;
+    }
+
+    /// <summary>
+    /// Tenant scope for the current request (docs/tasks/08 8c). Non-system-admins
+    /// are pinned to their own org; system_admin sees all orgs unless they pass
+    /// an explicit ?organizationId= override. Ok=false ⇒ caller has no org at all.
+    /// </summary>
+    private async Task<(bool Ok, Guid? OrgId)> ResolveOrgScopeAsync(Guid? overrideOrgId = null)
+    {
+        var current = await _currentUserService.GetCurrentUserAsync();
+        if (current == null)
+            return (false, null);
+        if (current.Role == UserRoles.SystemAdmin)
+            return (true, overrideOrgId);
+        return current.OrganizationId == null ? (false, null) : (true, current.OrganizationId);
     }
 
     // GET: /api/patients?providerId={guid}&page=1&pageSize=25&sortBy=lastName&sortDir=asc&search=...
     [HttpGet]
     public async Task<IActionResult> GetPatients(
         [FromQuery] Guid? providerId,
+        [FromQuery] Guid? organizationId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
         [FromQuery] string sortBy = "lastName",
         [FromQuery] string sortDir = "asc",
         [FromQuery] string? search = null)
     {
+        var (scopeOk, orgId) = await ResolveOrgScopeAsync(organizationId);
+        if (!scopeOk)
+            return Forbid();
+
         // Clamp, don't error (per task contract).
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 1;
@@ -42,6 +66,10 @@ public class PatientsController : Controller
             .AsNoTracking()
             .Include(p => p.PrimaryProvider)
             .Where(patient => patient.IsActive);
+
+        // Tenant isolation: every patient query carries the org filter (8c).
+        if (orgId.HasValue)
+            query = query.Where(patient => patient.OrganizationId == orgId.Value);
 
         if (providerId.HasValue)
             query = query.Where(patient => patient.PrimaryProviderId == providerId.Value);
@@ -100,10 +128,16 @@ public class PatientsController : Controller
         if (!TryParseId(id, out var patientId))
             return NotFound();
 
+        var (scopeOk, orgId) = await ResolveOrgScopeAsync();
+        if (!scopeOk)
+            return Forbid();
+
+        // Cross-org id access ⇒ 404 (not 403 — don't leak existence)
         var patient = await _db.Patients
             .AsNoTracking()
             .Include(p => p.PrimaryProvider)
             .Where(existingPatient => existingPatient.Id == patientId && existingPatient.IsActive)
+            .Where(existingPatient => orgId == null || existingPatient.OrganizationId == orgId)
             .Select(existingPatient => ToResponse(existingPatient))
             .FirstOrDefaultAsync();
 
@@ -117,8 +151,17 @@ public class PatientsController : Controller
     [HttpPost]
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest input)
     {
+        // POST stamps the creator's org; a system_admin (no org of their own)
+        // must say which org the patient belongs to.
+        var (scopeOk, orgId) = await ResolveOrgScopeAsync(input.OrganizationId);
+        if (!scopeOk)
+            return Forbid();
+        if (orgId == null)
+            return BadRequest(new { error = "organizationId is required for system admins." });
+
+        // Duplicate-MRN check is org-scoped (matches the composite unique index)
         var mrnExists = await _db.Patients.AnyAsync(p =>
-            p.Mrn == input.Mrn && p.IsActive);
+            p.Mrn == input.Mrn && p.IsActive && p.OrganizationId == orgId.Value);
         if (mrnExists)
             return Conflict(new { error = "A patient with this MRN already exists." });
 
@@ -126,6 +169,7 @@ public class PatientsController : Controller
         if (input.PrimaryProviderId.HasValue)
         {
             var provider = await _db.Providers.AsNoTracking()
+                .Where(p => p.OrganizationId == orgId.Value)
                 .FirstOrDefaultAsync(p => p.Id == input.PrimaryProviderId.Value);
             if (provider == null)
                 return BadRequest(new { error = "Provider not found." });
@@ -137,6 +181,7 @@ public class PatientsController : Controller
         var now = DateTime.UtcNow;
         var patient = new PatientEntity
         {
+            OrganizationId = orgId.Value,
             Mrn = input.Mrn,
             FirstName = input.FirstName,
             LastName = input.LastName,
@@ -167,8 +212,13 @@ public class PatientsController : Controller
         if (id != input.Id || !TryParseId(id, out var patientId))
             return BadRequest();
 
+        var (scopeOk, orgId) = await ResolveOrgScopeAsync();
+        if (!scopeOk)
+            return Forbid();
+
         var patient = await _db.Patients
             .Include(p => p.PrimaryProvider)
+            .Where(existingPatient => orgId == null || existingPatient.OrganizationId == orgId)
             .FirstOrDefaultAsync(existingPatient =>
                 existingPatient.Id == patientId && existingPatient.IsActive);
         if (patient == null)
@@ -177,7 +227,8 @@ public class PatientsController : Controller
         if (input.Mrn != null)
         {
             var mrnTaken = await _db.Patients.AnyAsync(p =>
-                p.Mrn == input.Mrn && p.IsActive && p.Id != patientId);
+                p.Mrn == input.Mrn && p.IsActive && p.Id != patientId
+                && p.OrganizationId == patient.OrganizationId);
             if (mrnTaken)
                 return Conflict(new { error = "A patient with this MRN already exists." });
             patient.Mrn = input.Mrn;
@@ -207,6 +258,7 @@ public class PatientsController : Controller
             else
             {
                 var provider = await _db.Providers.AsNoTracking()
+                    .Where(p => p.OrganizationId == patient.OrganizationId)
                     .FirstOrDefaultAsync(p => p.Id == input.PrimaryProviderId.Value);
                 if (provider == null)
                     return BadRequest(new { error = "Provider not found." });
@@ -230,8 +282,14 @@ public class PatientsController : Controller
         if (!TryParseId(id, out var patientId))
             return NotFound();
 
-        var patient = await _db.Patients.FirstOrDefaultAsync(existingPatient =>
-            existingPatient.Id == patientId && existingPatient.IsActive);
+        var (scopeOk, orgId) = await ResolveOrgScopeAsync();
+        if (!scopeOk)
+            return Forbid();
+
+        var patient = await _db.Patients
+            .Where(existingPatient => orgId == null || existingPatient.OrganizationId == orgId)
+            .FirstOrDefaultAsync(existingPatient =>
+                existingPatient.Id == patientId && existingPatient.IsActive);
         if (patient == null)
             return NotFound();
 
@@ -305,6 +363,8 @@ public class PatientsController : Controller
 
     public sealed class CreatePatientRequest
     {
+        /// <summary>Only honored for system_admin callers; everyone else's org is stamped from their account.</summary>
+        public Guid? OrganizationId { get; set; }
         public string Mrn { get; set; } = "";
         public string FirstName { get; set; } = "";
         public string LastName { get; set; } = "";

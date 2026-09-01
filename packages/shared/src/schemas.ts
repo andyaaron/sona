@@ -105,6 +105,8 @@ export const inviteUserSchema = z.object({
 export const notifyPatientSchema = z.object({
   /** Patient ids are int-strings ("1"), not uuids — matches PatientsController */
   patientId: z.string().regex(/^\d+$/, "Invalid patient id"),
+  /** Sender's department context — audited on MessageOut.DepartmentId (opaque id only). */
+  departmentId: z.string().uuid().nullable().optional(),
 });
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
