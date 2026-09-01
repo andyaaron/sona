@@ -114,15 +114,24 @@ dotnet build apps/sona.server/sona.server.csproj   # restore + build the API
 
 ## Database (SQL Server)
 
-The API uses SQL Server via EF Core. For local development, run SQL Server in Docker:
+The API uses SQL Server via EF Core. Which database it talks to depends on the environment:
+
+| `ASPNETCORE_ENVIRONMENT` | Connection string source | Auth |
+|---|---|---|
+| `Development` / `Production` | Azure Key Vault secret `DefaultConnection` (vault in `Keyvault:_keyvaultURI`) | Entra ID (OIDC) |
+| `Local` | `ConnectionStrings:DefaultConnection` in `appsettings.Local.json` | stub — see [Running locally without Azure](#running-locally-without-azure-local-profile) |
+
+`Development` therefore requires HCA Azure credentials (`az login` against the HCA tenant). Without them the API cannot start — use the `Local` profile instead.
+
+For local development, run SQL Server in Docker:
 
 ```bash
 docker run -d --name sona-sql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='SonaDev_Local1!' -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
 ```
 
 > **Apple Silicon:** the SQL Server image is amd64-only — enable **Rosetta emulation** in Docker Desktop (Settings → General → "Use Rosetta for x86_64/amd64 emulation").
-
-The dev connection string lives in `apps/sona.server/appsettings.Development.json` and matches the container above (database `SonaDev`). These are local-dev-only credentials — real environments configure the `ConnectionStrings__Sona` setting outside source control.
+>
+> **Windows without Docker:** SQL Server Express or LocalDB works too — use `Server=(localdb)\\MSSQLLocalDB;Database=SonaLocal;Trusted_Connection=True;TrustServerCertificate=True;` as the `Local` connection string.
 
 Apply migrations (creates the database on first run):
 
@@ -131,13 +140,22 @@ dotnet tool restore
 dotnet dotnet-ef database update --project apps/sona.server
 ```
 
+Against the local container, set the environment first so EF picks up `appsettings.Local.json`:
+
+```bash
+# macOS/Linux
+ASPNETCORE_ENVIRONMENT=Local dotnet dotnet-ef database update --project apps/sona.server
+# PowerShell
+$env:ASPNETCORE_ENVIRONMENT='Local'; dotnet dotnet-ef database update --project apps/sona.server
+```
+
 Re-run `database update` whenever you pull new migrations. To add a migration after changing entities:
 
 ```bash
 dotnet dotnet-ef migrations add <Name> --project apps/sona.server --output-dir Data/Migrations
 ```
 
-Migrations live in `apps/sona.server/Data/Migrations/` (not the EF default `Migrations/` — pass `--output-dir` as above). Design-time tooling uses `Data/DesignTimeDbContextFactory.cs` with a placeholder connection string, so `dotnet ef migrations add/remove/script` works without Azure credentials or a reachable database.
+Migrations live in `apps/sona.server/Data/Migrations/` (not the EF default `Migrations/` — pass `--output-dir` as above). There is **no** `DesignTimeDbContextFactory` (deliberately deleted 2026-08-31 — a factory's placeholder connection string hijacked `database update` against the real database). EF tooling therefore runs `Program.cs`, which means it needs either Azure credentials or `ASPNETCORE_ENVIRONMENT=Local`.
 
 ### One-time: Azure dev db reconciliation after the 2026-08-27 baseline rebuild
 
@@ -200,6 +218,74 @@ pnpm dev:admin
 # Mobile (terminal 3) — press i for iOS simulator, a for Android
 pnpm dev:mobile
 ```
+
+## Running locally without Azure (`Local` profile)
+
+The default `Development` environment pulls its connection string from Azure Key Vault and
+authenticates through Entra ID, so it only starts on a machine signed in to the HCA tenant.
+The **`Local`** environment is a personal-machine profile that replaces both with local
+stand-ins, so the admin UI can actually be exercised against a running API.
+
+> **Nothing about `Development`/`Production` changes.** Every `Local` branch is gated on
+> `ASPNETCORE_ENVIRONMENT=Local`; any other environment name runs the unchanged Azure path.
+
+### Setup
+
+1. Start a local SQL Server (Docker or LocalDB — see [Database](#database-sql-server) above).
+2. Create your settings file from the committed template:
+
+   ```bash
+   cp apps/sona.server/appsettings.Local.example.json apps/sona.server/appsettings.Local.json
+   ```
+
+   `appsettings.Local.json` is git-ignored. Set `ConnectionStrings:DefaultConnection` to your
+   local server, and optionally change the stub identity under `LocalDevAuth`
+   (`Hca34Id`, `Name`, `Email`).
+
+3. Create the schema:
+
+   ```bash
+   ASPNETCORE_ENVIRONMENT=Local dotnet dotnet-ef database update --project apps/sona.server
+   ```
+
+4. Run the API and the admin:
+
+   ```bash
+   dotnet run --project apps/sona.server --launch-profile "sona.server (Local)"
+   pnpm dev:admin
+   ```
+
+   The `sona.server (Local)` launch profile sets `ASPNETCORE_ENVIRONMENT=Local` and binds both
+   `http://localhost:5032` (the admin's `VITE_API_URL`) and `https://localhost:7296` (the Vite
+   dev-server proxy target for `/auth`).
+
+### ⚠️ Never point `Local` at Azure
+
+`Local` authenticates every request as a stub system admin, so aiming it at the shared dev
+database would bypass every real access control. Startup **refuses** any connection string
+containing `database.windows.net` or `Authentication=Active Directory`:
+
+```
+Local mode refuses to start: ConnectionStrings:DefaultConnection points at Azure SQL …
+```
+
+### What is stubbed in `Local`
+
+| Area | `Development` | `Local` |
+|---|---|---|
+| Connection string | Key Vault secret `DefaultConnection` | `appsettings.Local.json` |
+| Serilog | MSSqlServer `AppLogs` sink + console | console only |
+| Authentication | Entra ID OIDC | `LocalDevAuth` scheme — every request is the configured identity, no sign-in screen |
+| JIT user provisioning | OIDC `OnTokenValidated` | middleware on the first authenticated request; the created user is promoted to `system_admin` (once — a role you later change through the UI sticks) |
+| `/auth/login` | Entra challenge | redirect straight back to `AzureAd:RedirectUri` |
+| MSGraph (directory search, invite name lookup) | live | **not configured** — returns no results / `503` |
+| SMS (Webex Connect) | live if configured | **not configured** — sends are audited as `failed` with `sms-not-configured` |
+
+**Roles are not stubbed.** `LocalDevAuth` emits no role claim; the role still comes from
+`AppUsers.Role`, so org/role authorization is exercised for real. On a fresh database the stub
+user is promoted to `system_admin` on its first request; to test other roles, change the row
+(or use the user-management UI) — it will not be promoted again.
+
 
 ## Verify
 
