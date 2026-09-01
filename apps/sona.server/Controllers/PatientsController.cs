@@ -19,10 +19,25 @@ public class PatientsController : Controller
         _db = db;
     }
 
-    // GET: /api/patients?providerId={guid}
+    // GET: /api/patients?providerId={guid}&page=1&pageSize=25&sortBy=lastName&sortDir=asc&search=...
     [HttpGet]
-    public async Task<IActionResult> GetPatients([FromQuery] Guid? providerId)
+    public async Task<IActionResult> GetPatients(
+        [FromQuery] Guid? providerId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string sortBy = "lastName",
+        [FromQuery] string sortDir = "asc",
+        [FromQuery] string? search = null)
     {
+        // Clamp, don't error (per task contract).
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+        if (pageSize > 100) pageSize = 100;
+
+        var descending = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+        if (!descending && !string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "Invalid sortDir. Allowed: asc, desc." });
+
         var query = _db.Patients
             .AsNoTracking()
             .Include(p => p.PrimaryProvider)
@@ -31,13 +46,51 @@ public class PatientsController : Controller
         if (providerId.HasValue)
             query = query.Where(patient => patient.PrimaryProviderId == providerId.Value);
 
-        var patients = await query
-            .OrderBy(patient => patient.LastName)
-            .ThenBy(patient => patient.FirstName)
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(patient =>
+                patient.Mrn.ToLower().Contains(term)
+                || patient.FirstName.ToLower().Contains(term)
+                || patient.LastName.ToLower().Contains(term));
+        }
+
+        // Ordering is a whitelist switch — never built from raw user input.
+        // Secondary key LastName, FirstName keeps paging stable when the primary is non-unique.
+        IOrderedQueryable<PatientEntity>? ordered = sortBy switch
+        {
+            "lastName" => descending
+                ? query.OrderByDescending(p => p.LastName).ThenBy(p => p.FirstName)
+                : query.OrderBy(p => p.LastName).ThenBy(p => p.FirstName),
+            "firstName" => descending
+                ? query.OrderByDescending(p => p.FirstName).ThenBy(p => p.LastName)
+                : query.OrderBy(p => p.FirstName).ThenBy(p => p.LastName),
+            "mrn" => descending
+                ? query.OrderByDescending(p => p.Mrn).ThenBy(p => p.LastName).ThenBy(p => p.FirstName)
+                : query.OrderBy(p => p.Mrn).ThenBy(p => p.LastName).ThenBy(p => p.FirstName),
+            "dob" => descending
+                ? query.OrderByDescending(p => p.Dob).ThenBy(p => p.LastName).ThenBy(p => p.FirstName)
+                : query.OrderBy(p => p.Dob).ThenBy(p => p.LastName).ThenBy(p => p.FirstName),
+            _ => null,
+        };
+        if (ordered == null)
+            return BadRequest(new { error = "Invalid sortBy. Allowed: lastName, firstName, mrn, dob." });
+
+        var totalCount = await query.CountAsync();
+
+        var items = await ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(patient => ToResponse(patient))
             .ToListAsync();
 
-        return Ok(patients);
+        return Ok(new PagedResultDto
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+        });
     }
 
     // GET: /api/patients/{id}
@@ -221,6 +274,15 @@ public class PatientsController : Controller
             PrimaryProviderId = patient.PrimaryProviderId?.ToString(),
             PrimaryProviderName = providerName,
         };
+    }
+
+    // Mirrors PagedResult<T> in packages/shared (types.ts)
+    private sealed class PagedResultDto
+    {
+        public List<PatientResponseDto> Items { get; set; } = [];
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
     }
 
     private sealed class PatientResponseDto

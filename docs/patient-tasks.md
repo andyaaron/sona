@@ -14,13 +14,14 @@ Done: Task 00 (migration baseline, 2026-08-27), Task 02 (provider assignment, ve
 | 2 | Real SMS dispatch via Webex Connect | [tasks/07](tasks/07-webex-sms-dispatch.md) | The "patient actually gets a text" milestone; depends on 03 (merged); after 8c so sends are born org-scoped |
 | 3 | Org hierarchy UI, **8d–8e** (user management, org structure, system admin) | [tasks/08](tasks/08-org-hierarchy-user-management.md) | Admin surfaces on a settled, enforced schema |
 | 4 | Pagination + sortable columns + server-side search (merged) | [tasks/06](tasks/06-pagination-and-sorting.md) | Pure scale/UX — schedule whenever lists get slow |
-| 5 | Bulk CSV import — **deferred** | [tasks/09](tasks/09-bulk-csv-import.md) | Blocked on the provider's import file docs (format unknown); was Task 05. Also after 8a so imports stamp `OrganizationId` from day one |
+| 5 | TanStack Table adoption — **shipped 2026-08-31** | [tasks/10](tasks/10-tanstack-table.md) | User-provided component arrived 2026-08-31; migrated to v9 and adopted by all three tables |
+| 6 | Bulk CSV import — **deferred** | [tasks/09](tasks/09-bulk-csv-import.md) | Blocked on the provider's import file docs (format unknown); was Task 05. Also after 8a so imports stamp `OrganizationId` from day one |
 
 Rows sharing an order number are parallelizable; higher numbers depend on lower ones being merged. Ordering assumes multiple practices/hospital onboarding is the near-term goal; if the goal shifts to a single-practice pilot sending real texts ASAP, pull 07 ahead of 08a–8c (single-org world works fine; the default-org backfill catches up later).
 
 ## High Priority
 
-- [x] **Search & filter patients** — search by name/MRN shipped on the manage page (client-side; moves server-side with pagination in [tasks/06](tasks/06-pagination-and-sorting.md)). Filters for active/inactive, app status, SMS consent not yet built — fold into tasks/06 if wanted.
+- [x] **Search & filter patients** — search by name/MRN on both patient pages, **server-side since tasks/06 shipped 2026-08-31** (`search` query param, debounced, case-insensitive against MRN/first/last name). Filters for active/inactive, app status, SMS consent not yet built.
 - [x] **Duplicate MRN validation** — server returns 409 on create and update; unique `Mrn` index migration in place. *(verified on `main` 2026-08-20)*
 - [x] **SMS consent date stamping** — server stamps on first consent, preserves on repeat, clears on revoke; schemas never accept `smsConsentDate`. *(verified on `main` 2026-08-20)*
 - [x] **Convert patient form to TanStack Form** — `patient-form.tsx` + shared `Form/` field components, zod validation from `@sona/shared`. *(verified on `main` 2026-08-20)*
@@ -88,5 +89,6 @@ Contact fields (email/phone) on Provider: deliberately omitted for now — direc
 
 ## Lower Priority
 
-- [ ] **Pagination** — Paginate the patient list for performance with large datasets *(prompt: [tasks/06](tasks/06-pagination-and-sorting.md), merged with sorting)*
-- [ ] **Sortable columns** — Allow sorting the patient list by name, MRN, last notified, etc. *(prompt: [tasks/06](tasks/06-pagination-and-sorting.md))*
+- [x] **Pagination** — Task 06 shipped 2026-08-31: `GET /api/patients` returns `PagedResult<Patient>` (`page`/`pageSize` params, pageSize clamped to 100); Prev/Next + "Page X of Y" on both patient pages, page state in route search params *(prompt: [tasks/06](tasks/06-pagination-and-sorting.md), merged with sorting)*
+- [x] **Sortable columns** — Task 06 shipped 2026-08-31: server-driven sort (`sortBy` whitelist: lastName/firstName/mrn/dob + `sortDir`, secondary LastName/FirstName for stable paging); clickable Name/MRN/DOB headers with asc/desc indicator on both patient pages. "Last notified" sort not included (needs a join — add when wanted) *(prompt: [tasks/06](tasks/06-pagination-and-sorting.md))*
+- [x] **TanStack Table adoption** — Task 10 shipped 2026-08-31: shared `src/components/Table/Table.tsx` + `Pagination.tsx` (user-provided component, migrated to `@tanstack/react-table` v9 `useTable`/`tableFeatures`). Patients index + manage use manual (server-driven) sorting/pagination via search params, with a page-size selector (new `pageSize` param, server clamp 100); notification history uses client mode with sorting/paging off. `sortable-header.tsx` and `pagination-controls.tsx` deleted *(prompt: [tasks/10](tasks/10-tanstack-table.md))*

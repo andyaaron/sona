@@ -3,19 +3,36 @@ import type {
   CreateProviderInput,
   MessageOut,
   NotifyPatientInput,
+  PagedResult,
   Patient,
+  PatientSortField,
   Provider,
+  SortDirection,
   UpdatePatientInput,
   UpdateProviderInput,
 } from "@sona/shared";
 import { apiFetch } from "./client";
 
+export interface PatientListParams {
+  page?: number;
+  pageSize?: number;
+  sortBy?: PatientSortField;
+  sortDir?: SortDirection;
+  search?: string;
+  providerId?: string;
+}
+
 export const patientsApi = {
-  list: (params?: { providerId?: string }) => {
-    const query = params?.providerId
-      ? `?providerId=${encodeURIComponent(params.providerId)}`
-      : "";
-    return apiFetch<Patient[]>(`/api/patients${query}`);
+  list: (params?: PatientListParams) => {
+    const query = new URLSearchParams();
+    if (params?.page !== undefined) query.set("page", String(params.page));
+    if (params?.pageSize !== undefined) query.set("pageSize", String(params.pageSize));
+    if (params?.sortBy !== undefined) query.set("sortBy", params.sortBy);
+    if (params?.sortDir !== undefined) query.set("sortDir", params.sortDir);
+    if (params?.search) query.set("search", params.search);
+    if (params?.providerId) query.set("providerId", params.providerId);
+    const qs = query.toString();
+    return apiFetch<PagedResult<Patient>>(`/api/patients${qs ? `?${qs}` : ""}`);
   },
   get: (id: string) => apiFetch<Patient>(`/api/patients/${id}`),
   create: (input: CreatePatientInput) =>

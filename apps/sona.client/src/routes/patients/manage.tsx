@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
@@ -9,17 +9,25 @@ import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
 import { SearchInput } from '@/components/search-input'
+import TableComponent from '@/components/Table/Table'
+import type { AppColumnDef } from '@/components/Table/Table'
 import { useCreatePatient } from '@/features/patients/api/create-patient'
 import { useDeletePatient } from '@/features/patients/api/delete-patient'
 import { patientsQueryOptions } from '@/features/patients/api/get-patients'
 import { useUpdatePatient } from '@/features/patients/api/update-patient'
 import { PatientForm } from '@/features/patients/components/patient-form'
+import {
+  patientTableManualState,
+  validatePatientListSearch,
+} from '@/features/patients/patient-list-search'
 import { activeProvidersQueryOptions } from '@/features/providers/api/get-providers'
 
 export const Route = createFileRoute('/patients/manage')({
-  loader: ({ context: { queryClient } }) =>
+  validateSearch: validatePatientListSearch,
+  loaderDeps: ({ search }) => search,
+  loader: ({ context: { queryClient }, deps }) =>
     Promise.all([
-      queryClient.ensureQueryData(patientsQueryOptions),
+      queryClient.ensureQueryData(patientsQueryOptions(deps)),
       queryClient.ensureQueryData(activeProvidersQueryOptions),
     ]),
   component: ManagePatientsPage,
@@ -42,13 +50,31 @@ function getErrorMessage(error: Error): string {
 }
 
 function ManagePatientsPage() {
-  const { data: patients } = useSuspenseQuery(patientsQueryOptions)
+  const searchParams = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const { data } = useSuspenseQuery(patientsQueryOptions(searchParams))
   const { data: providers } = useSuspenseQuery(activeProvidersQueryOptions)
   const [formState, setFormState] = useState<FormState>(null)
-  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState(searchParams.search ?? '')
   const createPatient = useCreatePatient()
   const updatePatient = useUpdatePatient()
   const deletePatient = useDeletePatient()
+
+  // Keep the input in sync when the param changes via back/forward navigation.
+  useEffect(() => {
+    setSearchInput(searchParams.search ?? '')
+  }, [searchParams.search])
+
+  // Debounced server-side search — reset to page 1 on change.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const next = searchInput.trim() || undefined
+      if (next !== searchParams.search) {
+        navigate({ search: (prev) => ({ ...prev, search: next, page: undefined }) })
+      }
+    }, 300)
+    return () => clearTimeout(handle)
+  }, [searchInput, searchParams.search, navigate])
 
   function handleCreate(values: CreatePatientInput) {
     const input = {
@@ -103,15 +129,66 @@ function ManagePatientsPage() {
   const isCreating = formState?.mode === 'create'
   const editingPatient = formState?.mode === 'edit' ? formState.patient : null
 
-  const filteredPatients = patients.filter((patient) => {
-    if (!search) return true
-    const query = search.toLowerCase()
-    return (
-      patient.firstName.toLowerCase().includes(query) ||
-      patient.lastName.toLowerCase().includes(query) ||
-      patient.mrn.toLowerCase().includes(query)
-    )
+  const manual = patientTableManualState({
+    searchParams,
+    page: data.page,
+    pageSize: data.pageSize,
+    rowCount: data.totalCount,
+    navigate,
   })
+
+  // Defined per render (not module level) — the actions column closes over the
+  // mutation handlers and delete-pending state.
+  const columns: AppColumnDef<Patient>[] = [
+    {
+      accessorKey: 'lastName',
+      header: 'Name',
+      cell: ({ row }) => {
+        const patient = row.original
+        return (
+          <>
+            <p className="font-medium text-gray-900">
+              {patient.firstName} {patient.lastName}
+            </p>
+            <p className="text-sm text-gray-500">
+              {patient.phoneNumber}
+              {' · '}
+              <span className="text-gray-400">
+                {patient.primaryProviderName ?? 'Unassigned'}
+              </span>
+            </p>
+          </>
+        )
+      },
+    },
+    { accessorKey: 'mrn', header: 'MRN' },
+    { accessorKey: 'dob', header: 'DOB' },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setFormState({ mode: 'edit', patient: row.original })}
+          >
+            Edit
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={deletePatient.isPending}
+            onClick={() => handleDelete(row.original)}
+          >
+            Delete
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
     <div>
@@ -126,7 +203,11 @@ function ManagePatientsPage() {
         >
           {isCreating ? 'Cancel' : 'Add Patient'}
         </Button>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search by name or MRN…" />
+        <SearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Search by name or MRN…"
+        />
       </div>
 
       {formState ? (
@@ -153,43 +234,13 @@ function ManagePatientsPage() {
         />
       ) : null}
 
-      <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
-        {filteredPatients.map((patient) => (
-          <li key={patient.id} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <p className="font-medium text-gray-900">
-                {patient.firstName} {patient.lastName}
-              </p>
-              <p className="text-sm text-gray-500">
-                MRN: {patient.mrn} · {patient.phoneNumber}
-                {' · '}
-                <span className="text-gray-400">
-                  {patient.primaryProviderName ?? 'Unassigned'}
-                </span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setFormState({ mode: 'edit', patient })}
-              >
-                Edit
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={deletePatient.isPending}
-                onClick={() => handleDelete(patient)}
-              >
-                Delete
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <TableComponent
+        data={data.items}
+        columns={columns}
+        getRowId={(patient) => patient.id}
+        emptyMessage="No patients found."
+        manual={manual}
+      />
     </div>
   )
 }
