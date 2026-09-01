@@ -34,7 +34,8 @@ public static class LocalDevMode
     /// <summary>
     /// Idempotent Local-only seed: guarantees the approved "ready-to-be-seen" template row
     /// exists (the migration seeds it; this covers databases built before it) so the notify
-    /// flow can be exercised on an empty local database.
+    /// flow can be exercised on an empty local database. Never fatal — an unreachable or
+    /// un-migrated database must still let the API start so the failure is visible in the UI.
     /// </summary>
     public static async Task SeedAsync(IServiceProvider services, CancellationToken cancellationToken = default)
     {
@@ -42,20 +43,30 @@ public static class LocalDevMode
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(LocalDevMode));
 
-        var templateExists = await db.MessageTemplates
-            .AnyAsync(t => t.Key == ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY, cancellationToken);
-
-        if (!templateExists)
+        try
         {
-            db.MessageTemplates.Add(new MessageTemplate
+            var templateExists = await db.MessageTemplates
+                .AnyAsync(t => t.Key == ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY, cancellationToken);
+
+            if (!templateExists)
             {
-                Key = ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY,
-                Body = "You're ready to be seen. Please come to the front desk.",
-                IsActive = true,
-            });
-            await db.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Local seed: added the '{TemplateKey}' message template.",
-                ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY);
+                db.MessageTemplates.Add(new MessageTemplate
+                {
+                    Key = ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY,
+                    Body = "You're ready to be seen. Please come to the front desk.",
+                    IsActive = true,
+                });
+                await db.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("Local seed: added the '{TemplateKey}' message template.",
+                    ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Local seed skipped: the local database is unreachable or un-migrated. Start your local "
+                + "SQL Server and run: dotnet dotnet-ef database update --project apps/sona.server "
+                + "(with ASPNETCORE_ENVIRONMENT=Local).");
         }
     }
 }
