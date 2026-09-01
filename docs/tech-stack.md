@@ -35,5 +35,5 @@
 
 - **OpenAPI codegen**: generate `@sona/shared` types from the ASP.NET OpenAPI document (`openapi-typescript` or NSwag) so the contract is enforced mechanically.
 - **Push notifications**: `expo-notifications` + Expo Push Service.
-- **SMS**: Twilio (signs BAAs — required for HIPAA; see [compliance.md](compliance.md)).
+- **SMS**: Webex Connect (Cisco), Send Message API v2. BAA status with Webex/Cisco must be confirmed before production traffic (see [compliance.md](compliance.md)).
 - **Auth**: TBD — token retrieval is stubbed in both apps' `lib/api-client.ts`.

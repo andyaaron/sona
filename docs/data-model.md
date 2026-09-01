@@ -160,7 +160,7 @@ Corresponds to `MessageOut` in `@sona/shared`.
 | `Body` | string, nullable | Rendered text as actually sent. Snapshot for audit; must come from an approved template, never operator free-text. |
 | `MobileNumber` | string (E.164), nullable | Snapshot of the number at send time (patient may change numbers later — the audit record keeps what was actually dialed). Null for push. |
 | `Status` | string enum: `pending` \| `sent` \| `delivered` \| `failed` | **Added.** Matches `NotificationStatus` in `@sona/shared`. `SentDateTime` alone cannot represent pending/failed. |
-| `ProviderMessageSid` | string, nullable, indexed | **Added.** Twilio message SID (or push ticket id). Delivery status arrives later via webhook — this is the correlation key. Without it, no delivery tracking. |
+| `ProviderMessageSid` | string, nullable, indexed | **Added.** Webex Connect `messageId` (or push ticket id). Delivery status arrives later via webhook — this is the correlation key. Without it, no delivery tracking. |
 | `FailureReason` | string, nullable | Carrier/provider error on `failed`. |
 | `SentDateTime` | datetime, nullable | Null while `pending`. |
 | `DeliveredDateTime` | datetime, nullable | Set from delivery webhook. |

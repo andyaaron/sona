@@ -7,7 +7,7 @@ flowchart LR
     Admin[Web Admin<br/>React + TanStack] -->|HTTPS/JSON| API[ASP.NET Core API]
     Mobile[Mobile App<br/>Expo / RN] -->|HTTPS/JSON| API
     API -->|patient has app| Push[Expo Push Service]
-    API -->|no app| SMS[SMS Provider<br/>Twilio]
+    API -->|no app| SMS[SMS Provider<br/>Webex Connect]
     Push --> Mobile
     SMS --> Phone[Patient's phone]
 ```
