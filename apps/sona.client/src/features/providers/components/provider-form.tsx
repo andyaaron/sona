@@ -48,6 +48,7 @@ export function ProviderForm({
 
   return (
     <form
+      data-testid="provider-form"
       className="mt-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault()
@@ -56,12 +57,20 @@ export function ProviderForm({
       }}
     >
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <h2 data-testid="provider-form-title" className="text-lg font-semibold text-gray-900">
+          {title}
+        </h2>
         <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            data-testid="provider-form-cancel"
+            onClick={onCancel}
+          >
             Cancel
           </Button>
-          <Button type="submit" size="sm" disabled={isSubmitting}>
+          <Button type="submit" size="sm" data-testid="provider-form-submit" disabled={isSubmitting}>
             {isSubmitting ? 'Saving…' : submitLabel}
           </Button>
         </div>
@@ -69,24 +78,24 @@ export function ProviderForm({
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <form.AppField name="firstName">
-          {(field) => <field.TextField label="First name" />}
+          {(field) => <field.TextField label="First name" testId="provider-form-first-name" />}
         </form.AppField>
 
         <form.AppField name="lastName">
-          {(field) => <field.TextField label="Last name" />}
+          {(field) => <field.TextField label="Last name" testId="provider-form-last-name" />}
         </form.AppField>
 
         <form.AppField name="credentials">
-          {(field) => <field.TextField label="Credentials" placeholder="e.g. MD, DO, NP" />}
+          {(field) => <field.TextField label="Credentials" placeholder="e.g. MD, DO, NP" testId="provider-form-credentials" />}
         </form.AppField>
 
         <form.AppField name="npi">
-          {(field) => <field.TextField label="NPI" placeholder="10-digit NPI" />}
+          {(field) => <field.TextField label="NPI" placeholder="10-digit NPI" testId="provider-form-npi" />}
         </form.AppField>
 
         <div className="md:col-span-2">
           <form.AppField name="specialty">
-            {(field) => <field.TextField label="Specialty" />}
+            {(field) => <field.TextField label="Specialty" testId="provider-form-specialty" />}
           </form.AppField>
         </div>
       </div>

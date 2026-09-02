@@ -6,7 +6,10 @@
 export function PendingApproval({ displayName }: { displayName?: string | null }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm">
+      <div
+        data-testid="pending-approval"
+        className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm"
+      >
         <img src="/logo.svg" alt="Sona" className="mx-auto h-8 w-auto" />
         <h1 className="mt-6 text-xl font-semibold text-gray-900">Access pending approval</h1>
         <p className="mt-3 text-sm text-gray-600">

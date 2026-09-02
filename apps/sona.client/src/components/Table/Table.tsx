@@ -88,6 +88,13 @@ interface TableProps<TData extends RowData> {
   enablePagination?: boolean
   /** Present = manual (server-driven) sorting + pagination. */
   manual?: ManualTableState
+  /**
+   * Root data-testid; children derive from it (see docs/admin-ui-guide.md):
+   * `${testId}-title`, `-page-size`, `-header-<columnId>`, `-row-<rowId>`,
+   * `-expanded-<rowId>`, `-empty`, `-loading`, `-row-count`, `-page-info`,
+   * `-page-first|previous|next|last`.
+   */
+  testId?: string
 }
 
 /**
@@ -111,7 +118,9 @@ function TableComponent<TData extends RowData>({
   enableSorting = true,
   enablePagination = true,
   manual,
+  testId,
 }: TableProps<TData>) {
+  const tid = (suffix: string) => (testId ? `${testId}-${suffix}` : undefined)
   const [clientPagination, setClientPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -145,7 +154,11 @@ function TableComponent<TData extends RowData>({
   })
 
   if (isLoading) {
-    return <p className="px-4 py-6 text-center text-sm text-gray-500">Loading…</p>
+    return (
+      <p data-testid={tid('loading')} className="px-4 py-6 text-center text-sm text-gray-500">
+        Loading…
+      </p>
+    )
   }
 
   const rows = table.getRowModel().rows
@@ -155,11 +168,14 @@ function TableComponent<TData extends RowData>({
     <div>
       {(title || paginationEnabled) && (
         <div className="mt-4 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">{title}</h2>
+          <h2 data-testid={tid('title')} className="font-semibold text-gray-900">
+            {title}
+          </h2>
           {paginationEnabled && (
             <label className="text-sm text-gray-600">
               Show{' '}
               <select
+                data-testid={tid('page-size')}
                 className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm"
                 value={table.state.pagination.pageSize}
                 onChange={(e) => table.setPageSize(Number(e.target.value))}
@@ -183,7 +199,7 @@ function TableComponent<TData extends RowData>({
             : 'overflow-x-auto'
         }
       >
-        <table className="w-full divide-y divide-gray-200">
+        <table data-testid={testId} className="w-full divide-y divide-gray-200">
           <thead className={bordered ? 'bg-gray-50' : undefined}>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
@@ -192,6 +208,7 @@ function TableComponent<TData extends RowData>({
                   return (
                     <th
                       key={header.id}
+                      data-testid={tid(`header-${header.column.id}`)}
                       scope="col"
                       aria-sort={
                         sorted === 'asc'
@@ -230,6 +247,7 @@ function TableComponent<TData extends RowData>({
             {rows.map((row) => (
               <Fragment key={row.id}>
                 <tr
+                  data-testid={tid(`row-${row.id}`)}
                   onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                   className={onRowClick ? 'cursor-pointer hover:bg-gray-50' : undefined}
                 >
@@ -240,7 +258,7 @@ function TableComponent<TData extends RowData>({
                   ))}
                 </tr>
                 {row.getIsExpanded() && renderSubComponent && (
-                  <tr>
+                  <tr data-testid={tid(`expanded-${row.id}`)}>
                     <td colSpan={columnCount} className="px-4 pb-3">
                       {renderSubComponent({ row })}
                     </td>
@@ -250,7 +268,11 @@ function TableComponent<TData extends RowData>({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={columnCount} className="px-4 py-6 text-center text-sm text-gray-500">
+                <td
+                  data-testid={tid('empty')}
+                  colSpan={columnCount}
+                  className="px-4 py-6 text-center text-sm text-gray-500"
+                >
                   {emptyMessage}
                 </td>
               </tr>
@@ -259,7 +281,7 @@ function TableComponent<TData extends RowData>({
         </table>
       </div>
 
-      {paginationEnabled && <Pagination table={table} />}
+      {paginationEnabled && <Pagination table={table} testId={testId} />}
     </div>
   )
 }

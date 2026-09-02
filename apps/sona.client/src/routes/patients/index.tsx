@@ -56,7 +56,13 @@ const columns: AppColumnDef<Patient>[] = [
     header: '',
     cell: ({ row }) => (
       <div className="flex items-center justify-end gap-2">
-        <Button variant="secondary" size="sm" onClick={() => row.toggleExpanded()}>
+        <Button
+          variant="secondary"
+          size="sm"
+          data-testid={`patients-history-${row.original.id}`}
+          aria-expanded={row.getIsExpanded()}
+          onClick={() => row.toggleExpanded()}
+        >
           {row.getIsExpanded() ? 'Hide history' : 'History'}
         </Button>
         <NotifyPatientButton
@@ -100,11 +106,11 @@ function PatientsPage() {
   })
 
   return (
-    <div>
-      <div className="flex items-center gap-4">
+    <div data-testid="patients-page">
+      <div data-testid="patients-toolbar" className="flex items-center gap-4">
         <h1 className="text-2xl font-semibold text-gray-900">Patients</h1>
-        <Link to="/patients/manage">
-          <Button variant="secondary" size="sm">
+        <Link to="/patients/manage" data-testid="patients-manage-link">
+          <Button variant="secondary" size="sm" tabIndex={-1}>
             Manage Patients
           </Button>
         </Link>
@@ -112,8 +118,11 @@ function PatientsPage() {
           value={searchInput}
           onChange={setSearchInput}
           placeholder="Search by name or MRN…"
+          testId="patients-search"
         />
         <select
+          data-testid="patients-provider-filter"
+          aria-label="Filter by provider"
           className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm"
           value={searchParams.providerId ?? ''}
           onChange={(e) =>
@@ -147,6 +156,7 @@ function PatientsPage() {
         )}
         emptyMessage="No patients found."
         manual={manual}
+        testId="patients-table"
       />
     </div>
   )

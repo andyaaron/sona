@@ -33,6 +33,7 @@ export function NameForm({
 
   return (
     <form
+      data-testid={`${kind}-form`}
       className="mt-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault()
@@ -41,12 +42,20 @@ export function NameForm({
       }}
     >
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <h2 data-testid={`${kind}-form-title`} className="text-lg font-semibold text-gray-900">
+          {title}
+        </h2>
         <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            data-testid={`${kind}-form-cancel`}
+            onClick={onCancel}
+          >
             Cancel
           </Button>
-          <Button type="submit" size="sm" disabled={isSubmitting}>
+          <Button type="submit" size="sm" data-testid={`${kind}-form-submit`} disabled={isSubmitting}>
             {isSubmitting ? 'Saving…' : submitLabel}
           </Button>
         </div>
@@ -54,7 +63,12 @@ export function NameForm({
 
       <div className="mt-4 max-w-md">
         <form.AppField name="name">
-          {(field) => <field.TextField label={kind === 'site' ? 'Site name' : 'Department name'} />}
+          {(field) => (
+            <field.TextField
+              label={kind === 'site' ? 'Site name' : 'Department name'}
+              testId={`${kind}-form-name`}
+            />
+          )}
         </form.AppField>
       </div>
     </form>

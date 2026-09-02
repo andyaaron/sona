@@ -98,6 +98,7 @@ export function UserAccessForm({
 
   return (
     <form
+      data-testid="user-access-form"
       className="mt-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault()
@@ -106,12 +107,20 @@ export function UserAccessForm({
       }}
     >
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <h2 data-testid="user-access-form-title" className="text-lg font-semibold text-gray-900">
+          {title}
+        </h2>
         <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            data-testid="user-access-form-cancel"
+            onClick={onCancel}
+          >
             Cancel
           </Button>
-          <Button type="submit" size="sm" disabled={isSubmitting}>
+          <Button type="submit" size="sm" data-testid="user-access-form-submit" disabled={isSubmitting}>
             {isSubmitting ? 'Saving…' : submitLabel}
           </Button>
         </div>
@@ -141,7 +150,9 @@ export function UserAccessForm({
             },
           }}
         >
-          {(field) => <field.SelectField label="Role" options={roleOptions} />}
+          {(field) => (
+            <field.SelectField label="Role" options={roleOptions} testId="user-access-form-role" />
+          )}
         </form.AppField>
 
         {needsOrg && organizations && (
@@ -156,6 +167,7 @@ export function UserAccessForm({
                 <label>
                   <div className="mb-1 text-sm font-semibold text-gray-500">Organization</div>
                   <select
+                    data-testid="user-access-form-organization"
                     className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={field.state.value ?? ''}
                     onChange={(e) => field.handleChange(e.target.value || null)}
@@ -173,7 +185,11 @@ export function UserAccessForm({
                       ))}
                   </select>
                 </label>
-                <FieldErrors errors={field.state.meta.errors} show={field.state.meta.isTouched} />
+                <FieldErrors
+                  errors={field.state.meta.errors}
+                  show={field.state.meta.isTouched}
+                  testId="user-access-form-organization-error"
+                />
               </div>
             )}
           </form.AppField>
@@ -183,7 +199,7 @@ export function UserAccessForm({
           <div className="md:col-span-2">
             <form.AppField name="departmentIds">
               {(field) => (
-                <fieldset className="mb-4">
+                <fieldset data-testid="user-access-form-departments" className="mb-4">
                   <legend className="mb-1 text-sm font-semibold text-gray-500">Departments</legend>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {departments.map((department) => {
@@ -195,6 +211,7 @@ export function UserAccessForm({
                         >
                           <input
                             type="checkbox"
+                            data-testid={`user-access-form-department-${department.id}`}
                             checked={checked}
                             onChange={(e) =>
                               field.handleChange(
@@ -212,7 +229,11 @@ export function UserAccessForm({
                       )
                     })}
                   </div>
-                  <FieldErrors errors={field.state.meta.errors} show />
+                  <FieldErrors
+                    errors={field.state.meta.errors}
+                    show
+                    testId="user-access-form-departments-error"
+                  />
                 </fieldset>
               )}
             </form.AppField>
@@ -223,10 +244,10 @@ export function UserAccessForm({
   )
 }
 
-function FieldErrors({ errors, show }: { errors: unknown[]; show: boolean }) {
+function FieldErrors({ errors, show, testId }: { errors: unknown[]; show: boolean; testId?: string }) {
   if (!show || errors.length === 0) return null
   return (
-    <div className="mt-1 text-sm text-red-600">
+    <div data-testid={testId} className="mt-1 text-sm text-red-600">
       {errors.map((error, i) => (
         <div key={i}>
           {typeof error === 'object' && error !== null && 'message' in error
@@ -264,6 +285,7 @@ function DirectoryPicker({
       <label>
         <div className="mb-1 text-sm font-semibold text-gray-500">Find person (34 ID)</div>
         <input
+          data-testid="user-access-form-directory-input"
           className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
@@ -273,7 +295,7 @@ function DirectoryPicker({
       </label>
 
       {picked ? (
-        <p className="mt-2 text-sm text-gray-700">
+        <p data-testid="user-access-form-directory-selected" className="mt-2 text-sm text-gray-700">
           Selected: <span className="font-medium">{picked.displayName ?? picked.hca34Id}</span>
           <span className="ml-1 text-gray-400">
             {picked.hca34Id}
@@ -281,19 +303,25 @@ function DirectoryPicker({
           </span>
         </p>
       ) : value ? (
-        <p className="mt-2 text-sm text-gray-700">Selected: {value}</p>
+        <p data-testid="user-access-form-directory-selected" className="mt-2 text-sm text-gray-700">
+          Selected: {value}
+        </p>
       ) : null}
 
       {search.isFetching && <p className="mt-2 text-xs text-gray-400">Searching…</p>}
       {search.isError && (
-        <p className="mt-2 text-xs text-red-600">Directory search is unavailable right now.</p>
+        <p data-testid="user-access-form-directory-error" className="mt-2 text-xs text-red-600">Directory search is unavailable right now.</p>
       )}
       {search.data && search.data.length > 0 && (
-        <ul className="mt-2 max-h-48 divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200">
+        <ul
+          data-testid="user-access-form-directory-results"
+          className="mt-2 max-h-48 divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200"
+        >
           {search.data.map((hit) => (
             <li key={hit.hca34Id}>
               <button
                 type="button"
+                data-testid={`user-access-form-directory-hit-${hit.hca34Id}`}
                 className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50"
                 onClick={() => {
                   setPicked(hit)
@@ -312,9 +340,11 @@ function DirectoryPicker({
         </ul>
       )}
       {search.data && search.data.length === 0 && debounced.length >= 2 && (
-        <p className="mt-2 text-xs text-gray-400">No matches.</p>
+        <p data-testid="user-access-form-directory-empty" className="mt-2 text-xs text-gray-400">
+          No matches.
+        </p>
       )}
-      <FieldErrors errors={errors} show={!value} />
+      <FieldErrors errors={errors} show={!value} testId="user-access-form-directory-input-error" />
     </div>
   )
 }

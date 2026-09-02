@@ -43,7 +43,7 @@ function OrganizationPage() {
 
   if (!isAdmin) {
     return (
-      <div>
+      <div data-testid="organization-forbidden">
         <h1 className="text-2xl font-semibold text-gray-900">Organization</h1>
         <p className="mt-2 text-gray-600">Only organization administrators can manage sites and departments.</p>
       </div>
@@ -55,13 +55,15 @@ function OrganizationPage() {
   const organization = organizations.find((o) => o.id === organizationId) ?? null
 
   return (
-    <div>
-      <div className="flex items-center gap-4">
-        <h1 className="text-2xl font-semibold text-gray-900">
+    <div data-testid="organization-page">
+      <div data-testid="organization-toolbar" className="flex items-center gap-4">
+        <h1 data-testid="organization-title" className="text-2xl font-semibold text-gray-900">
           {organization ? organization.name : 'Organization'}
         </h1>
         {isSystemAdmin && (
           <select
+            data-testid="organization-org-select"
+            aria-label="Organization"
             className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm"
             value={pickedOrgId ?? ''}
             onChange={(e) => setPickedOrgId(e.target.value || null)}
@@ -79,7 +81,7 @@ function OrganizationPage() {
       {organizationId ? (
         <OrgStructure key={organizationId} organizationId={organizationId} />
       ) : (
-        <p className="mt-2 text-gray-600">
+        <p data-testid="organization-empty" className="mt-2 text-gray-600">
           {isSystemAdmin ? 'Pick an organization to manage its structure.' : 'No organization assigned.'}
         </p>
       )}
@@ -162,6 +164,8 @@ function OrgStructure({ organizationId }: { organizationId: string }) {
             type="button"
             variant={row.original.id === currentSiteId ? 'primary' : 'secondary'}
             size="sm"
+            data-testid={`org-sites-select-${row.original.id}`}
+            aria-pressed={row.original.id === currentSiteId}
             onClick={() => setSelectedSiteId(row.original.id)}
           >
             Departments
@@ -170,6 +174,7 @@ function OrgStructure({ organizationId }: { organizationId: string }) {
             type="button"
             variant="secondary"
             size="sm"
+            data-testid={`org-sites-rename-${row.original.id}`}
             onClick={() => setSiteForm({ mode: 'rename', site: row.original })}
           >
             Rename
@@ -179,6 +184,7 @@ function OrgStructure({ organizationId }: { organizationId: string }) {
             variant="ghost"
             size="sm"
             disabled={updateSite.isPending}
+            data-testid={`org-sites-toggle-active-${row.original.id}`}
             onClick={() => handleToggleSite(row.original)}
           >
             {row.original.isActive ? 'Deactivate' : 'Reactivate'}
@@ -192,11 +198,13 @@ function OrgStructure({ organizationId }: { organizationId: string }) {
     <div>
       {sitesLevelVisible ? (
         <>
-          <div className="mt-6 flex items-center gap-4">
+          <div data-testid="org-sites-toolbar" className="mt-6 flex items-center gap-4">
             <h2 className="text-lg font-semibold text-gray-900">Sites</h2>
             <Button
               variant={siteForm?.mode === 'create' ? 'secondary' : 'primary'}
               size="sm"
+              data-testid="org-sites-add-button"
+              aria-expanded={siteForm?.mode === 'create'}
               onClick={() => setSiteForm((s) => (s?.mode === 'create' ? null : { mode: 'create' }))}
             >
               {siteForm?.mode === 'create' ? 'Cancel' : 'Add site'}
@@ -221,12 +229,18 @@ function OrgStructure({ organizationId }: { organizationId: string }) {
             enablePagination={false}
             isLoading={isPending}
             emptyMessage="No sites yet."
+            testId="org-sites-table"
           />
         </>
       ) : (
-        <p className="mt-2 text-sm text-gray-500">
+        <p data-testid="org-sites-single" className="mt-2 text-sm text-gray-500">
           Single site ({currentSite?.name ?? '—'}).{' '}
-          <button type="button" className="cursor-pointer text-emerald-600 hover:underline" onClick={() => setShowSites(true)}>
+          <button
+            type="button"
+            data-testid="org-sites-show-button"
+            className="cursor-pointer text-emerald-600 hover:underline"
+            onClick={() => setShowSites(true)}
+          >
             Add another site
           </button>
         </p>
@@ -309,6 +323,7 @@ function DepartmentsPanel({ organizationId, site }: { organizationId: string; si
             type="button"
             variant="secondary"
             size="sm"
+            data-testid={`org-departments-rename-${row.original.id}`}
             onClick={() => setForm({ mode: 'rename', department: row.original })}
           >
             Rename
@@ -318,6 +333,7 @@ function DepartmentsPanel({ organizationId, site }: { organizationId: string; si
             variant="ghost"
             size="sm"
             disabled={updateDepartment.isPending}
+            data-testid={`org-departments-toggle-active-${row.original.id}`}
             onClick={() => handleToggle(row.original)}
           >
             {row.original.isActive ? 'Deactivate' : 'Reactivate'}
@@ -329,11 +345,15 @@ function DepartmentsPanel({ organizationId, site }: { organizationId: string; si
 
   return (
     <div>
-      <div className="mt-6 flex items-center gap-4">
-        <h2 className="text-lg font-semibold text-gray-900">Departments — {site.name}</h2>
+      <div data-testid="org-departments-toolbar" className="mt-6 flex items-center gap-4">
+        <h2 data-testid="org-departments-title" className="text-lg font-semibold text-gray-900">
+          Departments — {site.name}
+        </h2>
         <Button
           variant={form?.mode === 'create' ? 'secondary' : 'primary'}
           size="sm"
+          data-testid="org-departments-add-button"
+          aria-expanded={form?.mode === 'create'}
           onClick={() => setForm((s) => (s?.mode === 'create' ? null : { mode: 'create' }))}
         >
           {form?.mode === 'create' ? 'Cancel' : 'Add department'}
@@ -360,6 +380,7 @@ function DepartmentsPanel({ organizationId, site }: { organizationId: string; si
         enablePagination={false}
         isLoading={isPending}
         emptyMessage="No departments yet."
+        testId="org-departments-table"
       />
     </div>
   )

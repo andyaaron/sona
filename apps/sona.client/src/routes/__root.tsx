@@ -34,13 +34,16 @@ function RootComponent() {
         <UserContext value={user}>
             <Header />
             <div className="flex min-h-screen">
-                <main className="flex-1 p-6 text-left">
+                <main data-testid="main" className="flex-1 p-6 text-left">
                     {isPending ? (
-                        <div className="flex min-h-[calc(100svh-3rem)] items-center justify-center">
+                        <div
+                            data-testid="app-loading"
+                            className="flex min-h-[calc(100svh-3rem)] items-center justify-center"
+                        >
                             Loading...
                         </div>
                     ) : error ? (
-                        <div className="p-4 text-red-500">Error: {error.message}</div>
+                        <div data-testid="app-error" className="p-4 text-red-500">Error: {error.message}</div>
                     ) : (
                         <Outlet />
                     )}

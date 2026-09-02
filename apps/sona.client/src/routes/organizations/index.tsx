@@ -64,7 +64,7 @@ function OrganizationsPage() {
 
   if (!isSystemAdmin) {
     return (
-      <div>
+      <div data-testid="organizations-forbidden">
         <h1 className="text-2xl font-semibold text-gray-900">Organizations</h1>
         <p className="mt-2 text-gray-600">Only system administrators can manage organizations.</p>
       </div>
@@ -82,12 +82,14 @@ function OrganizationsPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-4">
+    <div data-testid="organizations-page">
+      <div data-testid="organizations-toolbar" className="flex items-center gap-4">
         <h1 className="text-2xl font-semibold text-gray-900">Organizations</h1>
         <Button
           variant={creating ? 'secondary' : 'primary'}
           size="sm"
+          data-testid="organizations-add-button"
+          aria-expanded={creating}
           onClick={() => setCreating((c) => !c)}
         >
           {creating ? 'Cancel' : 'Add organization'}
@@ -108,6 +110,7 @@ function OrganizationsPage() {
         getRowId={(o) => o.id}
         isLoading={isPending}
         emptyMessage="No organizations yet."
+        testId="organizations-table"
       />
     </div>
   )

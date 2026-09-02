@@ -5,8 +5,10 @@ interface TextFieldProps {
   label: string;
   placeholder?: string;
   canEdit?: boolean;
+  /** data-testid on the input; errors render as `${testId}-error`. */
+  testId?: string;
 }
-export default function TextField({ label, placeholder = "", canEdit = true }: TextFieldProps) {
+export default function TextField({ label, placeholder = "", canEdit = true, testId }: TextFieldProps) {
   const field = useFieldContext<string>();
   const {
     value,
@@ -24,6 +26,7 @@ export default function TextField({ label, placeholder = "", canEdit = true }: T
           {label}
         </div>
         <input
+          data-testid={testId}
           className={`w-full rounded-md border bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50 ${hasError ? 'border-red-400' : 'border-gray-300'}`}
           value={value}
           onChange={(e) => field.handleChange(e.target.value)}
@@ -34,7 +37,7 @@ export default function TextField({ label, placeholder = "", canEdit = true }: T
       </label>
       {(isSubmitted || isTouched) &&
         errors.map((error, i) => (
-          <div key={i} className="text-sm text-red-600 mt-1">
+          <div key={i} data-testid={testId ? `${testId}-error` : undefined} className="text-sm text-red-600 mt-1">
             {typeof error === 'object' && error !== null && 'message' in error
               ? (error as any).message
               : String(error)}

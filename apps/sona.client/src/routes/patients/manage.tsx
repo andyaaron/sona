@@ -172,6 +172,7 @@ function ManagePatientsPage() {
             type="button"
             variant="secondary"
             size="sm"
+            data-testid={`patients-manage-edit-${row.original.id}`}
             onClick={() => setFormState({ mode: 'edit', patient: row.original })}
           >
             Edit
@@ -181,6 +182,7 @@ function ManagePatientsPage() {
             variant="ghost"
             size="sm"
             disabled={deletePatient.isPending}
+            data-testid={`patients-manage-delete-${row.original.id}`}
             onClick={() => handleDelete(row.original)}
           >
             Delete
@@ -191,12 +193,14 @@ function ManagePatientsPage() {
   ]
 
   return (
-    <div>
-      <div className="flex items-center gap-4">
+    <div data-testid="patients-manage-page">
+      <div data-testid="patients-manage-toolbar" className="flex items-center gap-4">
         <h1 className="text-2xl font-semibold text-gray-900">Manage Patients</h1>
         <Button
           variant={isCreating ? 'secondary' : 'primary'}
           size="sm"
+          data-testid="patients-manage-add-button"
+          aria-expanded={isCreating}
           onClick={() =>
             setFormState((s) => (s?.mode === 'create' ? null : { mode: 'create' }))
           }
@@ -207,6 +211,7 @@ function ManagePatientsPage() {
           value={searchInput}
           onChange={setSearchInput}
           placeholder="Search by name or MRN…"
+          testId="patients-manage-search"
         />
       </div>
 
@@ -240,6 +245,7 @@ function ManagePatientsPage() {
         getRowId={(patient) => patient.id}
         emptyMessage="No patients found."
         manual={manual}
+        testId="patients-manage-table"
       />
     </div>
   )
