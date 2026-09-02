@@ -1,4 +1,4 @@
-# Task 19 — Org hierarchy v2 (Division / Facility / FacilityType) + PatientLookup
+# Task 19 — Org hierarchy v2 (Division / Facility / FacilityType) + PatientLookup + AuditLogs
 
 **Status:** spec'd 2026-09-02 after team review; open questions resolved 2026-09-02 (§7). Ready to start.
 **Prerequisite:** none — migration baseline fixed 2026-08-27; add migrations with `--output-dir Data/Migrations`. Run `dotnet ef` under the `Local` profile (`ASPNETCORE_ENVIRONMENT=Local`) so no Azure credentials are needed.
@@ -10,9 +10,11 @@ Align the tenant hierarchy with the real-world structure — **Division → Orga
 
 Real-world example that drove the design: **North Carolina Division** (division) owns **Asheville Cardiology & Associates** (organization), which has facilities in **Asheville** and **Hendersonville**, some of which have both an **inpatient** and an **outpatient** department.
 
-Second goal: introduce **`PatientLookup`** as the single home of patient identifiers, so a patient can carry MRNs from more than one source (practice EMR today; Cerner/Mission feeds, EMR migrations, chart merges later). Decided 2026-09-02: the multi-source case is expected, so the structure goes in now while every patient still has exactly one MRN and the migration is trivial.
+Second goal: introduce **`PatientLookup`** as the single home of patient identifiers, so a patient can carry MRNs from more than one source (practice EMR today; hospital EHR feeds, EMR migrations, chart merges later — Cerner itself is a future enhancement, not MVP). Decided 2026-09-02: the multi-source case is expected, so the structure goes in now while every patient still has exactly one MRN and the migration is trivial.
 
-Two parts, two migrations, two PRs. Part A is pure hierarchy; Part B moves MRN storage. Do not combine — the review surface is too large.
+Third goal (added 2026-09-02): **`AuditLogs`** replaces per-table `CreateDate`/`ModDate`. No table carries timestamps; create / edit / delete of every entity is recorded in one audit table, following the pattern in the team's other apps.
+
+Three parts, three migrations, three PRs. Part A is pure hierarchy; Part B moves MRN storage; Part C adds `AuditLogs` and drops the timestamp columns. Do not combine — the review surface is too large. **Order: C may ship before or after A/B, but A and B must not add `CreateDate`/`ModDate` to new tables.**
 
 ## 2. Decisions settled (do not re-litigate)
 
@@ -25,7 +27,9 @@ Two parts, two migrations, two PRs. Part A is pure hierarchy; Part B moves MRN s
 | **Cross-org "same person" stays unlinked.** | A future `Person` layer (mobile app) — separate design, separate compliance review. |
 | **`Department.FacilityType` is a label**, values `inpatient \| outpatient`. No send-path behaviour attached. | Confirmed 2026-09-02: needed for future filtering, not for gating. Column name kept for parity with existing HCA schemas even though it lives on `Department`. |
 | **No `Coid`, no `Division.Code`.** | No current use (2026-09-02). Add when a consumer exists. |
-| **No `Patient.CreateDate`/`ModDate`.** Change history for all tables will come from a future `AuditLogs` table (pattern from the team's other apps: what changed, when, by whom). | Decided 2026-09-02; separate task, not spec'd yet. |
+| **No `CreateDate`/`ModDate` on any table** — including the existing `EntityBase` ones. `AuditLogs` records create / edit / delete for every entity (Part C). | Decided 2026-09-02. One audit mechanism, not two. `EntityBase` shrinks to the uuid v7 PK. |
+| **Cerner is not MVP.** `Patient.InCerner` dropped (Part B), `cerner` removed from the `ImportSource`/`Source` value sets, `Encounter` stays on the diagram as a future-enhancement box only. `AssigningAuthority` remains — it is the hook a future EHR feed plugs into, not Cerner-specific. | Decided 2026-09-02. |
+| **Import tables shelved.** `ImportBatch`/`ImportRowError` classes are deleted; the design is kept as a note in the DBML file for when flat-file import returns. `Patient.ImportBatchId` (bare guid today) is dropped in Part B. | Decided 2026-09-02. Nothing references them; Task 09 is deferred indefinitely. |
 | **Roles unchanged.** No `division_admin`. | No user needs it yet. |
 | **Division gets a real admin page** (system_admin), not just an API. | Decided 2026-09-02 (Q8). |
 | **Patient keeps its `int` PK.** | PK change ripples through `MessageOut` FKs and the contract for no functional gain. |
@@ -39,7 +43,6 @@ Two parts, two migrations, two PRs. Part A is pure hierarchy; Part B moves MRN s
 | `Id` | uuid PK | |
 | `Name` | string(200), required | e.g. "North Carolina Division". Unique (case-insensitive collation is the SQL Server default). |
 | `IsActive` | bool, default true | |
-| `CreateDate` / `ModDate` | datetime | via `EntityBase` |
 
 - `Organization.DivisionId` — **required** uuid FK → `Division`, `Restrict` delete (a division with organizations cannot be removed).
 - **Backfill:** the migration inserts a division with fixed id `22222222-2222-2222-2222-222222222222`, `Name = "Default Division"`, assigns every existing organization (including the seeded `11111111-…` org) to it, then makes the column `NOT NULL`. Same pattern as the Task 08 default-org backfill.
@@ -90,12 +93,11 @@ Two parts, two migrations, two PRs. Part A is pure hierarchy; Part B moves MRN s
 | `Id` | uuid PK | |
 | `OrganizationId` | uuid FK → Organization, `Restrict` | Must equal `Patient.OrganizationId` — assert in the write path (a mismatch is a bug, not user input). |
 | `PatientId` | **int** FK → Patient, `Restrict` | |
-| `AssigningAuthority` | string(100), required | Who issued the identifier. UI/backfill default: `org:{OrganizationId}` (lowercase guid). Future: a facility COID or the PID-3 assigning authority from a Cerner feed. |
+| `AssigningAuthority` | string(100), required | Who issued the identifier. UI/backfill default: `org:{OrganizationId}` (lowercase guid). Future enhancement: a facility COID or the PID-3 assigning authority from an EHR feed. |
 | `Mrn` | string(50), required | The identifier value. |
 | `IsPrimary` | bool | The one shown as `Patient.mrn`. Exactly one non-retired primary per patient — filtered unique index `(PatientId) WHERE IsPrimary = 1 AND RetiredDate IS NULL`. |
-| `Source` | string(20), required | `flatfile \| ui \| cerner` — mirrors `Patient.ImportSource`. |
+| `Source` | string(20), required | `flatfile \| ui` — mirrors `Patient.ImportSource`. |
 | `RetiredDate` | datetime, nullable | Set when the identifier stops resolving (patient soft-deleted; future merge / re-issue). |
-| `CreateDate` / `ModDate` | datetime | via `EntityBase` |
 
 Indexes:
 - **Unique** `(OrganizationId, AssigningAuthority, Mrn)` **filtered `[RetiredDate] IS NULL`** — soft-deleting a patient retires its rows, so an MRN can be re-used by a new row (today's behaviour, Q6).
@@ -104,16 +106,16 @@ Indexes:
 ### 4.2 Migration
 
 1. Create `PatientLookups`.
-2. Backfill one row per `Patient`: `Id = NEWID()` (acceptable for backfill), `OrganizationId`, `PatientId`, `AssigningAuthority = 'org:' + LOWER(CONVERT(varchar(36), OrganizationId))`, `Mrn`, `IsPrimary = 1`, `Source = ImportSource`, `RetiredDate = CASE WHEN IsActive = 1 THEN NULL ELSE SYSUTCDATETIME() END`, `CreateDate = ModDate = SYSUTCDATETIME()`.
-3. Drop the `Patients (OrganizationId, Mrn)` filtered index, then drop `Patients.Mrn`.
-4. `Down` reverses it (re-add the column, copy the primary MRN back, re-create the index, drop the table). Keep `Down` honest — it is the rollback path.
+2. Backfill one row per `Patient`: `Id = NEWID()` (acceptable for backfill), `OrganizationId`, `PatientId`, `AssigningAuthority = 'org:' + LOWER(CONVERT(varchar(36), OrganizationId))`, `Mrn`, `IsPrimary = 1`, `Source = ImportSource`, `RetiredDate = CASE WHEN IsActive = 1 THEN NULL ELSE SYSUTCDATETIME() END`.
+3. Drop the `Patients (OrganizationId, Mrn)` filtered index, then drop `Patients.Mrn`, `Patients.ImportBatchId` (import tables shelved) and `Patients.InCerner` (Cerner not MVP).
+4. `Down` reverses it (re-add the three columns, copy the primary MRN back, re-create the index, drop the table). Keep `Down` honest — it is the rollback path.
 
 Run against a Local database that already has active **and** soft-deleted patients; paste the before/after `SELECT`s in the report.
 
 ### 4.3 Server
 
-- `Patient` entity: remove `Mrn`; add `ICollection<PatientLookup> Identifiers`.
-- New `Models/Patients/PatientIdentifierService` (or similar) — the **only** code that writes `PatientLookup` rows. `PatientsController` and the Task 09 import go through it. Methods: `FindActiveAsync(orgId, authority, mrn)`, `CreatePrimary(patient, mrn, source)`, `UpdatePrimaryMrn(patient, mrn)`, `RetireAll(patient)`.
+- `Patient` entity: remove `Mrn`, `ImportBatchId`, `InCerner`; add `ICollection<PatientLookup> Identifiers`. Delete `Data/DbModels/Imports/` (never registered). `ImportSource`/`Source` allowed values: `flatfile | ui`.
+- New `Models/Patients/PatientIdentifierService` (or similar) — the **only** code that writes `PatientLookup` rows. `PatientsController` goes through it (a future import path would too). Methods: `FindActiveAsync(orgId, authority, mrn)`, `CreatePrimary(patient, mrn, source)`, `UpdatePrimaryMrn(patient, mrn)`, `RetireAll(patient)`.
 - `PatientsController`:
 
 | Operation | Behaviour |
@@ -124,47 +126,71 @@ Run against a Local database that already has active **and** soft-deleted patien
 | Update `Mrn` | A **correction** (typo): duplicate check, then update the primary row's `Mrn` in place. No retire/alias — aliasing arrives with import/merge tooling. |
 | Soft delete | `IsActive = false` + `RetiredDate = UtcNow` on all non-retired rows, one `SaveChanges`. |
 
-- DTO shape unchanged (`mrn` string). No identifiers endpoint yet (`GET /api/patients/{id}/identifiers` comes with the first second-source integration).
+- DTO: `mrn` unchanged; **`inCerner` removed** from the response and from `Patient` in `packages/shared/src/types.ts` + `src/testing/fixtures.ts` (only consumers — verified 2026-09-02, no UI reads it). No identifiers endpoint yet (`GET /api/patients/{id}/identifiers` comes with the first second-source integration).
 - `NotificationsController`, `MessageOut`: untouched.
 
 ### 4.4 Contract, client, tests
 
-- `packages/shared` / `packages/api-client` / `apps/sona.client`: **no change** (report must say so — "no user-visible change").
+- `packages/shared`: `Patient.inCerner` removed. `packages/api-client`: no change. `apps/sona.client`: fixture only — **no user-visible change** (report must say so).
 - Playwright `patients` spec must pass unchanged. Add, if missing: (a) re-create the same MRN after soft delete succeeds; (b) search by MRN still finds the patient; (c) edit MRN then search by the new value. Tag (a) `@smoke`.
 - Vitest: nothing new (server-only).
 
-## 5. Target schema (after both parts)
+## 4b. Part C — `AuditLogs` + drop `CreateDate`/`ModDate` (one migration: `AuditLogsReplaceTimestamps`)
 
-What the database looks like once Part A and Part B have shipped. Attributes shown for every table that exists today or is created by this task; planned tables are boxes only. This block replaces the diagram in `docs/data-model.md` § Relationships overview when Part B merges.
+### 4b.1 Table (new)
+
+| Field | Type | Notes |
+|---|---|---|
+| `Id` | uuid PK | |
+| `TableName` | string(200), required | EF entity/table name. |
+| `RecordId` | string(100), required | String because keys are mixed (`int` on Patients/AppUsers, uuid elsewhere). |
+| `Action` | string(20), required | `create \| update \| delete` (soft deletes log as `delete`). |
+| `ChangedByUserId` | int FK → AppUser, nullable | Null for system/seed/migration writes. `Restrict`. |
+| `ChangedAt` | datetime2, required | UTC. |
+| `Changes` | nvarchar(max) | What changed. **Shape is a placeholder** — match the column layout of the team's other apps before implementing (§7 Q11). |
+
+Index `(TableName, RecordId)`. No FK on `RecordId` (polymorphic). Rows are never updated or deleted.
+
+### 4b.2 Migration
+
+1. Create `AuditLogs`.
+2. Drop `CreateDate`/`ModDate` from `Organizations`, `Facilities`, `Departments`, `UserDepartmentAccesses`, `Providers`, `MessageTemplates`, `MessagesOut`, `Divisions` and `PatientLookups` if they were created with them, and `InDate`/`ModDate` from `AppUsers`. **Exception:** `MessagesOut.CreateDate` is the *attempt* timestamp (consent-blocked attempts have no `SentDateTime`) — **rename it to `AttemptedDateTime`**, do not drop it.
+3. No backfill of `AuditLogs` from the dropped columns — history before this migration is simply not available. Say so in `data-model.md`.
+
+### 4b.3 Server
+
+- `EntityBase` → uuid v7 `Id` only. `IAuditStamped`, `StampEntityBaseTimestamps` removed.
+- `ApplicationDbContext.SaveChanges`/`SaveChangesAsync` override writes one `AuditLogs` row per Added / Modified / (soft-)Deleted entry, resolving `ChangedByUserId` from `ICurrentUserService` (null when unavailable). `AuditLogs` and `AppLogs` themselves are excluded. **PHI rule:** `Changes` must not carry `MobileNumber`, `Dob`, names, or `MessageOut.Body` — log column names + a redaction marker for those, or hash them; decide with the team's existing pattern.
+- `AppUser.LastLogin` stays (business field, not an audit timestamp).
+- Contract: any DTO exposing `createDate`/`modDate`/`inDate` drops it. Check `CurrentUserDto` and the organization/provider DTOs. Client: `pnpm typecheck` finds the consumers; fixtures updated.
+
+### 4b.4 Tests
+
+- Vitest: schema tests only if a shared type changed.
+- Playwright: existing suites unchanged. Add one Local-only check (via the API, not UI) that creating and editing a patient produces two `AuditLogs` rows with the right `Action` — a `GET /api/local/audit-logs?table=Patients&recordId=` endpoint in `LocalDevController` (404 outside Local) keeps it honest.
+
+## 5. Target schema (after all parts)
+
+What the database looks like once Parts A, B and C have shipped. Attributes shown for every table that exists today or is created by this task; planned tables are boxes only. No table carries `CreateDate`/`ModDate`. Machine-readable version: [`19-sona-schema-v2.dbml`](19-sona-schema-v2.dbml) (paste into dbdiagram.io). This block replaces the diagram in `docs/data-model.md` § Relationships overview when the last part merges.
 
 ```mermaid
 erDiagram
-    %% Sona schema after Task 19 (target state, 2026-09-02)
-    %% Shipped tables carry attributes. Planned tables (ImportBatch, ImportRowError,
-    %% MessageIn, Encounter, Device, AuditLogs) shown as boxes only.
-
     Division {
         uuid Id PK
         string Name UK
         bool IsActive
-        datetime CreateDate
-        datetime ModDate
     }
     Organization {
         uuid Id PK
         uuid DivisionId FK
         string Name
         bool IsActive
-        datetime CreateDate
-        datetime ModDate
     }
     Facility {
         uuid Id PK
         uuid OrganizationId FK
         string Name
         bool IsActive
-        datetime CreateDate
-        datetime ModDate
     }
     Department {
         uuid Id PK
@@ -172,8 +198,6 @@ erDiagram
         string Name
         string FacilityType "inpatient | outpatient"
         bool IsActive
-        datetime CreateDate
-        datetime ModDate
     }
     AppUser {
         int Id PK
@@ -183,15 +207,11 @@ erDiagram
         string DisplayName
         string Role "system_admin | org_admin | staff | unassigned"
         datetime LastLogin
-        datetime InDate
-        datetime ModDate
     }
     UserDepartmentAccess {
         uuid Id PK
         int AppUserId FK
         uuid DepartmentId FK
-        datetime CreateDate
-        datetime ModDate
     }
     Provider {
         uuid Id PK
@@ -203,14 +223,11 @@ erDiagram
         string Npi UK "filtered, nullable"
         string Specialty
         bool IsActive
-        datetime CreateDate
-        datetime ModDate
     }
     Patient {
         int Id PK
         uuid OrganizationId FK
         uuid PrimaryProviderId FK "nullable"
-        uuid ImportBatchId "nullable, FK when Task 09 lands"
         string FirstName
         string LastName
         date Dob
@@ -218,29 +235,24 @@ erDiagram
         bool SmsConsent "TCPA gate"
         datetime SmsConsentDate
         bool IsUsingMobileApp
-        bool InCerner
-        string ImportSource "flatfile | ui | cerner"
+        string ImportSource "flatfile | ui"
         bool IsActive "soft delete"
     }
     PatientLookup {
         uuid Id PK
         uuid OrganizationId FK
         int PatientId FK
-        string AssigningAuthority "who issued it; default org:{OrganizationId}"
+        string AssigningAuthority "who issued it; default org:OrganizationId"
         string Mrn
-        bool IsPrimary "one per patient, shown as Patient.mrn"
-        string Source "flatfile | ui | cerner"
-        datetime RetiredDate "nullable; unique (Org, Authority, Mrn) where null"
-        datetime CreateDate
-        datetime ModDate
+        bool IsPrimary "one per patient; shown as Patient.mrn"
+        string Source "flatfile | ui"
+        datetime RetiredDate "nullable; unique (Org, Authority, Mrn) while null"
     }
     MessageTemplate {
         uuid Id PK
         string Key UK
         string Body "approved text, no PHI"
         bool IsActive
-        datetime CreateDate
-        datetime ModDate
     }
     MessageOut {
         uuid Id PK
@@ -254,10 +266,18 @@ erDiagram
         string Status "pending | sent | delivered | failed"
         string ProviderMessageSid
         string FailureReason
+        datetime AttemptedDateTime "was CreateDate"
         datetime SentDateTime
         datetime DeliveredDateTime
-        datetime CreateDate
-        datetime ModDate
+    }
+    AuditLogs {
+        uuid Id PK
+        string TableName
+        string RecordId
+        string Action "create | update | delete"
+        int ChangedByUserId FK
+        datetime ChangedAt
+        string Changes "shape TBD - match other apps"
     }
     AppLog {
         int Id PK
@@ -267,6 +287,15 @@ erDiagram
         string Properties
         datetime TimeStamp
     }
+    MessageIn {
+        uuid Id PK "planned, Enh 1"
+    }
+    Encounter {
+        uuid Id PK "future, Cerner - not MVP (FIN lives here)"
+    }
+    Device {
+        uuid Id PK "planned, Enh 2"
+    }
 
     Division ||--o{ Organization : owns
     Organization ||--o{ Facility : has
@@ -275,30 +304,26 @@ erDiagram
     Organization ||--o{ Provider : "directory of"
     Organization ||--o{ Patient : owns
     Organization ||--o{ PatientLookup : scopes
-    Patient ||--|{ PatientLookup : "identified by (1 primary + aliases)"
-    Provider o|--o{ Patient : "primary for (nullable)"
-    AppUser o|--o| Provider : "login for (optional)"
+    Patient ||--|{ PatientLookup : "identified by"
+    Provider o|--o{ Patient : "primary for"
+    AppUser o|--o| Provider : "login for"
     AppUser ||--o{ UserDepartmentAccess : granted
     Department ||--o{ UserDepartmentAccess : scopes
-    Department o|--o{ MessageOut : "sent from (nullable)"
+    Department o|--o{ MessageOut : "sent from"
     AppUser ||--o{ MessageOut : sends
     Patient ||--o{ MessageOut : receives
     MessageTemplate ||--o{ MessageOut : "content of"
+    AppUser o|--o{ AuditLogs : "changed by"
 
-    %% Planned — not in the database yet
-    AppUser ||--o{ ImportBatch : "uploads (Task 09)"
-    ImportBatch ||--o{ ImportRowError : contains
-    ImportBatch o|--o{ Patient : "created (Task 09)"
-    Patient ||--o{ MessageIn : "matched to (Enh 1, nullable)"
-    MessageOut ||--o{ MessageIn : "replied by (Enh 1)"
-    Patient ||--o{ Encounter : "has (Enh 1, Cerner; FIN lives here)"
-    Patient ||--o{ Device : "registers (Enh 2)"
-    AppUser ||--o{ AuditLogs : "changed by (follow-up)"
+    Patient ||--o{ MessageIn : "matched to"
+    MessageOut ||--o{ MessageIn : "replied by"
+    Patient ||--o{ Encounter : has
+    Patient ||--o{ Device : registers
 ```
 
 ## 6. Docs (same PR as the code they describe)
 
-- `docs/data-model.md`: new `Division` section; `Organization` (drop `Type`, add `DivisionId`); `Site` → `Facility`; `Department.FacilityType`; new `PatientLookup` section; `Patient` table loses the `Mrn` row (pointer to `PatientLookup`, contract field explained); mermaid diagram; § Multi-practice patients gains a sentence on assigning authority; note the planned `AuditLogs` table under Open questions.
+- `docs/data-model.md`: new `Division` section; `Organization` (drop `Type`, add `DivisionId`); `Site` → `Facility`; `Department.FacilityType`; new `PatientLookup` section; `Patient` table loses the `Mrn` and `ImportBatchId` rows; new `AuditLogs` section and the conventions paragraph rewritten (no timestamps on tables); `ImportBatch`/`ImportRowError` section replaced by a one-paragraph "shelved" note; mermaid diagram; § Multi-practice patients gains a sentence on assigning authority.
 - `docs/admin-ui-guide.md`: `/divisions` page, organizations page changes, org structure page (Facility wording, ids, FacilityType select/column) — verified in a running Local app.
 - `docs/tasks/_context.md`: a "Task 19 shipped" bullet in the implementation-state list; correct the Task 08 bullet's `Sites` reference.
 - `docs/getting-started.md`: seed ids (default division).
@@ -313,15 +338,18 @@ erDiagram
 | Q3 | Column name | Keep `FacilityType`. |
 | Q4 | `Division.Code` | No. |
 | Q5 | `Facility.Coid` | No. |
-| Q6/Q7 | Patient history / `CreateDate` | Not now. Future `AuditLogs` table covers change tracking for all entities. |
+| Q6/Q7 | Patient history / `CreateDate` | `AuditLogs` (Part C) covers create / edit / delete for every entity. **No table carries `CreateDate`/`ModDate`**, existing ones lose theirs. |
+| Q11 | Import tables | Shelved 2026-09-02. Design kept as a note in the DBML file. `Device`/`MessageIn` stay as planned; `Encounter` stays as a future-enhancement box (Cerner not MVP). |
+| Q12 | `AuditLogs` column shape | **Open** — team to share the schema from their other apps before Part C starts. Placeholder in §4b.1. |
 | Q8 | Division UI | Full admin page, system_admin. |
 | Q9 | External consumers of `Organization.Type` | None. |
 | Q10 | `PatientLookup` | **Build it (Part B).** Coworker's driver is multiple MRN sources per patient, which the team expects. `Patient.Mrn` moves into it — single source of truth. |
 
 ## 8. Out of scope
 
-- Identifiers read endpoint, `IdentifierType` (facility vs enterprise MRN), merge/alias tooling, duplicate-person detection (Dob + phone) — with the first second-source integration.
-- `AuditLogs` table (follow-up task; pattern from the team's other apps).
+- **Anything Cerner** (feeds, `Encounter`, FIN, identifier types) — future enhancement, not MVP (2026-09-02).
+- Identifiers read endpoint, merge/alias tooling, duplicate-person detection (Dob + phone) — with the first second-source integration.
+- Flat-file import and its tables (shelved).
 - `division_admin` role, `AppUser.DivisionId`.
 - Gating notifications on `FacilityType`.
 - EF global query filters for tenant scoping (`HasQueryFilter`) — worth its own task; noted 2026-09-02.
@@ -331,6 +359,6 @@ erDiagram
 
 Per `_context.md` §Definition of Done, plus:
 - Each migration applied to a fresh Local database from `database update` alone **and** on top of a database that already has an org/facility/department/active patient/soft-deleted patient — confirm every row survives, backfills produce the expected values, and `Down` restores `Patients.Mrn`; paste the `SELECT`s in the report.
-- Report includes the migration operations list (Part A: proving rename, not drop+create; Part B: backfill row count = patient count).
+- Report includes the migration operations list (Part A: proving rename, not drop+create; Part B: backfill row count = patient count; Part C: `MessagesOut.CreateDate` renamed, not dropped).
 - `pnpm typecheck && pnpm build && pnpm test && pnpm e2e` green; `dotnet build Sona.slnx` green.
 - Divisions page and org structure changes exercised in a running Local app per the guide's playbook; report quotes what was observed.
