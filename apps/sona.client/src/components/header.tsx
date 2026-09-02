@@ -38,9 +38,11 @@ function Header() {
           <NavLink to="/patients" testId="header-nav-patients">
               Patients
           </NavLink>
-          <NavLink to="/providers/manage" testId="header-nav-providers">
-              Providers
-          </NavLink>
+          {isAdmin && (
+              <NavLink to="/providers/manage" testId="header-nav-providers">
+                  Providers
+              </NavLink>
+          )}
           {isAdmin && (
               <NavLink to="/user-management" testId="header-nav-user-management">
                   User Management

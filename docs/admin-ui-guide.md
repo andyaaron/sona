@@ -80,7 +80,7 @@ plain http with a config that spreads `vite.config.ts` with `server.https: false
 |---|---|---|---|
 | `system_admin` | Dashboard, Patients, Providers, User Management, Organization, Organizations | none | No org of their own: header shows id only; Organization page needs the org picker; **cannot create patients/providers from the UI** (Task 15) |
 | `org_admin` | Dashboard, Patients, Providers, User Management, Organization | `/organizations` → "Only system administrators can manage organizations." | Header shows `DEV001 · Default Practice`; Organization page opens straight on their org |
-| `staff` | Dashboard, Patients, Providers | `/user-management` → "Only organization administrators can manage users."; `/organization` → "Only organization administrators can manage sites and departments."; `/organizations` as above | Header gets the **Department** picker when the user has > 1 department |
+| `staff` | Dashboard, Patients | `/providers/manage` → "Only organization administrators can manage providers."; `/user-management` → "Only organization administrators can manage users."; `/organization` → "Only organization administrators can manage sites and departments."; `/organizations` as above | Header gets the **Department** picker when the user has > 1 department |
 | `unassigned` | *(no shell)* | everything — server `AssignedUser` policy answers `403` | Whole app replaced by the pending screen (below) |
 
 Client gates are UX only; the server policies (`SystemAdmin`, `OrgAdmin`, `AssignedUser`) are what
@@ -132,7 +132,7 @@ Left → right:
 | far left | Sona logo (link to `/`) | `header-logo` | |
 | nav | Dashboard | `header-nav-dashboard` | active link is emerald |
 | nav | Patients | `header-nav-patients` | → `/patients` |
-| nav | Providers | `header-nav-providers` | → `/providers/manage` |
+| nav | Providers | `header-nav-providers` | → `/providers/manage`; org_admin + system_admin only |
 | nav | User Management | `header-nav-user-management` | org_admin + system_admin only |
 | nav | Organization | `header-nav-organization` | org_admin + system_admin only |
 | nav | Organizations | `header-nav-organizations` | system_admin only |
@@ -190,7 +190,7 @@ Left → right:
 ### `/providers/manage` — Manage Providers
 
 - **Purpose:** CRUD providers (soft deactivate).
-- **Who:** every assigned role (server `AssignedUser`, org-scoped). No client gate (`@TODO` in code).
+- **Who:** org_admin, system_admin (decided 2026-09-02, Task 18 — providers are org reference data). Others: `providers-forbidden` "Only organization administrators can manage providers." Server: `POST`/`PUT /api/providers` require the `OrgAdmin` policy (`403` otherwise); `GET /api/providers` stays open to every assigned role because the patient form and the patients provider filter need the list.
 - **Layout:** toolbar → (form card) → table.
   - **Toolbar** (`providers-toolbar`): heading "Manage Providers" · **Add Provider** (`providers-add-button`, toggles to Cancel, `aria-expanded`) · search (`providers-search-toggle|input|clear`, placeholder "Search by name or NPI…", **client-side** filter on first/last name or NPI, no URL param).
   - **Form card** (`provider-form`): title `provider-form-title` ("Add provider"/"Edit provider"), **Cancel** `provider-form-cancel`, submit `provider-form-submit` ("Create provider"/"Save changes"). Grid: First name (`provider-form-first-name`) · Last name (`provider-form-last-name`) · Credentials (`provider-form-credentials`, placeholder "e.g. MD, DO, NP") · NPI (`provider-form-npi`, "10-digit NPI") · Specialty full-width (`provider-form-specialty`). Errors `<testid>-error`.
@@ -274,6 +274,5 @@ Convention: kebab-case `<feature>-<element>[-<qualifier>]`; row/action ids carry
 ## Known gaps / open bugs
 
 - **system_admin cannot create patients or providers from the UI** — `400 "organizationId is required for system admins."` toast; no org field on either form. [tasks/15](tasks/15-system-admin-org-picker-for-create.md).
-- `/providers/manage` has no role gate at all — staff can create/edit/deactivate providers (client `@TODO`, server `AssignedUser`). Decision + fix: [tasks/18](tasks/18-providers-page-role-gate.md).
 - No automated tests yet — [tasks/12](tasks/12-frontend-unit-tests.md) adds Vitest + Playwright against the ids in this guide.
 - `pnpm lint` does not pass on `main` (mobile `expo lint` self-installs and fails) — [tasks/17](tasks/17-lint-toolchain.md).
