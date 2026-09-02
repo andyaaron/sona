@@ -104,10 +104,20 @@ namespace Sona.Server.Models.Util
         /// </summary>
         /// <param name="config"></param>
         /// <param name="logger"></param>
-        public MSGraphHelper(IConfiguration config, ILogger<MSGraphHelper> logger)
+        public MSGraphHelper(IConfiguration config, ILogger<MSGraphHelper> logger, IHostEnvironment environment)
         {
             _config = config;
             _logger = logger;
+
+            //Local (personal-machine) profile has no Azure credentials — skip the keyvault
+            //handshake entirely so the API starts. _graphServiceClient stays null and every
+            //search method below already no-ops on a null client (directory search returns
+            //empty / 503). See docs/getting-started.md.
+            if (environment.IsEnvironment("Local"))
+            {
+                _logger.LogWarning("Local mode: MSGraph is not configured. Directory search and invite-name lookup return no results.");
+                return;
+            }
 
             //pull keyvault URI from config
             _keyvaultURI = _config["Keyvault:_keyvaultURI"];

@@ -310,6 +310,6 @@ erDiagram
 
 ## Open questions
 
-- ~~**Auth approach for `AppUser`**~~ — settled: HCA Entra ID, single tenant, deployment stays inside the HCA network. No local credentials; multi-tenant auth explicitly out of scope (see `docs/tasks/08-org-hierarchy-user-management.md`).
+- ~~**Auth approach for `AppUser`**~~ — settled: HCA Entra ID, single tenant, deployment stays inside the HCA network. No local credentials; multi-tenant auth explicitly out of scope (Task 08 design decisions, shipped 2026-09-01; prompt deleted).
 - **Retention policy** — how long to keep `MessageOut`/`MessageIn` rows; HIPAA-adjacent records typically 6+ years, confirm in compliance review.
 - **Cerner integration shape** — `Encounter` fields are placeholders until the integration contract (HL7? FHIR? file drop?) is known.
