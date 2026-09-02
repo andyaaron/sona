@@ -5,7 +5,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
 import type { CreateProviderInput, Provider } from '@sona/shared'
-import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
 import { SearchInput } from '@/components/search-input'
@@ -15,6 +14,7 @@ import { useCreateProvider } from '@/features/providers/api/create-provider'
 import { useUpdateProvider } from '@/features/providers/api/update-provider'
 import { providersQueryOptions } from '@/features/providers/api/get-providers'
 import { ProviderForm } from '@/features/providers/components/provider-form'
+import { getErrorMessage } from '@/lib/api-error'
 
 export const Route = createFileRoute('/providers/manage')({
   loader: ({ context: { queryClient } }) =>
@@ -26,17 +26,6 @@ type FormState =
   | { mode: 'create' }
   | { mode: 'edit'; provider: Provider }
   | null
-
-function getErrorMessage(error: Error): string {
-  if (error instanceof ApiError) {
-    const body = error.body as Record<string, unknown> | null
-    if (body && typeof body.error === 'string') {
-      return body.error
-    }
-    return `Request failed (${error.status})`
-  }
-  return error.message || 'An unexpected error occurred'
-}
 
 // @TODO: Lock behind user access level
 function ManageProvidersPage() {

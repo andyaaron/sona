@@ -5,9 +5,9 @@ import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
 import type { CreatePatientInput, Patient } from '@sona/shared'
-import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { SearchInput } from '@/components/search-input'
 import TableComponent from '@/components/Table/Table'
 import type { AppColumnDef } from '@/components/Table/Table'
@@ -21,6 +21,7 @@ import {
   validatePatientListSearch,
 } from '@/features/patients/patient-list-search'
 import { activeProvidersQueryOptions } from '@/features/providers/api/get-providers'
+import { getErrorMessage } from '@/lib/api-error'
 
 export const Route = createFileRoute('/patients/manage')({
   validateSearch: validatePatientListSearch,
@@ -38,23 +39,13 @@ type FormState =
   | { mode: 'edit'; patient: Patient }
   | null
 
-function getErrorMessage(error: Error): string {
-  if (error instanceof ApiError) {
-    const body = error.body as Record<string, unknown> | null
-    if (body && typeof body.error === 'string') {
-      return body.error
-    }
-    return `Request failed (${error.status})`
-  }
-  return error.message || 'An unexpected error occurred'
-}
-
 function ManagePatientsPage() {
   const searchParams = Route.useSearch()
   const navigate = Route.useNavigate()
   const { data } = useSuspenseQuery(patientsQueryOptions(searchParams))
   const { data: providers } = useSuspenseQuery(activeProvidersQueryOptions)
   const [formState, setFormState] = useState<FormState>(null)
+  const [pendingDelete, setPendingDelete] = useState<Patient | null>(null)
   const [searchInput, setSearchInput] = useState(searchParams.search ?? '')
   const createPatient = useCreatePatient()
   const updatePatient = useUpdatePatient()
@@ -111,11 +102,9 @@ function ManagePatientsPage() {
     )
   }
 
-  function handleDelete(patient: Patient) {
-    if (!window.confirm(`Delete ${patient.firstName} ${patient.lastName}?`)) {
-      return
-    }
-
+  function confirmDelete() {
+    if (!pendingDelete) return
+    const patient = pendingDelete
     deletePatient.mutate(patient.id, {
       onSuccess: () => {
         toast.success('Patient deleted')
@@ -123,6 +112,10 @@ function ManagePatientsPage() {
           setFormState(null)
         }
       },
+      onError: (error) => {
+        toast.error(getErrorMessage(error))
+      },
+      onSettled: () => setPendingDelete(null),
     })
   }
 
@@ -183,7 +176,7 @@ function ManagePatientsPage() {
             size="sm"
             disabled={deletePatient.isPending}
             data-testid={`patients-manage-delete-${row.original.id}`}
-            onClick={() => handleDelete(row.original)}
+            onClick={() => setPendingDelete(row.original)}
           >
             Delete
           </Button>
@@ -246,6 +239,15 @@ function ManagePatientsPage() {
         emptyMessage="No patients found."
         manual={manual}
         testId="patients-manage-table"
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={`Delete ${pendingDelete?.firstName ?? ''} ${pendingDelete?.lastName ?? ''}?`}
+        confirmLabel="Delete"
+        confirmDisabled={deletePatient.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
       />
     </div>
   )
