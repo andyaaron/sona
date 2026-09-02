@@ -1,6 +1,6 @@
 # Task 19 — Org hierarchy v2 (Division / Facility / FacilityType) + PatientLookup
 
-**Status:** spec'd 2026-09-02 after team review; open questions resolved 2026-09-02 (§6). Ready to start.
+**Status:** spec'd 2026-09-02 after team review; open questions resolved 2026-09-02 (§7). Ready to start.
 **Prerequisite:** none — migration baseline fixed 2026-08-27; add migrations with `--output-dir Data/Migrations`. Run `dotnet ef` under the `Local` profile (`ASPNETCORE_ENVIRONMENT=Local`) so no Azure credentials are needed.
 Read `docs/tasks/_context.md`, `AGENTS.md`, `docs/data-model.md` (§ Organization hierarchy, § Multi-practice patients) and `docs/admin-ui-guide.md` (org structure + organizations pages) first.
 
@@ -133,7 +133,170 @@ Run against a Local database that already has active **and** soft-deleted patien
 - Playwright `patients` spec must pass unchanged. Add, if missing: (a) re-create the same MRN after soft delete succeeds; (b) search by MRN still finds the patient; (c) edit MRN then search by the new value. Tag (a) `@smoke`.
 - Vitest: nothing new (server-only).
 
-## 5. Docs (same PR as the code they describe)
+## 5. Target schema (after both parts)
+
+What the database looks like once Part A and Part B have shipped. Attributes shown for every table that exists today or is created by this task; planned tables are boxes only. This block replaces the diagram in `docs/data-model.md` § Relationships overview when Part B merges.
+
+```mermaid
+erDiagram
+    %% Sona schema after Task 19 (target state, 2026-09-02)
+    %% Shipped tables carry attributes. Planned tables (ImportBatch, ImportRowError,
+    %% MessageIn, Encounter, Device, AuditLogs) shown as boxes only.
+
+    Division {
+        uuid Id PK
+        string Name UK
+        bool IsActive
+        datetime CreateDate
+        datetime ModDate
+    }
+    Organization {
+        uuid Id PK
+        uuid DivisionId FK
+        string Name
+        bool IsActive
+        datetime CreateDate
+        datetime ModDate
+    }
+    Facility {
+        uuid Id PK
+        uuid OrganizationId FK
+        string Name
+        bool IsActive
+        datetime CreateDate
+        datetime ModDate
+    }
+    Department {
+        uuid Id PK
+        uuid FacilityId FK
+        string Name
+        string FacilityType "inpatient | outpatient"
+        bool IsActive
+        datetime CreateDate
+        datetime ModDate
+    }
+    AppUser {
+        int Id PK
+        uuid OrganizationId FK "null for system_admin / unassigned"
+        string HCAID
+        string Email
+        string DisplayName
+        string Role "system_admin | org_admin | staff | unassigned"
+        datetime LastLogin
+        datetime InDate
+        datetime ModDate
+    }
+    UserDepartmentAccess {
+        uuid Id PK
+        int AppUserId FK
+        uuid DepartmentId FK
+        datetime CreateDate
+        datetime ModDate
+    }
+    Provider {
+        uuid Id PK
+        uuid OrganizationId FK
+        int AppUserId FK "nullable"
+        string FirstName
+        string LastName
+        string Credentials
+        string Npi UK "filtered, nullable"
+        string Specialty
+        bool IsActive
+        datetime CreateDate
+        datetime ModDate
+    }
+    Patient {
+        int Id PK
+        uuid OrganizationId FK
+        uuid PrimaryProviderId FK "nullable"
+        uuid ImportBatchId "nullable, FK when Task 09 lands"
+        string FirstName
+        string LastName
+        date Dob
+        string MobileNumber "E.164"
+        bool SmsConsent "TCPA gate"
+        datetime SmsConsentDate
+        bool IsUsingMobileApp
+        bool InCerner
+        string ImportSource "flatfile | ui | cerner"
+        bool IsActive "soft delete"
+    }
+    PatientLookup {
+        uuid Id PK
+        uuid OrganizationId FK
+        int PatientId FK
+        string AssigningAuthority "who issued it; default org:{OrganizationId}"
+        string Mrn
+        bool IsPrimary "one per patient, shown as Patient.mrn"
+        string Source "flatfile | ui | cerner"
+        datetime RetiredDate "nullable; unique (Org, Authority, Mrn) where null"
+        datetime CreateDate
+        datetime ModDate
+    }
+    MessageTemplate {
+        uuid Id PK
+        string Key UK
+        string Body "approved text, no PHI"
+        bool IsActive
+        datetime CreateDate
+        datetime ModDate
+    }
+    MessageOut {
+        uuid Id PK
+        int PatientId FK
+        int SentByUserId FK
+        uuid MessageTemplateId FK "nullable"
+        uuid DepartmentId FK "nullable, id only"
+        string Channel "sms | push"
+        string Body "rendered snapshot"
+        string MobileNumber "number dialed"
+        string Status "pending | sent | delivered | failed"
+        string ProviderMessageSid
+        string FailureReason
+        datetime SentDateTime
+        datetime DeliveredDateTime
+        datetime CreateDate
+        datetime ModDate
+    }
+    AppLog {
+        int Id PK
+        string Level
+        string Message
+        string Exception
+        string Properties
+        datetime TimeStamp
+    }
+
+    Division ||--o{ Organization : owns
+    Organization ||--o{ Facility : has
+    Facility ||--o{ Department : has
+    Organization ||--o{ AppUser : employs
+    Organization ||--o{ Provider : "directory of"
+    Organization ||--o{ Patient : owns
+    Organization ||--o{ PatientLookup : scopes
+    Patient ||--|{ PatientLookup : "identified by (1 primary + aliases)"
+    Provider o|--o{ Patient : "primary for (nullable)"
+    AppUser o|--o| Provider : "login for (optional)"
+    AppUser ||--o{ UserDepartmentAccess : granted
+    Department ||--o{ UserDepartmentAccess : scopes
+    Department o|--o{ MessageOut : "sent from (nullable)"
+    AppUser ||--o{ MessageOut : sends
+    Patient ||--o{ MessageOut : receives
+    MessageTemplate ||--o{ MessageOut : "content of"
+
+    %% Planned — not in the database yet
+    AppUser ||--o{ ImportBatch : "uploads (Task 09)"
+    ImportBatch ||--o{ ImportRowError : contains
+    ImportBatch o|--o{ Patient : "created (Task 09)"
+    Patient ||--o{ MessageIn : "matched to (Enh 1, nullable)"
+    MessageOut ||--o{ MessageIn : "replied by (Enh 1)"
+    Patient ||--o{ Encounter : "has (Enh 1, Cerner; FIN lives here)"
+    Patient ||--o{ Device : "registers (Enh 2)"
+    AppUser ||--o{ AuditLogs : "changed by (follow-up)"
+```
+
+## 6. Docs (same PR as the code they describe)
 
 - `docs/data-model.md`: new `Division` section; `Organization` (drop `Type`, add `DivisionId`); `Site` → `Facility`; `Department.FacilityType`; new `PatientLookup` section; `Patient` table loses the `Mrn` row (pointer to `PatientLookup`, contract field explained); mermaid diagram; § Multi-practice patients gains a sentence on assigning authority; note the planned `AuditLogs` table under Open questions.
 - `docs/admin-ui-guide.md`: `/divisions` page, organizations page changes, org structure page (Facility wording, ids, FacilityType select/column) — verified in a running Local app.
@@ -141,7 +304,7 @@ Run against a Local database that already has active **and** soft-deleted patien
 - `docs/getting-started.md`: seed ids (default division).
 - `docs/patient-tasks.md`: tick the Task 19 entry.
 
-## 6. Resolved questions (2026-09-02)
+## 7. Resolved questions (2026-09-02)
 
 | # | Question | Answer |
 |---|---|---|
@@ -155,7 +318,7 @@ Run against a Local database that already has active **and** soft-deleted patien
 | Q9 | External consumers of `Organization.Type` | None. |
 | Q10 | `PatientLookup` | **Build it (Part B).** Coworker's driver is multiple MRN sources per patient, which the team expects. `Patient.Mrn` moves into it — single source of truth. |
 
-## 7. Out of scope
+## 8. Out of scope
 
 - Identifiers read endpoint, `IdentifierType` (facility vs enterprise MRN), merge/alias tooling, duplicate-person detection (Dob + phone) — with the first second-source integration.
 - `AuditLogs` table (follow-up task; pattern from the team's other apps).
@@ -164,7 +327,7 @@ Run against a Local database that already has active **and** soft-deleted patien
 - EF global query filters for tenant scoping (`HasQueryFilter`) — worth its own task; noted 2026-09-02.
 - Consent history / STOP handling (FCC/TCPA follow-up).
 
-## 8. Definition of Done
+## 9. Definition of Done
 
 Per `_context.md` §Definition of Done, plus:
 - Each migration applied to a fresh Local database from `database update` alone **and** on top of a database that already has an org/facility/department/active patient/soft-deleted patient — confirm every row survives, backfills produce the expected values, and `Down` restores `Patients.Mrn`; paste the `SELECT`s in the report.
