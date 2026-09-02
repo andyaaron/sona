@@ -5,7 +5,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
 import type { Department, Site } from '@sona/shared'
-import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
 import TableComponent from '@/components/Table/Table'
@@ -19,19 +18,11 @@ import { sitesQueryOptions } from '@/features/org-structure/api/get-sites'
 import { useUpdateDepartment } from '@/features/org-structure/api/update-department'
 import { useUpdateSite } from '@/features/org-structure/api/update-site'
 import { NameForm } from '@/features/org-structure/components/name-form'
+import { getErrorMessage } from '@/lib/api-error'
 
 export const Route = createFileRoute('/organization/')({
   component: OrganizationPage,
 })
-
-function getErrorMessage(error: Error): string {
-  if (error instanceof ApiError) {
-    const body = error.body as Record<string, unknown> | null
-    if (body && typeof body.error === 'string') return body.error
-    return `Request failed (${error.status})`
-  }
-  return error.message || 'An unexpected error occurred'
-}
 
 // Client-side gate is UX only — the server enforces the OrgAdmin policy.
 function OrganizationPage() {

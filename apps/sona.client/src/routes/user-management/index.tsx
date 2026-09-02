@@ -5,7 +5,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
 import type { AppUserSummary, UserRole } from '@sona/shared'
-import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
 import { SearchInput } from '@/components/search-input'
@@ -21,6 +20,7 @@ import { useInviteUser } from '@/features/user-management/api/invite-user'
 import { useUpdateUser } from '@/features/user-management/api/update-user'
 import { UserAccessForm } from '@/features/user-management/components/user-access-form'
 import type { UserAccessValues } from '@/features/user-management/components/user-access-form'
+import { getErrorMessage } from '@/lib/api-error'
 
 export const Route = createFileRoute('/user-management/')({
   component: UserManagementPage,
@@ -37,15 +37,6 @@ type FormState =
   | { mode: 'invite' }
   | { mode: 'assign'; user: AppUserSummary }
   | null
-
-function getErrorMessage(error: Error): string {
-  if (error instanceof ApiError) {
-    const body = error.body as Record<string, unknown> | null
-    if (body && typeof body.error === 'string') return body.error
-    return `Request failed (${error.status})`
-  }
-  return error.message || 'An unexpected error occurred'
-}
 
 // Client-side gate is UX only — the server enforces the OrgAdmin policy.
 function UserManagementPage() {
