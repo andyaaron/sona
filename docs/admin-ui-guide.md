@@ -273,8 +273,9 @@ Convention: kebab-case `<feature>-<element>[-<qualifier>]`; row/action ids carry
 
 - **system_admin cannot create patients or providers from the UI** — `400 "organizationId is required for system admins."` toast; no org field on either form. [tasks/15](tasks/15-system-admin-org-picker-for-create.md).
 - **Seeded ids fail `z.string().uuid()`** — picking Default Practice in the user form shows "Invalid UUID"; a staff assignment with a hidden failing field submits silently (no error, no request). [tasks/11](tasks/11-user-invite-form-bugs.md).
-- **Notify has no success/error toast** — only the button label ("Notifying…") and the history refresh; a `4xx` on `POST /api/notifications/ready` is invisible in the UI. No task yet.
-- **Patient delete uses `window.confirm`** instead of the shared `ConfirmDialog`, and its failure is not toasted. No task yet.
-- **Console warning on Add Patient:** "`value` prop on `select` should not be null" — `addPatientFormOpts.defaultValues.primaryProviderId` is `null` while `SelectField` expects a string. Harmless; no task yet.
-- `/providers/manage` has no client-side role gate (`@TODO` in the route) — server policy still applies.
+- **Notify has no success/error toast** — only the button label ("Notifying…") and the history refresh; a `4xx` on `POST /api/notifications/ready` is invisible in the UI. [tasks/16](tasks/16-patient-page-feedback-gaps.md).
+- **Patient delete uses `window.confirm`** instead of the shared `ConfirmDialog`, and its failure is not toasted. [tasks/16](tasks/16-patient-page-feedback-gaps.md).
+- **Console warning on Add Patient:** "`value` prop on `select` should not be null" — `addPatientFormOpts.defaultValues.primaryProviderId` is `null` while `SelectField` expects a string. Harmless. [tasks/16](tasks/16-patient-page-feedback-gaps.md).
+- `/providers/manage` has no role gate at all — staff can create/edit/deactivate providers (client `@TODO`, server `AssignedUser`). Decision + fix: [tasks/18](tasks/18-providers-page-role-gate.md).
 - No automated tests yet — [tasks/12](tasks/12-frontend-unit-tests.md) adds Vitest + Playwright against the ids in this guide.
+- `pnpm lint` does not pass on `main` (mobile `expo lint` self-installs and fails) — [tasks/17](tasks/17-lint-toolchain.md).
