@@ -90,42 +90,42 @@ function UserManagementAdmin({
   const departmentName = new Map(departments.map((d) => [d.id, d.name]))
   const orgName = new Map(organizations.map((o) => [o.id, o.name]))
 
-  function handleAssign(values: UserAccessValues) {
+  // Both handlers reject with the server's message so the form can show it
+  // next to the fields, not only as a toast.
+  async function handleAssign(values: UserAccessValues) {
     if (formState?.mode !== 'assign') return
-    updateUser.mutate(
-      {
+    try {
+      await updateUser.mutateAsync({
         id: formState.user.id,
         role: values.role,
         organizationId: values.organizationId,
         departmentIds: values.departmentIds,
-      },
-      {
-        onSuccess: () => {
-          setFormState(null)
-          toast.success('User updated')
-        },
-        onError: (err) => toast.error(getErrorMessage(err)),
-      },
-    )
+      })
+      setFormState(null)
+      toast.success('User updated')
+    } catch (err) {
+      const message = getErrorMessage(err as Error)
+      toast.error(message)
+      throw new Error(message)
+    }
   }
 
-  function handleInvite(values: UserAccessValues) {
+  async function handleInvite(values: UserAccessValues) {
     if (values.role === 'unassigned') return
-    inviteUser.mutate(
-      {
+    try {
+      await inviteUser.mutateAsync({
         hca34Id: values.hca34Id,
         role: values.role,
         organizationId: values.organizationId,
         departmentIds: values.departmentIds,
-      },
-      {
-        onSuccess: () => {
-          setFormState(null)
-          toast.success('User invited')
-        },
-        onError: (err) => toast.error(getErrorMessage(err)),
-      },
-    )
+      })
+      setFormState(null)
+      toast.success('User invited')
+    } catch (err) {
+      const message = getErrorMessage(err as Error)
+      toast.error(message)
+      throw new Error(message)
+    }
   }
 
   const pending = users.filter((u) => u.role === 'unassigned')
