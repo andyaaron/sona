@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import type { MessageOut, NotificationStatus } from '@sona/shared'
 
+import Spinner from '@/components/spinner'
 import TableComponent from '@/components/Table/Table'
 import type { AppColumnDef } from '@/components/Table/Table'
 
@@ -60,28 +61,19 @@ export function NotificationHistory({ patientId }: { patientId: string }) {
     patientNotificationsQueryOptions(patientId),
   )
 
-  const tid = (suffix: string) => `notification-history-${suffix}-${patientId}`
-
   if (isPending) {
     return (
-      <p data-testid={tid('loading')} className="px-4 py-2 text-sm text-gray-500">
-        Loading history…
-      </p>
+      <div className="flex items-center gap-2 px-4 py-2">
+        <Spinner size="sm" label="Loading history" />
+        <p className="text-sm text-gray-500">Loading history…</p>
+      </div>
     )
   }
   if (isError) {
-    return (
-      <p data-testid={tid('error')} className="px-4 py-2 text-sm text-red-600">
-        Failed to load notification history.
-      </p>
-    )
+    return <p className="px-4 py-2 text-sm text-red-600">Failed to load notification history.</p>
   }
   if (notifications.length === 0) {
-    return (
-      <p data-testid={tid('empty')} className="px-4 py-2 text-sm text-gray-500">
-        No notifications sent yet.
-      </p>
-    )
+    return <p className="px-4 py-2 text-sm text-gray-500">No notifications sent yet.</p>
   }
 
   return (
@@ -91,7 +83,6 @@ export function NotificationHistory({ patientId }: { patientId: string }) {
       bordered={false}
       enableSorting={false}
       enablePagination={false}
-      testId={tid('table')}
     />
   )
 }

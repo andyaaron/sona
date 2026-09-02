@@ -15,6 +15,7 @@ import { Route as OrganizationsIndexRouteImport } from './routes/organizations/i
 import { Route as PatientsIndexRouteImport } from './routes/patients/index'
 import { Route as PatientsManageRouteImport } from './routes/patients/manage'
 import { Route as ProvidersManageRouteImport } from './routes/providers/manage'
+import { Route as SpinnerIndexRouteImport } from './routes/spinner/index'
 import { Route as UserManagementIndexRouteImport } from './routes/user-management/index'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const ProvidersManageRoute = ProvidersManageRouteImport.update({
   path: '/providers/manage',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SpinnerIndexRoute = SpinnerIndexRouteImport.update({
+  id: '/spinner/',
+  path: '/spinner/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UserManagementIndexRoute = UserManagementIndexRouteImport.update({
   id: '/user-management/',
   path: '/user-management/',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/organization/': typeof OrganizationIndexRoute
   '/organizations/': typeof OrganizationsIndexRoute
   '/patients/': typeof PatientsIndexRoute
+  '/spinner/': typeof SpinnerIndexRoute
   '/user-management/': typeof UserManagementIndexRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/organization': typeof OrganizationIndexRoute
   '/organizations': typeof OrganizationsIndexRoute
   '/patients': typeof PatientsIndexRoute
+  '/spinner': typeof SpinnerIndexRoute
   '/user-management': typeof UserManagementIndexRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/organization/': typeof OrganizationIndexRoute
   '/organizations/': typeof OrganizationsIndexRoute
   '/patients/': typeof PatientsIndexRoute
+  '/spinner/': typeof SpinnerIndexRoute
   '/user-management/': typeof UserManagementIndexRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/organization/'
     | '/organizations/'
     | '/patients/'
+    | '/spinner/'
     | '/user-management/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/organization'
     | '/organizations'
     | '/patients'
+    | '/spinner'
     | '/user-management'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/organization/'
     | '/organizations/'
     | '/patients/'
+    | '/spinner/'
     | '/user-management/'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   OrganizationIndexRoute: typeof OrganizationIndexRoute
   OrganizationsIndexRoute: typeof OrganizationsIndexRoute
   PatientsIndexRoute: typeof PatientsIndexRoute
+  SpinnerIndexRoute: typeof SpinnerIndexRoute
   UserManagementIndexRoute: typeof UserManagementIndexRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProvidersManageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/spinner/': {
+      id: '/spinner/'
+      path: '/spinner'
+      fullPath: '/spinner/'
+      preLoaderRoute: typeof SpinnerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/user-management/': {
       id: '/user-management/'
       path: '/user-management'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrganizationIndexRoute: OrganizationIndexRoute,
   OrganizationsIndexRoute: OrganizationsIndexRoute,
   PatientsIndexRoute: PatientsIndexRoute,
+  SpinnerIndexRoute: SpinnerIndexRoute,
   UserManagementIndexRoute: UserManagementIndexRoute,
 }
 export const routeTree = rootRouteImport
