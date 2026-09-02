@@ -29,6 +29,7 @@ jobs:
           dotnet-version: 10.0.x
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm lint
       - run: pnpm build
       - run: pnpm test
       - run: dotnet build Sona.slnx --configuration Release

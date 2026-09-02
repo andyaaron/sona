@@ -10,12 +10,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "oxlint"
   },
   "dependencies": {
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "oxlint": "^1.75.0",
     "typescript": "~6.0.2",
     "vitest": "^4.1.11"
   }

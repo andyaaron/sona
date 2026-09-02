@@ -126,7 +126,7 @@ These have all bitten before. Check this list before assuming a novel problem:
 5. **Env vars are baked at build time** in both frontends (`VITE_*`, `EXPO_PUBLIC_*`). Changing `.env` requires restarting dev server / rebuilding. On a physical device, `localhost` won't reach the API — use the machine's LAN IP.
 6. **.NET solution is `Sona.slnx`** (XML format, .NET 10 default) — commands referencing `Sona.sln` fail.
 7. **`Microsoft.OpenApi` is pinned** in `sona.server.csproj` to a patched 2.x (template version had a known vulnerability). Don't downgrade.
-8. **pnpm 11:** `overrides` live in `pnpm-workspace.yaml`, not `package.json` (the `pnpm` field there is ignored). Supply-chain release-age checks may delay brand-new package versions — exclusions belong in `minimumReleaseAgeExclude`.
+8. **pnpm 11:** `overrides` live in `pnpm-workspace.yaml`, not `package.json` (the `pnpm` field there is ignored). Supply-chain release-age checks may delay brand-new package versions — exclusions belong in `minimumReleaseAgeExclude`. Postinstall scripts are blocked unless listed under `allowBuilds` there (pnpm writes a `set this to true or false` placeholder — replace it with `true`/`false` and commit; `unrs-resolver: true` is what mobile's eslint needs, `msw: false` is deliberate).
 9. **zod is v4** — check v4 API when unsure; some v3 patterns changed.
 10. **React 19 + RN 0.86 (New Architecture only).** Old-architecture RN libraries won't work; check compatibility before adding any RN dependency.
 

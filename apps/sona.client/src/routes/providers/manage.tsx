@@ -28,7 +28,7 @@ type FormState =
   | null
 
 // @TODO: Lock behind user access level
-function ManageProvidersPage() {
+export function ManageProvidersPage() {
   const { data: providers } = useSuspenseQuery(providersQueryOptions)
   const [formState, setFormState] = useState<FormState>(null)
   const [search, setSearch] = useState('')

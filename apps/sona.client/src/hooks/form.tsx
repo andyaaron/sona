@@ -1,3 +1,6 @@
+// createFormHook returns hooks/HOCs and needs the (lazy) field components in scope; this file is
+// not a component module, so Fast Refresh boundaries do not apply.
+/* oxlint-disable react/only-export-components */
 import { lazy } from 'react';
 import { createFormHook } from '@tanstack/react-form';
 import { fieldContext, formContext } from '@/hooks/form-context.tsx';

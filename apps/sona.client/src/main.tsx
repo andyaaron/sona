@@ -4,12 +4,9 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { routeTree } from './routeTree.gen';
 import { initApiClient } from '@/lib/api-client'
+import type { MyRouterContext } from '@/types/router'
 
 import './index.css'
-
-export interface MyRouterContext {
-  queryClient: QueryClient;
-}
 
 initApiClient()
 
@@ -25,7 +22,7 @@ const router = createRouter({
     routeTree,
     context: {
         queryClient,
-    },
+    } satisfies MyRouterContext,
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0,
 });
@@ -37,7 +34,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
-function App() {
+export function App() {
     return (
         <QueryClientProvider client={queryClient}>
             <RouterProvider router={router} />
