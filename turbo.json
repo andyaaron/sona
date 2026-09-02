@@ -2,8 +2,15 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".expo/**", "bin/**", "obj/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        ".expo/**",
+        "bin/**",
+        "obj/**"
+      ]
     },
     "dev": {
       "cache": false,
@@ -11,8 +18,23 @@
     },
     "lint": {},
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     },
-    "test": {}
+    "test": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
+    },
+    "e2e": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false
+    }
   }
 }
