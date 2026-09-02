@@ -14,6 +14,8 @@
 | Styling (web) | Tailwind CSS | v4 | Via `@tailwindcss/vite` plugin |
 | Styling (mobile) | NativeWind | v5 (preview) + Tailwind v4 | The Tailwind-v4-compatible track; Expo's own tooling uses it for SDK 55+. Pinned `lightningcss@1.30.1` (NativeWind requirement) |
 | Validation | zod | v4 | Schemas in `@sona/shared`, shared by both frontends |
+| Unit / component tests | Vitest + Testing Library + MSW | Vitest 4 / RTL 16 / MSW 2 | `packages/shared` (node) and `apps/sona.client` (jsdom); API mocked at the network boundary so `@sona/api-client` + TanStack Query run for real. `pnpm test` |
+| End-to-end tests | Playwright | 1.62 (Chromium only) | `apps/sona.client/e2e/` against the real admin + API in the `Local` profile; `pnpm e2e`, `@smoke` subset on PRs |
 | Backend | ASP.NET Core | .NET 10 | |
 | Language | TypeScript | 6.0 | Strict mode everywhere |
 

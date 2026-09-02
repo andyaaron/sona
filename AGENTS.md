@@ -71,6 +71,8 @@ dotnet run --project apps/sona.server    # API → http://localhost:5032
 # Verify (run before declaring done)
 pnpm typecheck                           # all 4 TS packages — must pass
 pnpm build                               # production builds — must pass for admin changes
+pnpm test                                # Vitest: shared schemas + client components (MSW) — must pass
+pnpm e2e                                 # Playwright against the Local API (pnpm --filter sona.client e2e --grep @smoke for the fast subset)
 dotnet build apps/sona.server/sona.server.csproj  # must pass for API changes
 pnpm lint
 ```
@@ -107,7 +109,7 @@ A task is complete only when ALL of these hold:
 - [ ] No PHI introduced into notification content, logs, or URLs (rule 0.1).
 - [ ] New notification-send code paths persist a `ReadyNotification` record (audit requirement — no fire-and-forget sends).
 - [ ] Docs updated if behavior/stack/structure changed (`docs/` is living documentation).
-- [ ] **Tests ship with the change (rule since 2026-09-01).** New or changed behaviour comes with tests in the same task: unit/component (Vitest) for logic and validation, Playwright E2E for any user-visible flow — follow the verification playbook at the top of `docs/admin-ui-guide.md`. Until the test toolchain lands (Task 12), state explicitly in the report that no automated test covers the change and what was exercised by hand.
+- [ ] **`pnpm test` passes from repo root** (Vitest: `packages/shared` schemas + `apps/sona.client` components/routes against MSW). **Tests ship with the change (rule since 2026-09-01):** new or changed behaviour comes with tests in the same task — unit/component (Vitest, `src/testing/` helpers + fixtures) for logic and validation, Playwright E2E (`pnpm e2e`, `apps/sona.client/e2e/`, tag `@smoke` for the PR-blocking subset) for any user-visible flow — follow the verification playbook at the top of `docs/admin-ui-guide.md`. CI (`.github/workflows/ci.yml`) runs typecheck, build, unit tests, `dotnet build` and the `@smoke` E2E suite on every PR.
 - [ ] Frontend changes were **exercised in a running app** (Local profile, Task 13) following the numbered interactions in `docs/admin-ui-guide.md`, and the report quotes what was observed — typecheck/build alone never satisfies "done" for UI work.
 - [ ] **`docs/admin-ui-guide.md` reflects the UI as shipped (rule since 2026-09-01).** Any change a user could notice in the admin — a new page or region, a moved/renamed/removed control (e.g. a button moving from the left of the toolbar to the right), a changed click path, dialog, validation message, toast, empty state, role gate, or `data-testid` — updates the guide **in the same commit**. Select elements by `data-testid` (convention + derivation rules are in the guide); a testid that is not in the guide is a bug. The guide describes *where* things are (page → region → position within the region) as well as *what* they do, so placement changes count. A client change with no guide update must say why in the report ("no user-visible change"). Reviewers: a PR touching `apps/sona.client/src/**` without touching the guide needs that sentence.
 
@@ -152,7 +154,7 @@ These have all bitten before. Check this list before assuming a novel problem:
 | Query/mutation patterns | `apps/sona.client/src/features/*/api/` (reference impl) |
 | Env access | `src/config/env.ts` (each app) |
 | API base URL (dev) | `http://localhost:5032` |
-| Full verification | `pnpm typecheck && pnpm build && dotnet build apps/sona.server/sona.server.csproj` |
+| Full verification | `pnpm typecheck && pnpm build && pnpm test && dotnet build apps/sona.server/sona.server.csproj` (+ `pnpm e2e` for UI flows) |
 | Compliance rules | `docs/compliance.md` |
 | Expo SDK 57 docs | https://docs.expo.dev/versions/v57.0.0/ |
 
