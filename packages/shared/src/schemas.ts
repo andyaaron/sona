@@ -18,7 +18,9 @@ export const createPatientSchema = z.object({
    * stamps smsConsentDate when this is true; sends are blocked while false.
    */
   smsConsent: z.boolean({ error: "SMS consent is required" }),
-  primaryProviderId: z.string().uuid().nullable().optional(),
+  // z.guid(), not .uuid(): SQL Server uniqueidentifier values (and the fixed seed ids) are not
+  // guaranteed RFC 4122 — zod 4's .uuid() rejects them on the version/variant nibbles.
+  primaryProviderId: z.guid().nullable().optional(),
 });
 
 export const updatePatientSchema = createPatientSchema.partial().extend({
@@ -35,7 +37,7 @@ export const createProviderSchema = z.object({
 });
 
 export const updateProviderSchema = createProviderSchema.partial().extend({
-  id: z.string().uuid(),
+  id: z.guid(),
   isActive: z.boolean().optional(),
 });
 
@@ -53,7 +55,7 @@ export const createSiteSchema = z.object({
 });
 
 export const updateSiteSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string().min(1, "Site name is required").max(200).optional(),
   isActive: z.boolean().optional(),
 });
@@ -63,7 +65,7 @@ export const createDepartmentSchema = z.object({
 });
 
 export const updateDepartmentSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string().min(1, "Department name is required").max(200).optional(),
   isActive: z.boolean().optional(),
 });
@@ -77,8 +79,8 @@ export const updateDepartmentSchema = z.object({
 export const updateUserSchema = z
   .object({
     role: userRoleSchema,
-    organizationId: z.string().uuid().nullable(),
-    departmentIds: z.array(z.string().uuid()).default([]),
+    organizationId: z.guid().nullable(),
+    departmentIds: z.array(z.guid()).default([]),
   })
   .refine((d) => d.role !== "system_admin" || d.organizationId === null, {
     message: "A system admin cannot belong to an organization",
@@ -94,19 +96,24 @@ export const updateUserSchema = z
   });
 
 /** Invite-first onboarding: pre-provision a directory user with org + role + departments. */
-export const inviteUserSchema = z.object({
-  hca34Id: z.string().min(3, "34 ID is required").max(10),
-  role: userRoleSchema.exclude(["unassigned"]),
-  departmentIds: z.array(z.string().uuid()).default([]),
-  /** Only honored for system_admin callers; org admins always invite into their own org. */
-  organizationId: z.string().uuid().nullable().optional(),
-});
+export const inviteUserSchema = z
+  .object({
+    hca34Id: z.string().min(3, "34 ID is required").max(10),
+    role: userRoleSchema.exclude(["unassigned"]),
+    departmentIds: z.array(z.guid()).default([]),
+    /** Only honored for system_admin callers; org admins always invite into their own org. */
+    organizationId: z.guid().nullable().optional(),
+  })
+  .refine((d) => (d.role === "org_admin" || d.role === "staff" ? d.organizationId != null : true), {
+    message: "An organization is required for this role",
+    path: ["organizationId"],
+  });
 
 export const notifyPatientSchema = z.object({
   /** Patient ids are int-strings ("1"), not uuids — matches PatientsController */
   patientId: z.string().regex(/^\d+$/, "Invalid patient id"),
   /** Sender's department context — audited on MessageOut.DepartmentId (opaque id only). */
-  departmentId: z.string().uuid().nullable().optional(),
+  departmentId: z.guid().nullable().optional(),
 });
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
