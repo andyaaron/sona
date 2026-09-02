@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import type { CreateProviderInput, Provider } from '@sona/shared'
 
 import Button from '@/components/button'
+import { useUser } from '@/hooks/useUser'
 import { SearchInput } from '@/components/search-input'
 import TableComponent from '@/components/Table/Table'
 import type { AppColumnDef } from '@/components/Table/Table'
@@ -27,8 +28,24 @@ type FormState =
   | { mode: 'edit'; provider: Provider }
   | null
 
-// @TODO: Lock behind user access level
+// Client-side gate is UX only — the server's OrgAdmin policy on POST/PUT is what enforces it.
 export function ManageProvidersPage() {
+  const currentUser = useUser()
+  const isAdmin = currentUser.role === 'org_admin' || currentUser.role === 'system_admin'
+
+  if (!isAdmin) {
+    return (
+      <div data-testid="providers-forbidden">
+        <h1 className="text-2xl font-semibold text-gray-900">Manage Providers</h1>
+        <p className="mt-2 text-gray-600">Only organization administrators can manage providers.</p>
+      </div>
+    )
+  }
+
+  return <ManageProvidersAdmin />
+}
+
+export function ManageProvidersAdmin() {
   const { data: providers } = useSuspenseQuery(providersQueryOptions)
   const [formState, setFormState] = useState<FormState>(null)
   const [search, setSearch] = useState('')
