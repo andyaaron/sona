@@ -25,7 +25,7 @@ export const Route = createFileRoute('/organization/')({
 })
 
 // Client-side gate is UX only — the server enforces the OrgAdmin policy.
-function OrganizationPage() {
+export function OrganizationPage() {
   const user = useUser()
   const isSystemAdmin = user.role === 'system_admin'
   const isAdmin = isSystemAdmin || user.role === 'org_admin'
@@ -82,7 +82,7 @@ function OrganizationPage() {
 
 type SiteFormState = { mode: 'create' } | { mode: 'rename'; site: Site } | null
 
-function OrgStructure({ organizationId }: { organizationId: string }) {
+export function OrgStructure({ organizationId }: { organizationId: string }) {
   const { data: sites = [], isPending } = useQuery(sitesQueryOptions(organizationId))
   const createSite = useCreateSite(organizationId)
   const updateSite = useUpdateSite(organizationId)
@@ -246,7 +246,7 @@ function OrgStructure({ organizationId }: { organizationId: string }) {
 
 type DepartmentFormState = { mode: 'create' } | { mode: 'rename'; department: Department } | null
 
-function DepartmentsPanel({ organizationId, site }: { organizationId: string; site: Site }) {
+export function DepartmentsPanel({ organizationId, site }: { organizationId: string; site: Site }) {
   const { data: departments = [], isPending } = useQuery(departmentsQueryOptions(site.id))
   const createDepartment = useCreateDepartment(organizationId, site.id)
   const updateDepartment = useUpdateDepartment(organizationId, site.id)

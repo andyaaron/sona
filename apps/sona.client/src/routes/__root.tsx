@@ -4,7 +4,7 @@ import { Toaster } from 'sonner'
 import { useQuery } from '@tanstack/react-query'
 import { userQueryOptions } from '@/features/user/api/getUser'
 import { UserContext } from '@/hooks/useUser'
-import type { MyRouterContext } from '@/main'
+import type { MyRouterContext } from '@/types/router'
 import Header from '@/components/header'
 import { PendingApproval } from '@/components/pending-approval'
 import AnimatedLogo from '@/components/animated-logo'
@@ -13,7 +13,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     component: RootComponent,
 })
 
-function RootComponent() {
+export function RootComponent() {
     const {
         data: user,
         isPending,

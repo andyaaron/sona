@@ -39,7 +39,7 @@ type FormState =
   | { mode: 'edit'; patient: Patient }
   | null
 
-function ManagePatientsPage() {
+export function ManagePatientsPage() {
   const searchParams = Route.useSearch()
   const navigate = Route.useNavigate()
   const { data } = useSuspenseQuery(patientsQueryOptions(searchParams))

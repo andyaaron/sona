@@ -19,9 +19,8 @@ export default function SubscribeButton({
 }: SubscribeButtonProps) {
   const form = useFormContext();
   return (
-    <form.Subscribe
-      selector={(state) => [state.canSubmit, state.isSubmitting]}
-      children={([canSubmit, isSubmitting]) => {
+    <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+      {([canSubmit, isSubmitting]) => {
         return (
           <div className={'flex flex-row gap-2'}>
             {showCancel && onCancel && (
@@ -61,6 +60,6 @@ export default function SubscribeButton({
           </div>
         );
       }}
-    />
+    </form.Subscribe>
   );
 }
