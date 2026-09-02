@@ -8,11 +8,15 @@ export const Route = createFileRoute('/spinner/')({
 
 function RouteComponent() {
   return (
-    <div>
-    <div className="flex items-center gap-4">
-      <Spinner size={"md"}/>
-      <AnimatedLogo />
-    </div>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-4">
+        <Spinner size={"md"}/>
+        <AnimatedLogo className="h-7" />
+        <img src="/logo.svg" alt="Sona" className="h-7 w-auto" />
+      </div>
+      <div className="flex items-center gap-4">
+        <AnimatedLogo className="h-16" />
+      </div>
     </div>
   )
 }

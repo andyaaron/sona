@@ -20,17 +20,18 @@ const sizeStyles: Record<SpinnerSize, string> = {
   lg: "size-56",
 };
 
-// Radii, stroke widths and opacities are lifted from public/icon-transparent.svg.
-// `arc` is that icon's sweep as a percentage of the circumference (pathLength=100)
-// and `rotate` is the angle of the path's first point — a bare <circle> starts its
-// dash at 3 o'clock, so without it every ring would begin in the wrong place.
+// Ring geometry derived from public/logo.svg's arc paths rather than eyeballed:
+// each radius/angle/sweep is measured from that path's start and end points about
+// the icon centre. `arc` is the sweep as a percentage of the circumference
+// (pathLength=100) and `rotate` is the angle of the start point — a bare <circle>
+// begins its dash at 3 o'clock, so without it every ring would start in the wrong place.
 // Delays are positive and ripple outwards from the dot, so the first painted frame
 // is the untouched logo and each ring sets off a beat after the one inside it.
 const arcs = [
-  { r: 7.44, width: 1, opacity: 0.35, arc: 25, rotate: -90, delay: "0ms" },
-  { r: 11.7, width: 1, opacity: 1, arc: 33, rotate: -104.7, delay: "50ms" },
-  { r: 15.8, width: 1, opacity: 0.35, arc: 42, rotate: -119.5, delay: "100ms" },
-  { r: 21.5, width: 5, opacity: 1, arc: 50, rotate: -134.3, delay: "150ms" },
+  { r: 7.4425, width: 1, opacity: 0.35, arc: 25, rotate: -90, delay: "0ms" },
+  { r: 11.826, width: 1, opacity: 1, arc: 33.33, rotate: -104.68, delay: "50ms" },
+  { r: 15.864, width: 1, opacity: 0.35, arc: 41.67, rotate: -119.45, delay: "100ms" },
+  { r: 21.249, width: 5, opacity: 1, arc: 50, rotate: -134.28, delay: "150ms" },
 ];
 
 /**

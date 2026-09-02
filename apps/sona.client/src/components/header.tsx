@@ -4,10 +4,13 @@ import {UserContext} from "@/hooks/useUser.tsx";
 import { useDepartmentContextStore } from "@/stores/department-context";
 import { CircleUserRound } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { userQueryOptions } from "@/features/user/api/getUser";
+import AnimatedLogo from "@/components/animated-logo.tsx";
 
 function Header() {
-
   const user = useContext(UserContext);
+  const { isPending } = useQuery(userQueryOptions);
   const isSystemAdmin = user?.role === 'system_admin';
   const isAdmin = user?.role === 'org_admin' || isSystemAdmin;
   // Multi-department staff pick the department they're acting in; it rides
@@ -22,7 +25,11 @@ function Header() {
     >
       <nav className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
+            {isPending ? (
+              <AnimatedLogo className="h-7" />
+            ) : (
               <img src="/logo.svg" alt="Sona" className="h-7 w-auto" />
+            )}
           </Link>
           <NavLink to="/">
               Dashboard

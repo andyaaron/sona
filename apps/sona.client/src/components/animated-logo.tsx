@@ -15,9 +15,12 @@ const wordmarkPaths = [
 ];
 
 /**
- * public/logo.svg with its "o" replaced by the animated mark. The wordmark inherits
- * `currentColor`, so the light and dark variants are the same component with a
- * different text colour — no second asset needed.
+ * public/logo.svg with its "o" replaced by the animated mark, so the two are
+ * interchangeable at the same height. The wordmark inherits `currentColor`, so the
+ * light and dark variants are one component with a different text colour.
+ *
+ * No default height: callers set one (e.g. `h-7`), because a default here would
+ * collide with the caller's height class and the winner would depend on CSS order.
  */
 function AnimatedLogo({ label = "Sona", className = "", ...props }: AnimatedLogoProps) {
   return (
@@ -27,7 +30,7 @@ function AnimatedLogo({ label = "Sona", className = "", ...props }: AnimatedLogo
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label={label}
-      className={`h-12 w-auto text-gray-900 ${className}`}
+      className={`w-auto text-black ${className}`}
       {...props}
     >
       {wordmarkPaths.map((d) => (
