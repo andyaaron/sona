@@ -18,14 +18,15 @@ Rules that keep it true:
 
 ## Verification playbook (run for every frontend change)
 
-1. `pnpm typecheck && pnpm build` (and `pnpm test` once Task 12 lands — Vitest unit/component).
-2. Start the Local API + admin — [getting-started.md § Running locally without Azure](getting-started.md#running-locally-without-azure-local-profile).
-   Run `pnpm e2e` once Task 12 §3 lands (Playwright tagged smoke suite at minimum).
+1. `pnpm typecheck && pnpm build && pnpm test` — Vitest unit/component tests (`packages/shared/src/schemas.test.ts`,
+   `apps/sona.client/src/**/*.test.tsx`; helpers in `apps/sona.client/src/testing/`).
+2. Start the Local API + admin — [getting-started.md § Running locally without Azure](getting-started.md#running-locally-without-azure-local-profile) —
+   and run `pnpm --filter sona.client e2e --grep @smoke` (Playwright, `apps/sona.client/e2e/`; `pnpm e2e` for the full suite).
 3. **Exercise the changed path in the browser** following the numbered interactions in this guide
-   (agent browser tool, or `playwright codegen`), and **quote what was observed** in the report:
+   (agent browser tool, or `pnpm --filter sona.client e2e:codegen`), and **quote what was observed** in the report:
    toasts, validation text, request + status code, screenshot for visual changes.
-4. New/changed behaviour ships with a test in the same commit (unit for logic/validation,
-   Playwright for a user-visible flow). Until the toolchain exists, say so explicitly.
+4. New/changed behaviour ships with a test in the same commit (Vitest for logic/validation/component
+   state, a Playwright spec for a user-visible flow — tag `@smoke` when it should block PRs).
 5. **Update this guide in the same commit** for anything a user could notice (see rules above).
 6. Report honestly: *executed* vs *code-reviewed*, per flow.
 
@@ -67,8 +68,9 @@ enough to exercise the pending-approval table.
 | Dev login | No sign-in screen. Every request is the `LocalDevAuth` identity from `appsettings.Local.json` (`DEV001` / "Dev Admin" / `dev.admin@example.com`). |
 | Setup | [getting-started.md § Local profile](getting-started.md#running-locally-without-azure-local-profile) |
 
-A browser that rejects the untrusted dev cert can run Vite over plain http with `VITE_API_URL=` (empty →
-same-origin `/api` through the Vite proxy) and a config that spreads `vite.config.ts` with `server.https: undefined`.
+`VITE_API_URL` stays empty (`.env.example`): the admin calls `/api` on its own origin and Vite proxies it.
+A browser that rejects the untrusted dev cert (`dotnet dev-certs https --trust` fixes that) can run Vite over
+plain http with a config that spreads `vite.config.ts` with `server.https: false`.
 
 ---
 
@@ -179,7 +181,7 @@ Left → right:
   - **Table** (`patients-manage-table`, same columns/paging as `/patients`; Name second line = phone · provider). Actions right-aligned: **Edit** (`patients-manage-edit-<id>`, secondary) · **Delete** (`patients-manage-delete-<id>`, ghost).
 - **Interactions:**
   1. Add: `patients-manage-add-button` → form opens in create mode. Submit empty → inline errors "MRN is required", "Date of birth is required", "First name is required", "Last name is required", "Phone number must be E.164 format (+15551234567)" (zod `createPatientSchema`; SMS consent has no client message). Valid → `POST /api/patients` → toast **"Patient added successfully"**, form closes, list refetches. Server `4xx` → toast with the body's `error` (e.g. `409` "A patient with this MRN already exists."; **as system_admin: `400` "organizationId is required for system admins."** — Task 15).
-  2. Edit: `patients-manage-edit-<id>` → same form prefilled, title "Edit patient", submit "Save changes" → `PUT /api/patients/{id}` → toast "Patient updated successfully".
+  2. Edit: `patients-manage-edit-<id>` → same form prefilled, title "Edit patient", submit "Save changes" → `PUT /api/patients/{id}` → toast "Patient updated successfully". "Unassigned" in the provider select submits `primaryProviderId: null` (until 2026-09-02 it failed validation as "Invalid GUID" and the form would not save).
   3. Delete: `patients-manage-delete-<id>` → **native `window.confirm`** "Delete {First Last}?" (not the shared ConfirmDialog) → `DELETE /api/patients/{id}` (soft) → toast "Patient deleted". No error toast on failure (gap).
   4. Toolbar Cancel or form Cancel → form closes, nothing sent.
 - **API:** `GET /api/patients…` · `GET /api/providers?isActive=true` (loader) · `POST/PUT/DELETE /api/patients`.

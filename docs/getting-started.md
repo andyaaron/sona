@@ -256,8 +256,10 @@ stand-ins, so the admin UI can actually be exercised against a running API.
    ```
 
    The `sona.server (Local)` launch profile sets `ASPNETCORE_ENVIRONMENT=Local` and binds both
-   `http://localhost:5032` (the admin's `VITE_API_URL`) and `https://localhost:7296` (the Vite
-   dev-server proxy target for `/auth`).
+   `http://localhost:5032` (redirects to https) and `https://localhost:7296` (the Vite dev-server
+   proxy target for `/api` and `/auth`). Keep the admin's `VITE_API_URL` **empty** so it calls
+   `/api` on its own origin through that proxy — a browser rejects the http→https redirect on the
+   CORS preflight if you point it at 5032 directly.
 
 ### ⚠️ Never point `Local` at Azure
 
@@ -290,10 +292,25 @@ user is promoted to `system_admin` on its first request; to test other roles, ch
 ## Verify
 
 ```bash
-pnpm typecheck    # TS across all workspace packages
+pnpm typecheck    # TS across all workspace packages (incl. test + e2e files)
 pnpm build        # production builds
+pnpm test         # Vitest: packages/shared schemas + apps/sona.client components/routes (MSW-mocked API)
 pnpm lint
 ```
+
+End-to-end (real browser against the real API in the `Local` profile — needs a local SQL Server and
+`appsettings.Local.json`, see below; Chromium once via `pnpm --filter sona.client exec playwright install chromium`):
+
+```bash
+pnpm e2e                                          # full suite; starts the API + admin if not already running
+pnpm --filter sona.client e2e --grep @smoke       # the PR-blocking subset
+pnpm --filter sona.client e2e:ui                  # Playwright UI mode
+pnpm --filter sona.client e2e:codegen             # record a click path against https://localhost:5173
+```
+
+Specs switch the dev user's role through `PUT /api/local/me/role` (Local-only) and create their own
+data through the API with `E2E-` prefixed identifiers; patients are soft-deleted afterwards, invited
+test users and E2E organizations/sites remain (no delete endpoints).
 
 ## Gotchas
 
