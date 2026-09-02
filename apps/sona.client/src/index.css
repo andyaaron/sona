@@ -1,1 +1,33 @@
 @import "tailwindcss";
+
+/* Motion adapted from the "WiFi loader" CodePen (aidenofficial/pogrGYK): a
+   fixed-length arc winds back, whips one full turn with a slight overshoot,
+   settles, then holds. Its offsets are normalised here to pathLength=100 and
+   shifted by -10 so 0% is offset 0 — the logo's exact pose — while 100% is
+   exactly one dash period later, so every cycle begins and ends on it. */
+@keyframes sona-spinner-arc {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  25% {
+    stroke-dashoffset: 10;
+  }
+  65% {
+    stroke-dashoffset: -110;
+  }
+  80%,
+  100% {
+    stroke-dashoffset: -100;
+  }
+}
+
+.sona-spinner-arc {
+  stroke-dasharray: var(--sona-arc) var(--sona-gap);
+  animation: sona-spinner-arc 1.8s ease infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sona-spinner-arc {
+    animation: none;
+  }
+}

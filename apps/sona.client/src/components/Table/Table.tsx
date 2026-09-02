@@ -27,6 +27,7 @@ import type {
 import { MoveDown, MoveUp } from 'lucide-react'
 
 import Pagination from '@/components/Table/Pagination'
+import Spinner from '@/components/spinner'
 
 /**
  * Feature set shared by every table (TanStack Table v9 requires explicit
@@ -145,7 +146,12 @@ function TableComponent<TData extends RowData>({
   })
 
   if (isLoading) {
-    return <p className="px-4 py-6 text-center text-sm text-gray-500">Loading…</p>
+    return (
+      <div className="flex flex-col items-center gap-3 px-4 py-10">
+        <Spinner />
+        <p className="text-sm text-gray-500">Loading…</p>
+      </div>
+    )
   }
 
   const rows = table.getRowModel().rows

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import type { MessageOut, NotificationStatus } from '@sona/shared'
 
+import Spinner from '@/components/spinner'
 import TableComponent from '@/components/Table/Table'
 import type { AppColumnDef } from '@/components/Table/Table'
 
@@ -61,7 +62,12 @@ export function NotificationHistory({ patientId }: { patientId: string }) {
   )
 
   if (isPending) {
-    return <p className="px-4 py-2 text-sm text-gray-500">Loading history…</p>
+    return (
+      <div className="flex items-center gap-2 px-4 py-2">
+        <Spinner size="sm" label="Loading history" />
+        <p className="text-sm text-gray-500">Loading history…</p>
+      </div>
+    )
   }
   if (isError) {
     return <p className="px-4 py-2 text-sm text-red-600">Failed to load notification history.</p>
