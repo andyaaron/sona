@@ -140,6 +140,7 @@ function ManageProvidersPage() {
             type="button"
             variant="secondary"
             size="sm"
+            data-testid={`providers-edit-${row.original.id}`}
             onClick={() => setFormState({ mode: 'edit', provider: row.original })}
           >
             Edit
@@ -149,6 +150,7 @@ function ManageProvidersPage() {
             variant="ghost"
             size="sm"
             disabled={updateProvider.isPending}
+            data-testid={`providers-toggle-active-${row.original.id}`}
             onClick={() => handleToggleActive(row.original)}
           >
             {row.original.isActive ? 'Deactivate' : 'Reactivate'}
@@ -159,19 +161,26 @@ function ManageProvidersPage() {
   ]
 
   return (
-    <div>
-      <div className="flex items-center gap-4">
+    <div data-testid="providers-page">
+      <div data-testid="providers-toolbar" className="flex items-center gap-4">
         <h1 className="text-2xl font-semibold text-gray-900">Manage Providers</h1>
         <Button
           variant={isCreating ? 'secondary' : 'primary'}
           size="sm"
+          data-testid="providers-add-button"
+          aria-expanded={isCreating}
           onClick={() =>
             setFormState((s) => (s?.mode === 'create' ? null : { mode: 'create' }))
           }
         >
           {isCreating ? 'Cancel' : 'Add Provider'}
         </Button>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search by name or NPI…" />
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search by name or NPI…"
+          testId="providers-search"
+        />
       </div>
 
       {formState ? (
@@ -200,6 +209,7 @@ function ManageProvidersPage() {
         columns={columns}
         getRowId={(provider) => provider.id}
         emptyMessage="No providers found."
+        testId="providers-table"
       />
     </div>
   )

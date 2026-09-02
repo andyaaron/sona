@@ -6,6 +6,8 @@ interface TextAreaProps {
   placeholder?: string;
   name?: string;
   canEdit?: boolean;
+  /** data-testid on the textarea; errors render as `${testId}-error`. */
+  testId?: string;
 }
 
 export default function TextAreaField({
@@ -13,6 +15,7 @@ export default function TextAreaField({
   placeholder = '',
   name = '',
   canEdit = true,
+  testId,
 }: TextAreaProps) {
   const field = useFieldContext<string>();
   const {
@@ -31,6 +34,7 @@ export default function TextAreaField({
           {label}
         </div>
         <textarea
+          data-testid={testId}
           id={field.name}
           placeholder={placeholder}
           className={`w-full rounded-md border bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50 ${hasError ? 'border-red-400' : 'border-gray-300'}`}
@@ -43,7 +47,7 @@ export default function TextAreaField({
       </label>
       {(isSubmitted || isTouched) &&
         errors.map((error, i) => (
-          <div key={i} className="text-sm text-red-600 mt-1">
+          <div key={i} data-testid={testId ? `${testId}-error` : undefined} className="text-sm text-red-600 mt-1">
             {typeof error === 'object' && error !== null && 'message' in error
               ? (error as any).message
               : String(error)}

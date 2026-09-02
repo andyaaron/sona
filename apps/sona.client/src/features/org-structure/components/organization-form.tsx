@@ -22,6 +22,7 @@ export function OrganizationForm({ isSubmitting = false, onCancel, onSubmit }: O
 
   return (
     <form
+      data-testid="organization-form"
       className="mt-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault()
@@ -32,10 +33,16 @@ export function OrganizationForm({ isSubmitting = false, onCancel, onSubmit }: O
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-semibold text-gray-900">Add organization</h2>
         <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            data-testid="organization-form-cancel"
+            onClick={onCancel}
+          >
             Cancel
           </Button>
-          <Button type="submit" size="sm" disabled={isSubmitting}>
+          <Button type="submit" size="sm" data-testid="organization-form-submit" disabled={isSubmitting}>
             {isSubmitting ? 'Saving…' : 'Create organization'}
           </Button>
         </div>
@@ -43,13 +50,14 @@ export function OrganizationForm({ isSubmitting = false, onCancel, onSubmit }: O
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <form.AppField name="name">
-          {(field) => <field.TextField label="Name" />}
+          {(field) => <field.TextField label="Name" testId="organization-form-name" />}
         </form.AppField>
 
         <form.AppField name="type">
           {(field) => (
             <field.SelectField
               label="Type"
+              testId="organization-form-type"
               options={[
                 { value: 'practice', label: 'Practice' },
                 { value: 'hospital', label: 'Hospital' },

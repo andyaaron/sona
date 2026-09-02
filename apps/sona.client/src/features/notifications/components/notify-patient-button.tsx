@@ -24,6 +24,7 @@ export function NotifyPatientButton({
         variant="primary"
         size="sm"
         disabled={notify.isPending}
+        data-testid={`notify-button-${patientId}`}
         onClick={() => setConfirming(true)}
       >
         {notify.isPending ? 'Notifying…' : 'Ready to be seen'}

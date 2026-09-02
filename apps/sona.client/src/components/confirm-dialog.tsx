@@ -47,17 +47,19 @@ export function ConfirmDialog({
     >
       <div
         role="dialog"
+        data-testid="confirm-dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <p id={titleId} className="font-medium text-gray-900">
+        <p id={titleId} data-testid="confirm-dialog-title" className="font-medium text-gray-900">
           {title}
         </p>
         <div className="mt-6 flex justify-end gap-2">
           <Button
             ref={cancelRef}
+            data-testid="confirm-dialog-cancel"
             variant="secondary"
             size="sm"
             onClick={onCancel}
@@ -65,6 +67,7 @@ export function ConfirmDialog({
             {cancelLabel}
           </Button>
           <Button
+            data-testid="confirm-dialog-confirm"
             variant="primary"
             size="sm"
             disabled={confirmDisabled}

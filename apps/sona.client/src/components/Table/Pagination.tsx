@@ -5,15 +5,18 @@ import type { AppTableFeatures } from '@/components/Table/Table'
 
 interface PaginationProps<TData extends RowData> {
   table: ReactTable<AppTableFeatures, TData>
+  /** Parent table's testId; children derive `${testId}-page-*` / `-row-count`. */
+  testId?: string
 }
 
-function Pagination<TData extends RowData>({ table }: PaginationProps<TData>) {
+function Pagination<TData extends RowData>({ table, testId }: PaginationProps<TData>) {
+  const tid = (suffix: string) => (testId ? `${testId}-${suffix}` : undefined)
   const { pageIndex } = table.state.pagination
   const pageCount = Math.max(1, table.getPageCount())
 
   return (
     <div className="mt-4 flex items-center justify-between">
-      <span className="text-sm text-gray-600">
+      <span data-testid={tid('row-count')} className="text-sm text-gray-600">
         Showing {table.getRowModel().rows.length.toLocaleString()} of{' '}
         {table.getRowCount().toLocaleString()} rows
       </span>
@@ -23,6 +26,7 @@ function Pagination<TData extends RowData>({ table }: PaginationProps<TData>) {
           variant="secondary"
           size="sm"
           disabled={!table.getCanPreviousPage()}
+          data-testid={tid('page-first')}
           onClick={() => table.firstPage()}
         >
           First
@@ -32,11 +36,12 @@ function Pagination<TData extends RowData>({ table }: PaginationProps<TData>) {
           variant="secondary"
           size="sm"
           disabled={!table.getCanPreviousPage()}
+          data-testid={tid('page-previous')}
           onClick={() => table.previousPage()}
         >
           Previous
         </Button>
-        <span className="text-sm text-gray-600">
+        <span data-testid={tid('page-info')} className="text-sm text-gray-600">
           Page {pageIndex + 1} of {pageCount.toLocaleString()}
         </span>
         <Button
@@ -44,6 +49,7 @@ function Pagination<TData extends RowData>({ table }: PaginationProps<TData>) {
           variant="secondary"
           size="sm"
           disabled={!table.getCanNextPage()}
+          data-testid={tid('page-next')}
           onClick={() => table.nextPage()}
         >
           Next
@@ -53,6 +59,7 @@ function Pagination<TData extends RowData>({ table }: PaginationProps<TData>) {
           variant="secondary"
           size="sm"
           disabled={!table.getCanNextPage()}
+          data-testid={tid('page-last')}
           onClick={() => table.lastPage()}
         >
           Last

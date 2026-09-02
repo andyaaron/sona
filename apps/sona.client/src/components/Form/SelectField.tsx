@@ -14,6 +14,8 @@ interface SelectFieldProps {
   options: SelectOption[];
   emptyOptionLabel?: string;
   emptyOptionValue?: string;
+  /** data-testid on the select; errors render as `${testId}-error`. */
+  testId?: string;
 }
 
 export default function SelectField({
@@ -23,6 +25,7 @@ export default function SelectField({
   options,
   emptyOptionLabel,
   emptyOptionValue = '',
+  testId,
 }: SelectFieldProps) {
   const field = useFieldContext<string>();
 
@@ -40,6 +43,7 @@ export default function SelectField({
           {label}
         </div>
         <select
+          data-testid={testId}
           className={
             'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50'
           }
@@ -71,7 +75,7 @@ export default function SelectField({
                 ? (error as { message: string }).message
                 : String(error);
           return (
-            <div key={index} className={'text-sm text-red-600'}>
+            <div key={index} data-testid={testId ? `${testId}-error` : undefined} className={'text-sm text-red-600'}>
               {message}
             </div>
           );

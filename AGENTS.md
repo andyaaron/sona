@@ -46,6 +46,7 @@ Both frontends use the same `src/` layout (bulletproof-react):
 
 Doc map — read as needed, don't guess:
 - **What the system does / notification flow** → `docs/architecture.md`
+- **Where things are in the admin + how to verify a frontend change** → `docs/admin-ui-guide.md` (route/region map, `data-testid` registry, verification playbook)
 - **Why each technology + version constraints** → `docs/tech-stack.md`
 - **Compliance rules (PHI, BAA, audit log)** → `docs/compliance.md`
 - **Setup / run instructions** → `docs/getting-started.md`
@@ -106,9 +107,9 @@ A task is complete only when ALL of these hold:
 - [ ] No PHI introduced into notification content, logs, or URLs (rule 0.1).
 - [ ] New notification-send code paths persist a `ReadyNotification` record (audit requirement — no fire-and-forget sends).
 - [ ] Docs updated if behavior/stack/structure changed (`docs/` is living documentation).
-- [ ] **Tests ship with the change (rule since 2026-09-01).** New or changed behaviour comes with tests in the same task: unit/component (Vitest) for logic and validation, Playwright E2E for any user-visible flow — see `docs/admin-ui-guide.md` (verification playbook) once it exists. Until the toolchain lands (Tasks 12–14), state explicitly in the report that no automated test covers the change and what was exercised by hand.
-- [ ] Frontend changes were **exercised in a running app** (Local profile, Task 13) and the report quotes what was observed — typecheck/build alone never satisfies "done" for UI work.
-- [ ] **`docs/admin-ui-guide.md` reflects the UI as shipped (rule since 2026-09-01).** Any change a user could notice in the admin — a new page or region, a moved/renamed/removed control (e.g. a button moving from the left of the toolbar to the right), a changed click path, dialog, validation message, toast, empty state, role gate, or `data-testid` — updates the guide **in the same commit**. The guide describes *where* things are (page → region → position within the region) as well as *what* they do, so placement changes count. A client change with no guide update must say why in the report ("no user-visible change"). Reviewers: a PR touching `apps/sona.client/src/**` without touching the guide needs that sentence.
+- [ ] **Tests ship with the change (rule since 2026-09-01).** New or changed behaviour comes with tests in the same task: unit/component (Vitest) for logic and validation, Playwright E2E for any user-visible flow — follow the verification playbook at the top of `docs/admin-ui-guide.md`. Until the test toolchain lands (Task 12), state explicitly in the report that no automated test covers the change and what was exercised by hand.
+- [ ] Frontend changes were **exercised in a running app** (Local profile, Task 13) following the numbered interactions in `docs/admin-ui-guide.md`, and the report quotes what was observed — typecheck/build alone never satisfies "done" for UI work.
+- [ ] **`docs/admin-ui-guide.md` reflects the UI as shipped (rule since 2026-09-01).** Any change a user could notice in the admin — a new page or region, a moved/renamed/removed control (e.g. a button moving from the left of the toolbar to the right), a changed click path, dialog, validation message, toast, empty state, role gate, or `data-testid` — updates the guide **in the same commit**. Select elements by `data-testid` (convention + derivation rules are in the guide); a testid that is not in the guide is a bug. The guide describes *where* things are (page → region → position within the region) as well as *what* they do, so placement changes count. A client change with no guide update must say why in the report ("no user-visible change"). Reviewers: a PR touching `apps/sona.client/src/**` without touching the guide needs that sentence.
 
 ---
 

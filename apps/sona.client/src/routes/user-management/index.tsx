@@ -55,7 +55,7 @@ function UserManagementPage() {
 
   if (!isAdmin) {
     return (
-      <div>
+      <div data-testid="users-forbidden">
         <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
         <p className="mt-2 text-gray-600">Only organization administrators can manage users.</p>
       </div>
@@ -198,6 +198,7 @@ function UserManagementAdmin({
             type="button"
             variant="secondary"
             size="sm"
+            data-testid={`users-edit-${row.original.id}`}
             onClick={() => setFormState({ mode: 'assign', user: row.original })}
           >
             Edit
@@ -225,6 +226,7 @@ function UserManagementAdmin({
             type="button"
             variant="primary"
             size="sm"
+            data-testid={`users-assign-${row.original.id}`}
             onClick={() => setFormState({ mode: 'assign', user: row.original })}
           >
             Assign
@@ -238,20 +240,28 @@ function UserManagementAdmin({
   const isInviting = formState?.mode === 'invite'
 
   return (
-    <div>
-      <div className="flex items-center gap-4">
+    <div data-testid="users-page">
+      <div data-testid="users-toolbar" className="flex items-center gap-4">
         <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
         <Button
           variant={isInviting ? 'secondary' : 'primary'}
           size="sm"
+          data-testid="users-invite-button"
+          aria-expanded={isInviting}
           onClick={() => setFormState((s) => (s?.mode === 'invite' ? null : { mode: 'invite' }))}
         >
           {isInviting ? 'Cancel' : 'Invite user'}
         </Button>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search by name, email, 34 ID…" />
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search by name, email, 34 ID…"
+          testId="users-search"
+        />
         <label className="ml-auto text-sm text-gray-600">
           Role{' '}
           <select
+            data-testid="users-role-filter"
             className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value as UserRole | '')}
@@ -268,7 +278,11 @@ function UserManagementAdmin({
         </label>
       </div>
 
-      {error && <p className="mt-4 text-sm text-red-600">{getErrorMessage(error)}</p>}
+      {error && (
+        <p data-testid="users-error" className="mt-4 text-sm text-red-600">
+          {getErrorMessage(error)}
+        </p>
+      )}
 
       {formState && (
         <UserAccessForm
@@ -302,6 +316,7 @@ function UserManagementAdmin({
           getRowId={(u) => String(u.id)}
           enablePagination={false}
           isLoading={isPending}
+          testId="users-pending-table"
         />
       )}
 
@@ -312,6 +327,7 @@ function UserManagementAdmin({
         getRowId={(u) => String(u.id)}
         emptyMessage="No users found."
         isLoading={isPending}
+        testId="users-table"
       />
     </div>
   )
