@@ -39,7 +39,8 @@ interface UserAccessFormProps {
   organizations?: Organization[]
   isSubmitting?: boolean
   onCancel: () => void
-  onSubmit: (values: UserAccessValues) => void
+  /** Reject with an Error whose message is user-facing — it is shown on the form. */
+  onSubmit: (values: UserAccessValues) => Promise<void>
 }
 
 /**
@@ -75,13 +76,22 @@ export function UserAccessForm({
         return undefined
       },
     },
-    onSubmit: ({ value }) => {
-      onSubmit({
-        hca34Id: value.hca34Id.trim().toUpperCase(),
-        role: value.role,
-        organizationId: value.role === 'system_admin' || value.role === 'unassigned' ? null : value.organizationId,
-        departmentIds: value.role === 'staff' ? value.departmentIds : [],
-      })
+    onSubmit: async ({ value, formApi }) => {
+      try {
+        await onSubmit({
+          hca34Id: value.hca34Id.trim().toUpperCase(),
+          role: value.role,
+          organizationId: value.role === 'system_admin' || value.role === 'unassigned' ? null : value.organizationId,
+          departmentIds: value.role === 'staff' ? value.departmentIds : [],
+        })
+      } catch (err) {
+        // Surface the server's rejection as a form-level error. The onSubmit
+        // slot (rather than onServer) is used because it is typed for a global
+        // form error and is reset by the next submit's validation pass.
+        formApi.setErrorMap({
+          onSubmit: { form: err instanceof Error ? err.message : 'Request failed', fields: {} },
+        })
+      }
     },
   })
 
@@ -93,8 +103,17 @@ export function UserAccessForm({
 
   const roleOptions = allowedRoles.map((value) => ({ value, label: ROLE_LABELS[value] }))
   const needsOrg = role === 'org_admin' || role === 'staff'
+  const showOrganization = needsOrg && organizations !== undefined
   // Single-department orgs are auto-scoped server-side — hide the picker.
   const showDepartments = role === 'staff' && departments.length > 1
+
+  // Fields that can carry a validation error while unmounted. Their errors are
+  // surfaced in the summary block; visible fields render their own.
+  const hiddenFields: (keyof UserAccessValues)[] = [
+    ...(mode === 'invite' ? [] : (['hca34Id'] as const)),
+    ...(showOrganization ? [] : (['organizationId'] as const)),
+    ...(showDepartments ? [] : (['departmentIds'] as const)),
+  ]
 
   return (
     <form
@@ -126,6 +145,27 @@ export function UserAccessForm({
         </div>
       </div>
 
+      <form.Subscribe selector={(state) => ({ formErrors: state.errors, fieldMeta: state.fieldMeta })}>
+        {({ formErrors, fieldMeta }) => {
+          const messages = [
+            ...formErrors.map(errorText),
+            ...hiddenFields.flatMap((name) => (fieldMeta[name]?.errors ?? []).map(errorText)),
+          ]
+          if (messages.length === 0) return null
+          return (
+            <div
+              data-testid="user-access-form-errors"
+              role="alert"
+              className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {messages.map((message, i) => (
+                <div key={i}>{message}</div>
+              ))}
+            </div>
+          )
+        }}
+      </form.Subscribe>
+
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         {mode === 'invite' && (
           <div className="md:col-span-2">
@@ -144,9 +184,20 @@ export function UserAccessForm({
         <form.AppField
           name="role"
           listeners={{
-            // Departments only mean something for staff
             onChange: ({ value }) => {
+              // Departments only mean something for staff
               if (value !== 'staff') form.setFieldValue('departmentIds', [])
+              // Keep organizationId consistent with the role even while its field is
+              // unmounted — a stale value there fails validation invisibly and the
+              // submit button appears dead.
+              if (value === 'org_admin' || value === 'staff') {
+                form.setFieldValue(
+                  'organizationId',
+                  form.getFieldValue('organizationId') ?? initialValues.organizationId,
+                )
+              } else {
+                form.setFieldValue('organizationId', null)
+              }
             },
           }}
         >
@@ -155,7 +206,7 @@ export function UserAccessForm({
           )}
         </form.AppField>
 
-        {needsOrg && organizations && (
+        {showOrganization && (
           <form.AppField
             name="organizationId"
             listeners={{
@@ -244,16 +295,18 @@ export function UserAccessForm({
   )
 }
 
+function errorText(error: unknown): string {
+  return typeof error === 'object' && error !== null && 'message' in error
+    ? String((error as { message: unknown }).message)
+    : String(error)
+}
+
 function FieldErrors({ errors, show, testId }: { errors: unknown[]; show: boolean; testId?: string }) {
   if (!show || errors.length === 0) return null
   return (
     <div data-testid={testId} className="mt-1 text-sm text-red-600">
       {errors.map((error, i) => (
-        <div key={i}>
-          {typeof error === 'object' && error !== null && 'message' in error
-            ? String((error as { message: unknown }).message)
-            : String(error)}
-        </div>
+        <div key={i}>{errorText(error)}</div>
       ))}
     </div>
   )

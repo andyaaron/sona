@@ -18,14 +18,15 @@ Rules that keep it true:
 
 ## Verification playbook (run for every frontend change)
 
-1. `pnpm typecheck && pnpm build` (and `pnpm test` once Task 12 lands — Vitest unit/component).
-2. Start the Local API + admin — [getting-started.md § Running locally without Azure](getting-started.md#running-locally-without-azure-local-profile).
-   Run `pnpm e2e` once Task 12 §3 lands (Playwright tagged smoke suite at minimum).
+1. `pnpm typecheck && pnpm build && pnpm test` — Vitest unit/component tests (`packages/shared/src/schemas.test.ts`,
+   `apps/sona.client/src/**/*.test.tsx`; helpers in `apps/sona.client/src/testing/`).
+2. Start the Local API + admin — [getting-started.md § Running locally without Azure](getting-started.md#running-locally-without-azure-local-profile) —
+   and run `pnpm --filter sona.client e2e --grep @smoke` (Playwright, `apps/sona.client/e2e/`; `pnpm e2e` for the full suite).
 3. **Exercise the changed path in the browser** following the numbered interactions in this guide
-   (agent browser tool, or `playwright codegen`), and **quote what was observed** in the report:
+   (agent browser tool, or `pnpm --filter sona.client e2e:codegen`), and **quote what was observed** in the report:
    toasts, validation text, request + status code, screenshot for visual changes.
-4. New/changed behaviour ships with a test in the same commit (unit for logic/validation,
-   Playwright for a user-visible flow). Until the toolchain exists, say so explicitly.
+4. New/changed behaviour ships with a test in the same commit (Vitest for logic/validation/component
+   state, a Playwright spec for a user-visible flow — tag `@smoke` when it should block PRs).
 5. **Update this guide in the same commit** for anything a user could notice (see rules above).
 6. Report honestly: *executed* vs *code-reviewed*, per flow.
 
@@ -67,8 +68,9 @@ enough to exercise the pending-approval table.
 | Dev login | No sign-in screen. Every request is the `LocalDevAuth` identity from `appsettings.Local.json` (`DEV001` / "Dev Admin" / `dev.admin@example.com`). |
 | Setup | [getting-started.md § Local profile](getting-started.md#running-locally-without-azure-local-profile) |
 
-A browser that rejects the untrusted dev cert can run Vite over plain http with `VITE_API_URL=` (empty →
-same-origin `/api` through the Vite proxy) and a config that spreads `vite.config.ts` with `server.https: undefined`.
+`VITE_API_URL` stays empty (`.env.example`): the admin calls `/api` on its own origin and Vite proxies it.
+A browser that rejects the untrusted dev cert (`dotnet dev-certs https --trust` fixes that) can run Vite over
+plain http with a config that spreads `vite.config.ts` with `server.https: false`.
 
 ---
 
@@ -179,7 +181,7 @@ Left → right:
   - **Table** (`patients-manage-table`, same columns/paging as `/patients`; Name second line = phone · provider). Actions right-aligned: **Edit** (`patients-manage-edit-<id>`, secondary) · **Delete** (`patients-manage-delete-<id>`, ghost).
 - **Interactions:**
   1. Add: `patients-manage-add-button` → form opens in create mode. Submit empty → inline errors "MRN is required", "Date of birth is required", "First name is required", "Last name is required", "Phone number must be E.164 format (+15551234567)" (zod `createPatientSchema`; SMS consent has no client message). Valid → `POST /api/patients` → toast **"Patient added successfully"**, form closes, list refetches. Server `4xx` → toast with the body's `error` (e.g. `409` "A patient with this MRN already exists."; **as system_admin: `400` "organizationId is required for system admins."** — Task 15).
-  2. Edit: `patients-manage-edit-<id>` → same form prefilled, title "Edit patient", submit "Save changes" → `PUT /api/patients/{id}` → toast "Patient updated successfully".
+  2. Edit: `patients-manage-edit-<id>` → same form prefilled, title "Edit patient", submit "Save changes" → `PUT /api/patients/{id}` → toast "Patient updated successfully". "Unassigned" in the provider select submits `primaryProviderId: null` (until 2026-09-02 it failed validation as "Invalid GUID" and the form would not save).
   3. Delete: `patients-manage-delete-<id>` → **native `window.confirm`** "Delete {First Last}?" (not the shared ConfirmDialog) → `DELETE /api/patients/{id}` (soft) → toast "Patient deleted". No error toast on failure (gap).
   4. Toolbar Cancel or form Cancel → form closes, nothing sent.
 - **API:** `GET /api/patients…` · `GET /api/providers?isActive=true` (loader) · `POST/PUT/DELETE /api/patients`.
@@ -203,17 +205,17 @@ Left → right:
 - **Who:** org_admin, system_admin. Others: `users-forbidden` "Only organization administrators can manage users."
 - **Layout:** toolbar → (form card) → pending table (only when non-empty) → users table.
   - **Toolbar** (`users-toolbar`, left → right): heading "User Management" · **Invite user** (`users-invite-button`, toggles to Cancel, `aria-expanded`) · search (`users-search-toggle|input|clear`, "Search by name, email, 34 ID…", client-side over displayName/email/hca34Id) · **Role filter** pushed to the far right (`users-role-filter`: "All" + System admin (system_admin only) / Org admin / Staff; applies to the users table only).
-  - **Form card** (`user-access-form`, shared by invite + assign): title `user-access-form-title` ("Invite a user" / "Approve {name}" for pending / "Edit {name}"), **Cancel** `user-access-form-cancel`, submit `user-access-form-submit` ("Invite" / "Save access"). Fields in grid order:
+  - **Form card** (`user-access-form`, shared by invite + assign): title row with `user-access-form-title` ("Invite a user" / "Approve {name}" for pending / "Edit {name}"), **Cancel** `user-access-form-cancel`, submit `user-access-form-submit` ("Invite" / "Save access"). Between the title row and the fields: **error summary** `user-access-form-errors` (red box, `role=alert`, one line per message) — shown only when there is a form-level error (a server rejection, e.g. `400 "You cannot change your own role."`, alongside its toast) or an error on a field that is currently hidden (organization/departments/34 ID when not rendered). Fields in grid order:
     - *invite only, full-width:* "Find person (34 ID)" text input `user-access-form-directory-input` (placeholder "Start typing a 34 ID…", 300 ms debounce, ≥ 2 chars → `GET /api/users/directory-search?q=`). Results list `user-access-form-directory-results` with one button per hit `user-access-form-directory-hit-<hca34Id>`; "Searching…"; `user-access-form-directory-empty` "No matches."; `user-access-form-directory-error` "Directory search is unavailable right now."; after picking: `user-access-form-directory-selected` "Selected: …". Submit without a pick → `user-access-form-directory-input-error` "34 ID is required". **Local returns no matches** (MSGraph not configured).
-    - Role select `user-access-form-role` — options: system_admin (system_admin callers only), org_admin, staff, plus "Unassigned (no access)" in assign mode. Defaults: staff.
-    - Organization select `user-access-form-organization` — **system_admin callers only, and only when role is org_admin/staff** (org_admin's org is fixed server-side). "Select an organization…" + active orgs. Errors `user-access-form-organization-error`.
+    - Role select `user-access-form-role` — options: system_admin (system_admin callers only), org_admin, staff, plus "Unassigned (no access)" in assign mode. Defaults: staff. Changing the role also resets the hidden state: system_admin/unassigned clear the organization (and departments); org_admin/staff keep the current organization or fall back to the initial one (the caller's org for org_admin callers, the edited user's org in assign mode, none for a system_admin invite).
+    - Organization select `user-access-form-organization` — **system_admin callers only, and only when role is org_admin/staff** (org_admin's org is fixed server-side). "Select an organization…" + active orgs (seeded ids such as Default Practice are accepted — the contract validates ids with `z.guid()`). Errors `user-access-form-organization-error`: submitting org_admin/staff with no organization → "An organization is required for this role" (client-side, no request; invite + assign).
     - Departments fieldset `user-access-form-departments` — **role = staff and the org has > 1 active department**; one checkbox per department `user-access-form-department-<id>` labelled "Name (Site)". Errors `user-access-form-departments-error` ("Pick at least one department for this staff member").
   - **Pending table** (`users-pending-table`, title `users-pending-table-title` "Pending approval (N)", no paging): Name (`-header-displayName`: "Name" + "DEV002 · email") · First sign-in (`-header-lastLogin`) · actions → **Assign** (`users-assign-<id>`, primary, far right).
   - **Users table** (`users-table`, title "Users", page size 10): Name · Role (`-header-role`) · Organization (`-header-organizationId`, **system_admin only**; org name or "—") · Departments (`-header-departments`; "All" for non-staff, names or count for staff) · actions → **Edit** (`users-edit-<id>`, far right).
 - **Interactions:**
   1. Approve: `users-assign-<id>` → form "Approve {name}", role defaults to staff → pick role (+ org for system_admin) → submit → `PUT /api/users/{id}` → toast **"User updated"**, form closes, user moves from pending to users table. Verified (DEV002 → system_admin).
-  2. Edit: `users-edit-<id>` → "Edit {name}", prefilled. Same request/toast. Editing **yourself** → server `400 "You cannot change your own role."` → toast. *(toast path unverified — Task 11 bug A blocks the submit client-side first on the seeded org.)*
-  3. Invite: `users-invite-button` → form "Invite a user" → directory pick → role/org → **Invite** → `POST /api/users/invite` → toast "User invited". Cannot be completed in Local (no directory).
+  2. Edit: `users-edit-<id>` → "Edit {name}", prefilled. Same request/toast. Editing **yourself** → server `400 "You cannot change your own role."` → toast **and** the same text in `user-access-form-errors`; the form stays open with its values.
+  3. Invite: `users-invite-button` → form "Invite a user" → directory pick → role/org → **Invite** → `POST /api/users/invite` → toast "User invited". A server rejection toasts and fills `user-access-form-errors`. Cannot be completed in Local (no directory) — the validation states (missing 34 ID, missing organization, role switching) can.
   4. Role filter / search narrow the users table only.
 - **API:** `GET /api/users` · `GET /api/organizations` · `GET /api/organizations/{id}/sites` + `GET /api/sites/{id}/departments` (department names, org_admin only) · `PUT /api/users/{id}` · `POST /api/users/invite` · `GET /api/users/directory-search?q=`.
 - **States:** users query error → `users-error` red text under the toolbar; tables show `-loading` "Loading…" while pending; users empty → `users-table-empty` "No users found."; pending table absent when there is nothing pending.
@@ -272,7 +274,6 @@ Convention: kebab-case `<feature>-<element>[-<qualifier>]`; row/action ids carry
 ## Known gaps / open bugs
 
 - **system_admin cannot create patients or providers from the UI** — `400 "organizationId is required for system admins."` toast; no org field on either form. [tasks/15](tasks/15-system-admin-org-picker-for-create.md).
-- **Seeded ids fail `z.string().uuid()`** — picking Default Practice in the user form shows "Invalid UUID"; a staff assignment with a hidden failing field submits silently (no error, no request). [tasks/11](tasks/11-user-invite-form-bugs.md).
 - **Notify has no success/error toast** — only the button label ("Notifying…") and the history refresh; a `4xx` on `POST /api/notifications/ready` is invisible in the UI. [tasks/16](tasks/16-patient-page-feedback-gaps.md).
 - **Patient delete uses `window.confirm`** instead of the shared `ConfirmDialog`, and its failure is not toasted. [tasks/16](tasks/16-patient-page-feedback-gaps.md).
 - **Console warning on Add Patient:** "`value` prop on `select` should not be null" — `addPatientFormOpts.defaultValues.primaryProviderId` is `null` while `SelectField` expects a string. Harmless. [tasks/16](tasks/16-patient-page-feedback-gaps.md).

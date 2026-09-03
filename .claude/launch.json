@@ -4,9 +4,21 @@
     {
       "name": "admin",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev:admin"],
+      "runtimeArgs": [
+        "dev:admin"
+      ],
       "port": 5173,
       "url": "https://localhost:5173"
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "ASPNETCORE_ENVIRONMENT=Local ASPNETCORE_URLS='https://localhost:7296;http://localhost:5032' exec dotnet run --project apps/sona.server --no-launch-profile"
+      ],
+      "port": 5032,
+      "url": "http://localhost:5032"
     }
   ]
 }
