@@ -29,6 +29,7 @@ Three parts, three migrations, three PRs. Part A is pure hierarchy; Part B moves
 | **No `Coid`, no `Division.Code`.** | No current use (2026-09-02). Add when a consumer exists. |
 | **No `CreateDate`/`ModDate` on any table** — including the existing `EntityBase` ones. `AuditLogs` records create / edit / delete for every entity (Part C). | Decided 2026-09-02. One audit mechanism, not two. `EntityBase` shrinks to the uuid v7 PK. |
 | **Cerner is not MVP.** `Patient.InCerner` dropped (Part B), `cerner` removed from the `ImportSource`/`Source` value sets, `Encounter` stays on the diagram as a future-enhancement box only. `AssigningAuthority` remains — it is the hook a future EHR feed plugs into, not Cerner-specific. | Decided 2026-09-02. |
+| **Patient mobile app shelved (not MVP).** `Patient.IsUsingMobileApp` dropped (Part B), `Device` table stays a shelved box, notifications are SMS-only: the notify path no longer branches on channel, `IPushSender`/`LoggingStubPushSender` are deleted, `MessageOut.Channel` column stays (audit) but only `sms` is ever written and the contract's `NotificationChannel` narrows to `"sms"`. | Decided 2026-09-02. `Channel` column kept so re-enabling push is additive. |
 | **Import tables shelved.** `ImportBatch`/`ImportRowError` classes are deleted; the design is kept as a note in the DBML file for when flat-file import returns. `Patient.ImportBatchId` (bare guid today) is dropped in Part B. | Decided 2026-09-02. Nothing references them; Task 09 is deferred indefinitely. |
 | **Roles unchanged.** No `division_admin`. | No user needs it yet. |
 | **Division gets a real admin page** (system_admin), not just an API. | Decided 2026-09-02 (Q8). |
@@ -107,14 +108,14 @@ Indexes:
 
 1. Create `PatientLookups`.
 2. Backfill one row per `Patient`: `Id = NEWID()` (acceptable for backfill), `OrganizationId`, `PatientId`, `AssigningAuthority = 'org:' + LOWER(CONVERT(varchar(36), OrganizationId))`, `Mrn`, `IsPrimary = 1`, `Source = ImportSource`, `RetiredDate = CASE WHEN IsActive = 1 THEN NULL ELSE SYSUTCDATETIME() END`.
-3. Drop the `Patients (OrganizationId, Mrn)` filtered index, then drop `Patients.Mrn`, `Patients.ImportBatchId` (import tables shelved) and `Patients.InCerner` (Cerner not MVP).
-4. `Down` reverses it (re-add the three columns, copy the primary MRN back, re-create the index, drop the table). Keep `Down` honest — it is the rollback path.
+3. Drop the `Patients (OrganizationId, Mrn)` filtered index, then drop `Patients.Mrn`, `Patients.ImportBatchId` (import tables shelved), `Patients.InCerner` (Cerner not MVP) and `Patients.IsUsingMobileApp` (mobile app not MVP).
+4. `Down` reverses it (re-add the four columns, copy the primary MRN back, re-create the index, drop the table). Keep `Down` honest — it is the rollback path.
 
 Run against a Local database that already has active **and** soft-deleted patients; paste the before/after `SELECT`s in the report.
 
 ### 4.3 Server
 
-- `Patient` entity: remove `Mrn`, `ImportBatchId`, `InCerner`; add `ICollection<PatientLookup> Identifiers`. Delete `Data/DbModels/Imports/` (never registered). `ImportSource`/`Source` allowed values: `flatfile | ui`.
+- `Patient` entity: remove `Mrn`, `ImportBatchId`, `InCerner`, `IsUsingMobileApp`; add `ICollection<PatientLookup> Identifiers`. Delete `Data/DbModels/Imports/` (never registered). `ImportSource`/`Source` allowed values: `flatfile | ui`.
 - New `Models/Patients/PatientIdentifierService` (or similar) — the **only** code that writes `PatientLookup` rows. `PatientsController` goes through it (a future import path would too). Methods: `FindActiveAsync(orgId, authority, mrn)`, `CreatePrimary(patient, mrn, source)`, `UpdatePrimaryMrn(patient, mrn)`, `RetireAll(patient)`.
 - `PatientsController`:
 
@@ -126,13 +127,13 @@ Run against a Local database that already has active **and** soft-deleted patien
 | Update `Mrn` | A **correction** (typo): duplicate check, then update the primary row's `Mrn` in place. No retire/alias — aliasing arrives with import/merge tooling. |
 | Soft delete | `IsActive = false` + `RetiredDate = UtcNow` on all non-retired rows, one `SaveChanges`. |
 
-- DTO: `mrn` unchanged; **`inCerner` removed** from the response and from `Patient` in `packages/shared/src/types.ts` + `src/testing/fixtures.ts` (only consumers — verified 2026-09-02, no UI reads it). No identifiers endpoint yet (`GET /api/patients/{id}/identifiers` comes with the first second-source integration).
-- `NotificationsController`, `MessageOut`: untouched.
+- DTO: `mrn` unchanged; **`inCerner` and `hasApp` removed** from the response and from `Patient` in `packages/shared/src/types.ts` + `src/testing/fixtures.ts`. `NotificationChannel` becomes `"sms"` only. No identifiers endpoint yet (`GET /api/patients/{id}/identifiers` comes with the first second-source integration).
+- `NotificationsController`: channel selection removed — every attempt is `Channel = "sms"`, `MobileNumber` always set; the TCPA gate and audit row are unchanged. Delete `IPushSender` + `LoggingStubPushSender` and their DI registration. `MessageOut` entity untouched.
 
 ### 4.4 Contract, client, tests
 
-- `packages/shared`: `Patient.inCerner` removed. `packages/api-client`: no change. `apps/sona.client`: fixture only — **no user-visible change** (report must say so).
-- Playwright `patients` spec must pass unchanged. Add, if missing: (a) re-create the same MRN after soft delete succeeds; (b) search by MRN still finds the patient; (c) edit MRN then search by the new value. Tag (a) `@smoke`.
+- `packages/shared`: `Patient.inCerner` and `Patient.hasApp` removed; `NotificationChannel = "sms"`. `packages/api-client`: no change. `apps/sona.client`: fixtures, and **one user-visible change** — the patients list hint at `src/routes/patients/index.tsx` ("App user — will receive push" / "No app — will receive SMS") is removed (every patient receives SMS, the hint carries no information). Update `docs/admin-ui-guide.md` for that region in the same commit; the notification-history Channel column stays (always SMS).
+- Playwright `patients` spec: remove any assertion on the app/SMS hint; otherwise unchanged. Add, if missing: (a) re-create the same MRN after soft delete succeeds; (b) search by MRN still finds the patient; (c) edit MRN then search by the new value. Tag (a) `@smoke`.
 - Vitest: nothing new (server-only).
 
 ## 4b. Part C — `AuditLogs` + drop `CreateDate`/`ModDate` (one migration: `AuditLogsReplaceTimestamps`)
@@ -234,7 +235,6 @@ erDiagram
         string MobileNumber "E.164"
         bool SmsConsent "TCPA gate"
         datetime SmsConsentDate
-        bool IsUsingMobileApp
         string ImportSource "flatfile | ui"
         bool IsActive "soft delete"
     }
@@ -260,7 +260,7 @@ erDiagram
         int SentByUserId FK
         uuid MessageTemplateId FK "nullable"
         uuid DepartmentId FK "nullable, id only"
-        string Channel "sms | push"
+        string Channel "sms (push reserved)"
         string Body "rendered snapshot"
         string MobileNumber "number dialed"
         string Status "pending | sent | delivered | failed"
@@ -294,7 +294,7 @@ erDiagram
         uuid Id PK "future, Cerner - not MVP (FIN lives here)"
     }
     Device {
-        uuid Id PK "planned, Enh 2"
+        uuid Id PK "shelved - mobile app not MVP"
     }
 
     Division ||--o{ Organization : owns
@@ -339,7 +339,7 @@ erDiagram
 | Q4 | `Division.Code` | No. |
 | Q5 | `Facility.Coid` | No. |
 | Q6/Q7 | Patient history / `CreateDate` | `AuditLogs` (Part C) covers create / edit / delete for every entity. **No table carries `CreateDate`/`ModDate`**, existing ones lose theirs. |
-| Q11 | Import tables | Shelved 2026-09-02. Design kept as a note in the DBML file. `Device`/`MessageIn` stay as planned; `Encounter` stays as a future-enhancement box (Cerner not MVP). |
+| Q11 | Import tables | Shelved 2026-09-02. Design kept as a note in the DBML file. `MessageIn` stays as planned; `Encounter` stays as a future-enhancement box (Cerner not MVP); `Device` is shelved with the mobile app. |
 | Q12 | `AuditLogs` column shape | **Open** — team to share the schema from their other apps before Part C starts. Placeholder in §4b.1. |
 | Q8 | Division UI | Full admin page, system_admin. |
 | Q9 | External consumers of `Organization.Type` | None. |
@@ -348,6 +348,7 @@ erDiagram
 ## 8. Out of scope
 
 - **Anything Cerner** (feeds, `Encounter`, FIN, identifier types) — future enhancement, not MVP (2026-09-02).
+- **Patient mobile app** (`Device`, push dispatch, `IsUsingMobileApp`) — shelved, not MVP (2026-09-02). `apps/mobile` stays in the repo untouched; it just has no server support.
 - Identifiers read endpoint, merge/alias tooling, duplicate-person detection (Dob + phone) — with the first second-source integration.
 - Flat-file import and its tables (shelved).
 - `division_admin` role, `AppUser.DivisionId`.

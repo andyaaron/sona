@@ -10,7 +10,7 @@ Project Sona {
     Golden rule: no PHI in notification payloads, logs, or URLs (docs/compliance.md).
     No table carries CreateDate/ModDate: AuditLogs records create / edit / delete for every entity (Part C).
     Tables in the `planned` group are documented in docs/data-model.md but not yet in the database.
-    Shelved, may return: ImportBatches + ImportRowErrors (flat-file import audit, was Task 09) — see the note at the end of this file.
+    Shelved, may return: ImportBatches + ImportRowErrors (flat-file import audit, was Task 09) — see the note at the end of this file; the patient mobile app (Devices table, push channel, Patients.IsUsingMobileApp).
   '''
 }
 
@@ -33,7 +33,7 @@ Enum import_source {
 
 Enum message_channel {
   sms
-  push
+  push [note: 'reserved — mobile app is shelved, no code path produces it']
 }
 
 Enum message_status {
@@ -145,7 +145,6 @@ Table Patients {
   MobileNumber nvarchar(max) [not null, note: 'E.164 (+15551234567), normalized before persistence']
   SmsConsent bit [not null, note: 'TCPA: no SMS may be sent while false']
   SmsConsentDate datetime2 [note: 'stamped on first true, kept on repeat true, cleared on revoke']
-  IsUsingMobileApp bit [not null, note: 'manual flag until Devices exists']
   ImportSource nvarchar(max) [not null, note: 'see import_source — which ingest path last wrote this row. `cerner` value removed: Cerner is a future enhancement']
   IsActive bit [not null, default: true, note: 'soft delete — rows are never hard-deleted (audit trail)']
   PrimaryProviderId uniqueidentifier [note: 'nullable']
@@ -154,7 +153,7 @@ Table Patients {
     CHANGED (Task 19 B): Mrn column and the (OrganizationId, Mrn) filtered unique index are REMOVED — identifiers live in PatientLookups.
     The API contract still exposes `mrn`, projected from the primary PatientLookups row.
     A patient row is "this practice's record of a person", not a global human: the same person at two orgs = two rows (tenant isolation, per-practice TCPA consent).
-    ImportBatchId (bare guid) and InCerner columns REMOVED (Task 19 B) — Cerner is a future enhancement, not MVP. FIN is deliberately absent — it is encounter-level (see Encounters).
+    ImportBatchId (bare guid), InCerner and IsUsingMobileApp columns REMOVED (Task 19 B) — mobile app and — Cerner is a future enhancement, not MVP. FIN is deliberately absent — it is encounter-level (see Encounters).
   '''
 }
 
@@ -198,11 +197,11 @@ Table MessagesOut {
   Id uniqueidentifier [pk]
   PatientId int [not null]
   SentByUserId int [not null]
-  Channel nvarchar(max) [not null, note: 'see message_channel — MVP is always sms']
+  Channel nvarchar(max) [not null, note: 'see message_channel — always sms; push reserved for the shelved mobile app']
   MessageTemplateId uniqueidentifier
   DepartmentId uniqueidentifier [note: 'sender department at send time — opaque id only']
   Body nvarchar(max) [note: 'rendered template text as actually sent — audit snapshot, never free text']
-  MobileNumber nvarchar(max) [note: 'number dialed at send time (patients change numbers). Null for push']
+  MobileNumber nvarchar(max) [note: 'number dialed at send time (patients change numbers). Nullable only for the reserved push channel']
   Status nvarchar(max) [not null, note: 'see message_status']
   ProviderMessageSid nvarchar(max) [note: 'Webex Connect messageId / push ticket — correlation key for delivery webhooks']
   FailureReason nvarchar(max) [note: 'e.g. sms-consent-missing, sms-not-configured']
@@ -267,7 +266,7 @@ Table Devices {
   LastSeenDateTime datetime2 [not null]
   IsActive bit [not null, default: true, note: 'false on push-service "token invalid"']
 
-  Note: 'PLANNED (Enhancement 2, mobile app). Once it exists, Patients.IsUsingMobileApp = "has at least one active device".'
+  Note: 'SHELVED — patient mobile app is not part of the MVP (2026-09-02). When it returns: channel selection = "has at least one active device" (replaces the dropped Patients.IsUsingMobileApp flag), and MessagesOut.Channel starts producing push.'
 }
 
 Table AuditLogs {
@@ -316,6 +315,9 @@ TableGroup audit {
 TableGroup planned {
   MessagesIn
   Encounters
+}
+
+TableGroup shelved {
   Devices
 }
 
