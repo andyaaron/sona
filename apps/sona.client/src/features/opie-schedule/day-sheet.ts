@@ -90,7 +90,7 @@ export function buildDaySheet(
   for (const patient of patients) {
     const isInternalBlock = patient.opiePatientId === OPIE_PLACEHOLDER_PATIENT_ID
     const appointments =
-      patient.appointments.length > 0 ? patient.appointments : [{ startTime: null, endTime: null }]
+      patient.appointments.length > 0 ? patient.appointments : [{ startTime: null, endTime: null, details: null }]
     appointments.forEach((appointment, index) => {
       rows.push({
         key: `${patient.opiePatientId}-${index}`,

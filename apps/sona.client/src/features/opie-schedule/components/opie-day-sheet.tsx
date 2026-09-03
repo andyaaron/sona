@@ -57,7 +57,9 @@ function TimeCell({ row }: { row: DaySheetRow }) {
  * refuses to notify -9999, this just never offers it.
  */
 function InternalBlockRow({ row }: { row: DaySheetRow }) {
-  const label = row.patient.comment?.trim() || 'Internal block'
+  // The label is per booking (fldPatientScheduleDetails) — the shared -9999 patient row carries nothing.
+  const details = row.appointment.details?.trim()
+  const label = details || 'Internal block'
   return (
     <tr
       data-testid={`opie-schedule-block-${row.key}`}
@@ -68,7 +70,7 @@ function InternalBlockRow({ row }: { row: DaySheetRow }) {
         <span className="mr-2 inline-block rounded-sm bg-amber-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
           Internal
         </span>
-        <span className="font-medium" title={row.patient.comment ?? undefined}>
+        <span className="font-medium" title={details || undefined}>
           {label}
         </span>
       </td>

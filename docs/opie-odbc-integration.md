@@ -33,7 +33,7 @@ step exists — see [§6 Open questions](#6-open-questions)).
 | Table | Join | Columns needed |
 |---|---|---|
 | `tblPatients` | (root — `fldPatientID` is its PK) | `fldPatientLastName`, `fldPatientFirstName`, `fldPatientMiddleName`, `fldPatientEmailAddress`, `fldPatientComment`, `fldPatientPrimaryPractitioner`, `fldPatientNickName`, `fldcmbLanguagePref` |
-| `tblPatientSchedule` | `fldPatientSchedulePatientID → tblPatients.fldPatientID` | `fldPatientScheduleStartTime`, `fldPatientScheduleEndTime` |
+| `tblPatientSchedule` | `fldPatientSchedulePatientID → tblPatients.fldPatientID` | `fldPatientScheduleStartTime`, `fldPatientScheduleEndTime`, `fldPatientScheduleDetails` (free text per booking — the label of internal `-9999` blocks) |
 | `tblPatientPhoneNumbers` | `fldPatientPhoneNumberPatientID → tblPatients.fldPatientID` | `fldPatientPhoneNumber`, `fldPatientPhoneNumberExtension`, `fldPatientPhoneNumberCountry` |
 
 Base shape of the query that satisfies all three (adjust the `WHERE` to whatever the actual
@@ -52,6 +52,7 @@ SELECT
     p.fldcmbLanguagePref,
     s.fldPatientScheduleStartTime,
     s.fldPatientScheduleEndTime,
+    s.fldPatientScheduleDetails,
     ph.fldPatientPhoneNumber,
     ph.fldPatientPhoneNumberExtension,
     ph.fldPatientPhoneNumberCountry
@@ -214,7 +215,7 @@ Deviations from §4–§5 and the reasons:
 | Tenant binding | **2026-09-03.** Opie has no org concept, so `Opie:OrganizationId` (config/app setting, same key everywhere) names the Sona organization the database belongs to — for the current source that is *CarePartners Orthotics & Prosthetics Clinic*, a `practice` org created through the normal `/organizations` flow (no seed, no migration; each environment creates its own and pastes the id). `OpieOptions.AllowsAccess` gates both endpoints; `POST /api/opie/notify` validates the department against the bound org. When a second Opie/EMR clinic appears, replace the config key with a per-org integrations table (`OrganizationIntegrations {OrganizationId, Kind, SecretName}`), the same shape the Cerner plan in data-model.md needs. |
 | Contract | Exposed through the API, so per AGENTS.md Rule 2 the shapes live in `packages/shared` (`OpieScheduledPatient`, `OpieAppointment`, `OpiePhoneNumber`, `opieScheduleQuerySchema`) and `packages/api-client` (`opieApi.schedule`). Kept as their own types, not folded into `Patient` — no identity mapping exists yet. |
 | Consumer | Admin dashboard `/` → **Opie Schedule** day sheet with prev/today/next + date picker (`apps/sona.client/src/features/opie-schedule/`; layout/testids in `docs/admin-ui-guide.md`). `fldPatientComment` is shown truncated with hover — confirm it should be on screen at all (§3). Replaced the patient-per-row table on 2026-09-03 (§9). |
-| Internal blocks (`-9999`) | Opie staff book LUNCH / meetings / out-of-office against the shared placeholder `fldPatientID = -9999` (`OpieOptions.PlaceholderPatientId`, `OPIE_PLACEHOLDER_PATIENT_ID`). **Task 20 (2026-09-03):** its schedule rows are kept so the sheet shows booked time honestly, but the repository redacts the patient to *comment only* (name/contact/practitioner/language forced null, phone rows dropped at the source — whatever staff typed into that shared row is not an identity) and synthesises the row if `tblPatients` lacks a `-9999` entry. The client renders them as highlighted "Internal" label rows with no notify control (`DaySheetRow.isInternalBlock`). `notifyOpiePatientSchema` and `POST /api/opie/notify` still refuse `-9999` (400). Caveat: the label comes from `fldPatientComment`, a **patient-level** field on the one shared row, so every block on every day shows the same text — Opie's real `tblPatientSchedule` almost certainly has a per-row note/type column; see §9.3. |
+| Internal blocks (`-9999`) | Opie staff book LUNCH / meetings / out-of-office against the shared placeholder `fldPatientID = -9999` (`OpieOptions.PlaceholderPatientId`, `OPIE_PLACEHOLDER_PATIENT_ID`). **Task 20 (2026-09-03):** its schedule rows are kept so the sheet shows booked time honestly, but the repository redacts the shared patient row completely (name/contact/practitioner/language/comment forced null, phone rows dropped at the source — whatever staff typed into that shared row is not an identity) and synthesises the row if `tblPatients` lacks a `-9999` entry. The label of each block is its own booking's `fldPatientScheduleDetails` (`OpieAppointment.details`, confirmed with the clinic 2026-09-03 — "Lunch", "Staff meeting"…), so two blocks on one day are distinguishable. The client renders them as highlighted "Internal" label rows with no notify control (`DaySheetRow.isInternalBlock`). `notifyOpiePatientSchema` and `POST /api/opie/notify` still refuse `-9999` (400). `details` is also returned on patient appointments (PHI like `comment`; not rendered on patient rows yet). |
 | Notify | `POST /api/opie/notify {opiePatientId, mobileNumber (E.164), departmentId?, smsConsentAttested}` (`NotificationsController.NotifyOpiePatient`, policy `AssignedUser`). Opie patients have **no Sona `Patient` row and no id mapping**, so the audit row is a `MessagesOut` with `PatientId = null`, `OpiePatientId` set and `SmsConsentAttested` (migration `20260903171937_OpieNotifications`; `docs/data-model.md`). SMS only. Number chosen client-side: first Opie phone row that normalises to E.164 (`day-sheet.ts` `toE164` — ten digits assumed NANP). Consent: Opie has no consent field, so the sender attests it in the dialog; `409` + audited `sms-consent-missing` otherwise (`docs/compliance.md`). Department is validated against the sender's own org (Opie has none). |
 | Logging | Counts + date only (`"Opie schedule for {ScheduleDate}: {PatientCount} patients"`); exceptions carry server/login details, never row data. |
 
@@ -272,9 +273,8 @@ day selection.
   (`packages/shared` + `packages/api-client` + repository, one task), then provider swimlanes and
   per-provider gaps become legitimate.
 - If it carries a status/cancelled flag: filter server-side so cancelled slots do not show as booked.
-- If it carries a per-row note/description/type: expose it as `OpieAppointment.note` and use it as the
-  internal-block label (and as extra context on patient rows) instead of the shared `-9999` patient
-  comment, which cannot distinguish LUNCH from MEETING on the same day.
+- ~~Per-row note column~~ — confirmed: `fldPatientScheduleDetails`, now `OpieAppointment.details` and the
+  internal-block label. Open: whether to show it on patient rows too (it is PHI like `comment`).
 - Confirm `fldPatientID`'s type (the fake DB uses `int`; the reader is type-agnostic either way) and
   that `-9999` is the only placeholder value.
 - Week strip with per-day counts (seven queries) if daily stepping proves too slow to scan.

@@ -173,6 +173,12 @@ export interface MessageOut {
 export interface OpieAppointment {
   startTime: string | null;
   endTime: string | null;
+  /**
+   * fldPatientScheduleDetails — free text staff type on the booking. For internal blocks
+   * (-9999) this is the label ("Lunch", "Staff meeting"); for patients it may be clinical
+   * context, so it is PHI like `comment`.
+   */
+  details: string | null;
 }
 
 /** One tblPatientPhoneNumbers row. Raw as stored in Opie — not normalised to E.164. */

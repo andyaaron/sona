@@ -5,9 +5,10 @@ import { makeOpieScheduledPatient } from '@/testing/fixtures'
 import { buildDaySheet, pickMobileNumber, toE164 } from './day-sheet'
 import { addDays } from './today-iso-date'
 
-const appt = (start: string, end: string | null = null) => ({
+const appt = (start: string, end: string | null = null, details: string | null = null) => ({
   startTime: `2026-09-03T${start}:00`,
   endTime: end && `2026-09-03T${end}:00`,
+  details,
 })
 
 describe('buildDaySheet', () => {
@@ -36,7 +37,7 @@ describe('buildDaySheet', () => {
 
   it('keeps rows with no start time in an unscheduled bucket', () => {
     const sheet = buildDaySheet([
-      makeOpieScheduledPatient({ opiePatientId: '5', appointments: [{ startTime: null, endTime: null }] }),
+      makeOpieScheduledPatient({ opiePatientId: '5', appointments: [{ startTime: null, endTime: null, details: null }] }),
       makeOpieScheduledPatient({ opiePatientId: '6', appointments: [] }),
     ])
     expect(sheet.hours).toEqual([])
@@ -51,9 +52,9 @@ describe('buildDaySheet', () => {
         opiePatientId: '-9999',
         lastName: null,
         firstName: null,
-        comment: 'LUNCH',
+        comment: null,
         phoneNumbers: [],
-        appointments: [appt('12:00', '13:00'), appt('09:00', '09:15')],
+        appointments: [appt('12:00', '13:00', 'Lunch'), appt('09:00', '09:15', 'Huddle')],
       }),
     ])
     // The block extends the sheet to 12 o'clock and sorts first inside 9 (null last name)
@@ -63,7 +64,7 @@ describe('buildDaySheet', () => {
       ['1-0', false],
     ])
     expect(sheet.hours[3].rows[0]).toMatchObject({ key: '-9999-0', isInternalBlock: true })
-    expect(sheet.hours[3].rows[0].patient.comment).toBe('LUNCH')
+    expect(sheet.hours[3].rows[0].appointment.details).toBe('Lunch')
     expect(sheet.appointmentCount).toBe(1)
     expect(sheet.patientCount).toBe(1)
     expect(sheet.internalBlockCount).toBe(2)

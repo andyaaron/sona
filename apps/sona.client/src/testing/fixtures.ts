@@ -188,7 +188,7 @@ export function makeOpieScheduledPatient(
     comment: null,
     primaryPractitioner: 'Dr. Example',
     languagePref: 'English',
-    appointments: [{ startTime: '2026-09-03T09:00:00', endTime: '2026-09-03T09:30:00' }],
+    appointments: [{ startTime: '2026-09-03T09:00:00', endTime: '2026-09-03T09:30:00', details: null }],
     phoneNumbers: [{ number: '555-0100', extension: null, country: 'US' }],
     ...overrides,
   }

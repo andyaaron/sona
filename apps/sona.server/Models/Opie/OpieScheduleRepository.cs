@@ -48,7 +48,7 @@ public sealed class OpieOptions
 }
 
 // Read DTOs describing Opie's schema. Every field is PHI — internal use only, never logged.
-public sealed record OpieAppointment(string? StartTime, string? EndTime);
+public sealed record OpieAppointment(string? StartTime, string? EndTime, string? Details);
 
 public sealed record OpiePhoneNumber(string? Number, string? Extension, string? Country);
 
@@ -109,7 +109,8 @@ public sealed class OpieScheduleRepository : IOpieScheduleRepository
         SELECT
             s.fldPatientSchedulePatientID,
             s.fldPatientScheduleStartTime,
-            s.fldPatientScheduleEndTime
+            s.fldPatientScheduleEndTime,
+            s.fldPatientScheduleDetails
         FROM dbo.tblPatientSchedule s
         WHERE CAST(s.fldPatientScheduleStartTime AS DATE) = @date
         ORDER BY s.fldPatientScheduleStartTime
@@ -148,7 +149,7 @@ public sealed class OpieScheduleRepository : IOpieScheduleRepository
             var patientId = ReadKey(reader, 0, keepPlaceholder: true);
             if (patientId == null)
                 continue;
-            GetOrAdd(appointments, patientId).Add(new OpieAppointment(ReadDateTime(reader, 1), ReadDateTime(reader, 2)));
+            GetOrAdd(appointments, patientId).Add(new OpieAppointment(ReadDateTime(reader, 1), ReadDateTime(reader, 2), ReadString(reader, 3)));
         }
 
         // Phone rows for the placeholder are dropped at the source: nothing may ever dial the shared row.
@@ -172,10 +173,11 @@ public sealed class OpieScheduleRepository : IOpieScheduleRepository
 
             if (patientId == OpieOptions.PlaceholderPatientId)
             {
-                // Internal block: only the scheduling label (comment) survives. Whatever staff have
-                // typed into the shared row's name/contact columns over the years is not an identity.
+                // Internal block: the label lives on each schedule row (fldPatientScheduleDetails).
+                // Nothing from the shared tblPatients row survives — whatever staff have typed into
+                // its name/contact/comment columns over the years is not an identity.
                 placeholderSeen = true;
-                patients.Add(InternalBlock(ReadString(reader, 6), patientAppointments));
+                patients.Add(InternalBlock(patientAppointments));
                 continue;
             }
 
@@ -195,12 +197,12 @@ public sealed class OpieScheduleRepository : IOpieScheduleRepository
 
         // Blocks booked against -9999 without a tblPatients row for it still occupy time on the sheet.
         if (!placeholderSeen && appointments.TryGetValue(OpieOptions.PlaceholderPatientId, out var orphanBlocks))
-            patients.Add(InternalBlock(comment: null, orphanBlocks));
+            patients.Add(InternalBlock(orphanBlocks));
 
         return patients;
     }
 
-    private static OpieScheduledPatient InternalBlock(string? comment, IReadOnlyList<OpieAppointment> blocks) =>
+    private static OpieScheduledPatient InternalBlock(IReadOnlyList<OpieAppointment> blocks) =>
         new(
             OpiePatientId: OpieOptions.PlaceholderPatientId,
             LastName: null,
@@ -208,7 +210,7 @@ public sealed class OpieScheduleRepository : IOpieScheduleRepository
             MiddleName: null,
             NickName: null,
             EmailAddress: null,
-            Comment: comment,
+            Comment: null,
             PrimaryPractitioner: null,
             LanguagePref: null,
             Appointments: blocks,

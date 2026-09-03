@@ -7,9 +7,10 @@ import { renderWithProviders } from '@/testing/render'
 import { buildDaySheet } from '../day-sheet'
 import { OpieDaySheet } from './opie-day-sheet'
 
-const appt = (start: string, end: string) => ({
+const appt = (start: string, end: string, details: string | null = null) => ({
   startTime: `2026-09-03T${start}:00`,
   endTime: `2026-09-03T${end}:00`,
+  details,
 })
 
 describe('OpieDaySheet — internal blocks', () => {
@@ -21,9 +22,9 @@ describe('OpieDaySheet — internal blocks', () => {
         lastName: null,
         firstName: null,
         emailAddress: null,
-        comment: 'LUNCH',
+        comment: null,
         phoneNumbers: [],
-        appointments: [appt('12:00', '13:00')],
+        appointments: [appt('12:00', '13:00', 'Lunch')],
       }),
     ])
     renderWithProviders(<OpieDaySheet sheet={sheet} />)
@@ -31,7 +32,7 @@ describe('OpieDaySheet — internal blocks', () => {
     const block = screen.getByTestId('opie-schedule-block--9999-0')
     expect(block).toHaveClass('bg-amber-50')
     expect(block).toHaveTextContent('Internal')
-    expect(block).toHaveTextContent('LUNCH')
+    expect(block).toHaveTextContent('Lunch')
     expect(block).toHaveTextContent('12:00 PM – 1:00 PM')
     expect(within(block).queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByTestId('opie-notify--9999-0')).not.toBeInTheDocument()
@@ -43,11 +44,18 @@ describe('OpieDaySheet — internal blocks', () => {
     expect(within(row).getByTestId('opie-notify-7-0')).toBeInTheDocument()
   })
 
-  it('falls back to a generic label when the block has no comment', () => {
+  it('labels each block from its own schedule row, and falls back when details are empty', () => {
     const sheet = buildDaySheet([
-      makeOpieScheduledPatient({ opiePatientId: '-9999', comment: null, phoneNumbers: [], appointments: [appt('12:00', '13:00')] }),
+      makeOpieScheduledPatient({
+        opiePatientId: '-9999',
+        comment: 'stale text on the shared row — must not be used',
+        phoneNumbers: [],
+        appointments: [appt('12:00', '13:00'), appt('15:00', '15:30', 'Staff meeting')],
+      }),
     ])
     renderWithProviders(<OpieDaySheet sheet={sheet} />)
     expect(screen.getByTestId('opie-schedule-block--9999-0')).toHaveTextContent('Internal block')
+    expect(screen.getByTestId('opie-schedule-block--9999-1')).toHaveTextContent('Staff meeting')
+    expect(screen.queryByText(/stale text/)).not.toBeInTheDocument()
   })
 })

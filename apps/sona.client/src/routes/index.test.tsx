@@ -28,23 +28,23 @@ function serveSchedule(date: string) {
           comment: 'Bring prior orthotic',
           phoneNumbers: [{ number: '555-019-9000', extension: '12', country: 'US' }],
           appointments: [
-            { startTime: `${date}T14:00:00`, endTime: `${date}T14:45:00` },
-            { startTime: `${date}T09:00:00`, endTime: `${date}T09:30:00` },
+            { startTime: `${date}T14:00:00`, endTime: `${date}T14:45:00`, details: null },
+            { startTime: `${date}T09:00:00`, endTime: `${date}T09:30:00`, details: null },
           ],
         }),
         makeOpieScheduledPatient({
           opiePatientId: '4243',
           lastName: 'Zed',
-          appointments: [{ startTime: `${date}T10:15:00`, endTime: `${date}T10:45:00` }],
+          appointments: [{ startTime: `${date}T10:15:00`, endTime: `${date}T10:45:00`, details: null }],
           phoneNumbers: [],
         }),
         makeOpieScheduledPatient({
           opiePatientId: '-9999',
           lastName: null,
           firstName: null,
-          comment: 'LUNCH',
+          comment: null,
           phoneNumbers: [],
-          appointments: [{ startTime: `${date}T12:00:00`, endTime: `${date}T13:00:00` }],
+          appointments: [{ startTime: `${date}T12:00:00`, endTime: `${date}T13:00:00`, details: 'Lunch' }],
         }),
       ])
     }),
@@ -72,7 +72,7 @@ describe('/ dashboard — Opie day sheet', () => {
     expect(rows.filter((id) => id?.startsWith('opie-schedule-empty-hour-'))).toEqual(
       ['11', '13'].map((h) => `opie-schedule-empty-hour-${h}`),
     )
-    expect(screen.getByTestId('opie-schedule-block--9999-0')).toHaveTextContent('LUNCH')
+    expect(screen.getByTestId('opie-schedule-block--9999-0')).toHaveTextContent('Lunch')
     expect(rows.filter((id) => id?.startsWith('opie-schedule-row-'))).toEqual([
       'opie-schedule-row-4242-1',
       'opie-schedule-row-4243-0',

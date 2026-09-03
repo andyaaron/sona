@@ -142,7 +142,8 @@ not patient data, and was already the same field/UI cell used for real patients'
 
 ## Audit notes + deviations (2026-09-03, implementation)
 
-- **Label source is the weak point.** `fldPatientComment` is a column on the one shared `-9999`
+- **Resolved (later on 2026-09-03):** the clinic confirmed the per-booking column is `fldPatientScheduleDetails`; it is now `OpieAppointment.details` and the block label. The shared `-9999` patient row's comment is no longer used at all.
+- **Label source was the weak point.** `fldPatientComment` is a column on the one shared `-9999`
   *patient* row, so every block on every day carries the same text. The task lists this as "out
   of scope", but it is the thing that makes the feature useful or not. First check on the real
   schema: a per-row note/type column on `tblPatientSchedule` (docs/opie-odbc-integration.md §9.3).
