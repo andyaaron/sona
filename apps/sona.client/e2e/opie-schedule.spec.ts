@@ -45,6 +45,16 @@ test.describe('opie schedule', () => {
     )
     expect(hourIds).toEqual([...hourIds].sort())
 
+    // Internal blocks (-9999) render as highlighted label rows with no notify control
+    const blocks = patients!.filter((p) => p.opiePatientId === '-9999').flatMap((p) => p.appointments)
+    if (blocks.length > 0) {
+      const block = page.getByTestId('opie-schedule-block--9999-0')
+      await expect(block).toBeVisible()
+      await expect(block).toContainText('Internal')
+      await expect(block.getByRole('button')).toHaveCount(0)
+      await expect(page.getByTestId('opie-schedule-summary')).toContainText(`${blocks.length} internal`)
+    }
+
     const rowKey = `${target!.opiePatientId}-0`
     await page.getByTestId(`opie-notify-${rowKey}`).click()
     await expect(page.getByTestId('confirm-dialog-title')).toContainText("Send 'ready to be seen' notification to")

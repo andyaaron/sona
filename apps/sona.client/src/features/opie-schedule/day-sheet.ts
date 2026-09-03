@@ -10,6 +10,12 @@ export interface DaySheetRow {
   key: string
   patient: OpieScheduledPatient
   appointment: OpieAppointment
+  /**
+   * Booked against Opie's shared -9999 placeholder: staff time (LUNCH, meeting…), not a patient.
+   * Occupies time like any row but has no identity, no contact and can never be notified.
+   * Components branch on this, never on the raw id.
+   */
+  isInternalBlock: boolean
   /** Minutes from local midnight; null when the start time is missing or unparseable. */
   startMinutes: number | null
   endMinutes: number | null
@@ -29,8 +35,12 @@ export interface DaySheet {
   hours: DaySheetHour[]
   /** Rows with no usable start time — listed after the timed hours so nothing silently disappears. */
   unscheduled: DaySheetRow[]
+  /** Patient appointments only — internal blocks are counted in `internalBlockCount`. */
   appointmentCount: number
+  /** Distinct real patients (the placeholder is not one). */
   patientCount: number
+  /** Staff/internal blocks on the sheet (rows booked against -9999). */
+  internalBlockCount: number
 }
 
 /** Opie stores local wall-clock without an offset, so `Date` parses it as local time. */
@@ -67,8 +77,9 @@ function compareRows(a: DaySheetRow, b: DaySheetRow): number {
 
 /**
  * Flattens the schedule into hour buckets from the first start to the last end. Gaps are
- * derived only from what Opie returns — an empty hour means no appointment was booked,
- * not that a practitioner is free (practitioner is a patient field, not an appointment one).
+ * derived only from what Opie returns — an empty hour means nothing was booked (neither a
+ * patient nor an internal block), not that a practitioner is free (practitioner is a patient
+ * field, not an appointment one).
  * `nowMinutes` (local minutes of day) places the "now" marker; pass null on other days.
  */
 export function buildDaySheet(
@@ -77,7 +88,7 @@ export function buildDaySheet(
 ): DaySheet {
   const rows: DaySheetRow[] = []
   for (const patient of patients) {
-    if (patient.opiePatientId === OPIE_PLACEHOLDER_PATIENT_ID) continue
+    const isInternalBlock = patient.opiePatientId === OPIE_PLACEHOLDER_PATIENT_ID
     const appointments =
       patient.appointments.length > 0 ? patient.appointments : [{ startTime: null, endTime: null }]
     appointments.forEach((appointment, index) => {
@@ -85,6 +96,7 @@ export function buildDaySheet(
         key: `${patient.opiePatientId}-${index}`,
         patient,
         appointment,
+        isInternalBlock,
         startMinutes: toMinutesOfDay(appointment.startTime),
         endMinutes: toMinutesOfDay(appointment.endTime),
       })
@@ -116,11 +128,13 @@ export function buildDaySheet(
     }
   }
 
+  const internalBlockCount = rows.filter((r) => r.isInternalBlock).length
   return {
     hours,
     unscheduled,
-    appointmentCount: timed.length + unscheduled.length,
-    patientCount: new Set(rows.map((r) => r.patient.opiePatientId)).size,
+    appointmentCount: rows.length - internalBlockCount,
+    patientCount: new Set(rows.filter((r) => !r.isInternalBlock).map((r) => r.patient.opiePatientId)).size,
+    internalBlockCount,
   }
 }
 

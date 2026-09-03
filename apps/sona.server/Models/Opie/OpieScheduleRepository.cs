@@ -16,7 +16,11 @@ public sealed class OpieOptions
     /// <summary>Configuration key binding the Opie_data source to one Sona organization (Opie has no org concept).</summary>
     public const string OrganizationIdKey = "Opie:OrganizationId";
 
-    /// <summary>Opie's staff/internal placeholder row in tblPatients — never a real patient, never listed or notified.</summary>
+    /// <summary>
+    /// Opie's shared staff/internal placeholder "patient" (LUNCH, meetings, out-of-office are
+    /// booked against it). Listed on the day sheet as an internal block — redacted to its
+    /// comment, never a real identity, never notifiable.
+    /// </summary>
     public const string PlaceholderPatientId = "-9999";
 
     public string? ConnectionString { get; }
@@ -141,27 +145,40 @@ public sealed class OpieScheduleRepository : IOpieScheduleRepository
         var appointments = new Dictionary<string, List<OpieAppointment>>();
         await foreach (var reader in QueryAsync(connection, ScheduleSql, date, cancellationToken))
         {
-            var patientId = ReadKey(reader, 0);
+            var patientId = ReadKey(reader, 0, keepPlaceholder: true);
             if (patientId == null)
                 continue;
             GetOrAdd(appointments, patientId).Add(new OpieAppointment(ReadDateTime(reader, 1), ReadDateTime(reader, 2)));
         }
 
+        // Phone rows for the placeholder are dropped at the source: nothing may ever dial the shared row.
         var phones = new Dictionary<string, List<OpiePhoneNumber>>();
         await foreach (var reader in QueryAsync(connection, PhonesSql, date, cancellationToken))
         {
-            var patientId = ReadKey(reader, 0);
+            var patientId = ReadKey(reader, 0, keepPlaceholder: false);
             if (patientId == null)
                 continue;
             GetOrAdd(phones, patientId).Add(new OpiePhoneNumber(ReadString(reader, 1), ReadString(reader, 2), ReadString(reader, 3)));
         }
 
         var patients = new List<OpieScheduledPatient>();
+        var placeholderSeen = false;
         await foreach (var reader in QueryAsync(connection, PatientsSql, date, cancellationToken))
         {
-            var patientId = ReadKey(reader, 0);
+            var patientId = ReadKey(reader, 0, keepPlaceholder: true);
             if (patientId == null)
                 continue;
+            IReadOnlyList<OpieAppointment> patientAppointments = appointments.TryGetValue(patientId, out var a) ? a : Array.Empty<OpieAppointment>();
+
+            if (patientId == OpieOptions.PlaceholderPatientId)
+            {
+                // Internal block: only the scheduling label (comment) survives. Whatever staff have
+                // typed into the shared row's name/contact columns over the years is not an identity.
+                placeholderSeen = true;
+                patients.Add(InternalBlock(ReadString(reader, 6), patientAppointments));
+                continue;
+            }
+
             patients.Add(new OpieScheduledPatient(
                 OpiePatientId: patientId,
                 LastName: ReadString(reader, 1),
@@ -172,12 +189,30 @@ public sealed class OpieScheduleRepository : IOpieScheduleRepository
                 Comment: ReadString(reader, 6),
                 PrimaryPractitioner: ReadString(reader, 7),
                 LanguagePref: ReadString(reader, 8),
-                Appointments: appointments.TryGetValue(patientId, out var a) ? a : Array.Empty<OpieAppointment>(),
+                Appointments: patientAppointments,
                 PhoneNumbers: phones.TryGetValue(patientId, out var ph) ? ph : Array.Empty<OpiePhoneNumber>()));
         }
 
+        // Blocks booked against -9999 without a tblPatients row for it still occupy time on the sheet.
+        if (!placeholderSeen && appointments.TryGetValue(OpieOptions.PlaceholderPatientId, out var orphanBlocks))
+            patients.Add(InternalBlock(comment: null, orphanBlocks));
+
         return patients;
     }
+
+    private static OpieScheduledPatient InternalBlock(string? comment, IReadOnlyList<OpieAppointment> blocks) =>
+        new(
+            OpiePatientId: OpieOptions.PlaceholderPatientId,
+            LastName: null,
+            FirstName: null,
+            MiddleName: null,
+            NickName: null,
+            EmailAddress: null,
+            Comment: comment,
+            PrimaryPractitioner: null,
+            LanguagePref: null,
+            Appointments: blocks,
+            PhoneNumbers: Array.Empty<OpiePhoneNumber>());
 
     private static async IAsyncEnumerable<SqlDataReader> QueryAsync(
         SqlConnection connection,
@@ -207,13 +242,16 @@ public sealed class OpieScheduleRepository : IOpieScheduleRepository
 
     // Opie's column types are not under our control (fldPatientID may be int or char), so the
     // readers are type-agnostic: keys and strings round-trip through their invariant string form.
-    private static string? ReadKey(SqlDataReader reader, int ordinal)
+    // `keepPlaceholder` decides whether the -9999 internal-block key is a usable key for this
+    // query (schedule + patient rows: yes; phone rows: never).
+    private static string? ReadKey(SqlDataReader reader, int ordinal, bool keepPlaceholder)
     {
         if (reader.IsDBNull(ordinal))
             return null;
         var text = Convert.ToString(reader.GetValue(ordinal), CultureInfo.InvariantCulture)?.Trim();
-        // Staff book internal blocks against the -9999 placeholder; it is not a patient.
-        return string.IsNullOrEmpty(text) || text == OpieOptions.PlaceholderPatientId ? null : text;
+        if (string.IsNullOrEmpty(text))
+            return null;
+        return !keepPlaceholder && text == OpieOptions.PlaceholderPatientId ? null : text;
     }
 
     private static string? ReadString(SqlDataReader reader, int ordinal)

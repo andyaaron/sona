@@ -34,15 +34,39 @@ describe('buildDaySheet', () => {
     expect(sheet.hours.map((h) => h.hour)).toEqual([8, 9, 10])
   })
 
-  it('keeps rows with no start time in an unscheduled bucket and drops the -9999 staff placeholder', () => {
+  it('keeps rows with no start time in an unscheduled bucket', () => {
     const sheet = buildDaySheet([
       makeOpieScheduledPatient({ opiePatientId: '5', appointments: [{ startTime: null, endTime: null }] }),
       makeOpieScheduledPatient({ opiePatientId: '6', appointments: [] }),
-      makeOpieScheduledPatient({ opiePatientId: '-9999', appointments: [appt('09:00')] }),
     ])
     expect(sheet.hours).toEqual([])
     expect(sheet.unscheduled.map((r) => r.key)).toEqual(['5-0', '6-0'])
     expect(sheet.patientCount).toBe(2)
+  })
+
+  it('keeps -9999 internal blocks as time-occupying rows, counted apart from patients', () => {
+    const sheet = buildDaySheet([
+      makeOpieScheduledPatient({ opiePatientId: '1', appointments: [appt('09:00', '09:30')] }),
+      makeOpieScheduledPatient({
+        opiePatientId: '-9999',
+        lastName: null,
+        firstName: null,
+        comment: 'LUNCH',
+        phoneNumbers: [],
+        appointments: [appt('12:00', '13:00'), appt('09:00', '09:15')],
+      }),
+    ])
+    // The block extends the sheet to 12 o'clock and sorts first inside 9 (null last name)
+    expect(sheet.hours.map((h) => h.hour)).toEqual([9, 10, 11, 12])
+    expect(sheet.hours[0].rows.map((r) => [r.key, r.isInternalBlock])).toEqual([
+      ['-9999-1', true],
+      ['1-0', false],
+    ])
+    expect(sheet.hours[3].rows[0]).toMatchObject({ key: '-9999-0', isInternalBlock: true })
+    expect(sheet.hours[3].rows[0].patient.comment).toBe('LUNCH')
+    expect(sheet.appointmentCount).toBe(1)
+    expect(sheet.patientCount).toBe(1)
+    expect(sheet.internalBlockCount).toBe(2)
   })
 
   it('places the now marker after the rows that have already started, only on the current hour', () => {

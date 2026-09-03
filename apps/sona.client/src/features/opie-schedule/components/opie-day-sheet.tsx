@@ -27,7 +27,6 @@ function ContactCell({ patient }: { patient: OpieScheduledPatient }) {
       {patient.phoneNumbers.map((ph, i) => (
         <li key={i} className="whitespace-nowrap">
           {ph.number ?? '—'}
-          {/*{ph.extension && <span className="text-gray-500"> ext. {ph.extension}</span>}*/}
           {ph.country && <span className="text-gray-400"> ({ph.country})</span>}
         </li>
       ))}
@@ -36,19 +35,54 @@ function ContactCell({ patient }: { patient: OpieScheduledPatient }) {
   )
 }
 
+function TimeCell({ row }: { row: DaySheetRow }) {
+  const { appointment } = row
+  return (
+    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-gray-700">
+      {appointment.startTime ? (
+        <>
+          {formatTime(appointment.startTime)} – {formatTime(appointment.endTime)}
+        </>
+      ) : (
+        <Dash />
+      )}
+    </td>
+  )
+}
+
+/**
+ * Staff time booked against Opie's shared placeholder (LUNCH, meeting…). Highlighted so it
+ * reads as "booked, not a patient"; colour alone is not the cue — the label says so too.
+ * No identity, no contact, no notify control: the server has already redacted the row and
+ * refuses to notify -9999, this just never offers it.
+ */
+function InternalBlockRow({ row }: { row: DaySheetRow }) {
+  const label = row.patient.comment?.trim() || 'Internal block'
+  return (
+    <tr
+      data-testid={`opie-schedule-block-${row.key}`}
+      className="border-b border-amber-100 bg-amber-50 align-top text-amber-900"
+    >
+      <TimeCell row={row} />
+      <td className="px-3 py-2" colSpan={3}>
+        <span className="mr-2 inline-block rounded-sm bg-amber-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+          Internal
+        </span>
+        <span className="font-medium" title={row.patient.comment ?? undefined}>
+          {label}
+        </span>
+      </td>
+      <td className="px-3 py-2" />
+    </tr>
+  )
+}
+
 function AppointmentRow({ row }: { row: DaySheetRow }) {
-  const { patient, appointment } = row
+  if (row.isInternalBlock) return <InternalBlockRow row={row} />
+  const { patient } = row
   return (
     <tr data-testid={`opie-schedule-row-${row.key}`} className="border-b border-gray-100 align-top">
-      <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-gray-700">
-        {appointment.startTime ? (
-          <>
-            {formatTime(appointment.startTime)} – {formatTime(appointment.endTime)}
-          </>
-        ) : (
-          <Dash />
-        )}
-      </td>
+      <TimeCell row={row} />
       <td className="px-3 py-2">
         <PatientCell patient={patient} />
       </td>
@@ -75,7 +109,7 @@ function AppointmentRow({ row }: { row: DaySheetRow }) {
 function NowMarker() {
   return (
     <tr data-testid="opie-schedule-now" aria-label="Current time">
-      <td colSpan={6} className="p-0">
+      <td colSpan={5} className="p-0">
         {/* Flex layout (rather than absolute-positioned circles) keeps the whole marker within its own
             row box, so it isn't clipped by the sheet's horizontally-scrolling container. */}
         <div className="flex h-2 items-center">
@@ -100,7 +134,7 @@ function HourGroup({
   return (
     <>
       <tr data-testid={`opie-schedule-hour-${hourId(hour)}`} className="bg-gray-50">
-        <td colSpan={6} className="px-3 py-1.5 text-xs font-medium text-gray-600">
+        <td colSpan={5} className="px-3 py-1.5 text-xs font-medium text-gray-600">
           {formatHour(hour)}
         </td>
       </tr>
@@ -108,7 +142,7 @@ function HourGroup({
         <>
           {nowMarkerIndex !== null && <NowMarker />}
           <tr data-testid={`opie-schedule-empty-hour-${hourId(hour)}`} className="border-b border-gray-100">
-            <td colSpan={6} className="px-3 py-1.5 text-xs italic text-gray-400">
+            <td colSpan={5} className="px-3 py-1.5 text-xs italic text-gray-400">
               No appointments
             </td>
           </tr>
@@ -134,7 +168,8 @@ function RowGroup({ row, before, after }: { row: DaySheetRow; before: boolean; a
 
 /**
  * Time-ordered day sheet: an hour header from the first appointment to the last, each
- * appointment under its start hour, empty hours shown as a single quiet row.
+ * appointment under its start hour, empty hours shown as a single quiet row. Internal
+ * (staff) blocks occupy time like appointments but render as highlighted label rows.
  */
 export function OpieDaySheet({ sheet }: { sheet: DaySheet }) {
   return (
@@ -156,7 +191,7 @@ export function OpieDaySheet({ sheet }: { sheet: DaySheet }) {
           {sheet.unscheduled.length > 0 && (
             <>
               <tr data-testid="opie-schedule-unscheduled" className="bg-gray-50">
-                <td colSpan={6} className="px-3 py-1.5 text-xs font-medium text-gray-600">
+                <td colSpan={5} className="px-3 py-1.5 text-xs font-medium text-gray-600">
                   No start time
                 </td>
               </tr>

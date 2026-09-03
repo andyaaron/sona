@@ -38,6 +38,14 @@ function serveSchedule(date: string) {
           appointments: [{ startTime: `${date}T10:15:00`, endTime: `${date}T10:45:00` }],
           phoneNumbers: [],
         }),
+        makeOpieScheduledPatient({
+          opiePatientId: '-9999',
+          lastName: null,
+          firstName: null,
+          comment: 'LUNCH',
+          phoneNumbers: [],
+          appointments: [{ startTime: `${date}T12:00:00`, endTime: `${date}T13:00:00` }],
+        }),
       ])
     }),
   )
@@ -53,16 +61,18 @@ describe('/ dashboard — Opie day sheet', () => {
     const sheet = await screen.findByTestId('opie-schedule-sheet')
     expect(requested).toEqual(['2030-01-15'])
     expect(screen.getByTestId('opie-schedule-date')).toHaveValue('2030-01-15')
-    expect(screen.getByTestId('opie-schedule-summary')).toHaveTextContent('3 appointments · 2 patients')
+    expect(screen.getByTestId('opie-schedule-summary')).toHaveTextContent('3 appointments · 2 patients · 1 internal')
 
     // Hours 9 → 14, in order, with the empty ones present
     const rows = within(sheet).getAllByRole('row').map((r) => r.getAttribute('data-testid'))
     expect(rows.filter((id) => id?.startsWith('opie-schedule-hour-'))).toEqual(
       ['09', '10', '11', '12', '13', '14'].map((h) => `opie-schedule-hour-${h}`),
     )
+    // 12 is occupied by the LUNCH block, so it is not an empty hour
     expect(rows.filter((id) => id?.startsWith('opie-schedule-empty-hour-'))).toEqual(
-      ['11', '12', '13'].map((h) => `opie-schedule-empty-hour-${h}`),
+      ['11', '13'].map((h) => `opie-schedule-empty-hour-${h}`),
     )
+    expect(screen.getByTestId('opie-schedule-block--9999-0')).toHaveTextContent('LUNCH')
     expect(rows.filter((id) => id?.startsWith('opie-schedule-row-'))).toEqual([
       'opie-schedule-row-4242-1',
       'opie-schedule-row-4243-0',
@@ -73,7 +83,7 @@ describe('/ dashboard — Opie day sheet', () => {
     expect(row).toHaveTextContent('Rivera, Ana M')
     expect(row).toHaveTextContent('"Annie"')
     expect(row).toHaveTextContent('555-019-9000')
-    expect(row).toHaveTextContent('ext. 12')
+    expect(row).not.toHaveTextContent('ext.')
     expect(row).toHaveTextContent('Bring prior orthotic')
     expect(within(row).getByTestId('opie-notify-4242-1')).toBeEnabled()
     // No dialable number → button present but disabled

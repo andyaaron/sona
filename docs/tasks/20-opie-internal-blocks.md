@@ -1,5 +1,7 @@
 # Task 20 — Show Opie internal schedule blocks (LUNCH, etc.) on the day sheet
 
+**Status: done 2026-09-03** (see the audit notes at the end for where the implementation deviates).
+
 Read `docs/tasks/_context.md`, `AGENTS.md`, and `docs/opie-odbc-integration.md` first.
 
 ## Background — how `-9999` is currently filtered (found while scoping this task)
@@ -137,3 +139,22 @@ notify-refusal for `-9999` was left untouched and verified still in place, (b) w
 change was verified by `dotnet build` only or also against a real/local Opie-shaped db, and (c)
 confirm no PHI was newly introduced — the placeholder's `comment` is an internal scheduling label,
 not patient data, and was already the same field/UI cell used for real patients' clinical comments.
+
+## Audit notes + deviations (2026-09-03, implementation)
+
+- **Label source is the weak point.** `fldPatientComment` is a column on the one shared `-9999`
+  *patient* row, so every block on every day carries the same text. The task lists this as "out
+  of scope", but it is the thing that makes the feature useful or not. First check on the real
+  schema: a per-row note/type column on `tblPatientSchedule` (docs/opie-odbc-integration.md §9.3).
+- **Missing case: schedule rows for `-9999` with no `tblPatients` row.** The assembly loop is
+  driven by the patients query, so those blocks would vanish. The repository now synthesises a
+  comment-less internal block from the schedule rows in that case.
+- **Test id:** used `opie-schedule-block-<key>` (a different element kind) rather than reusing
+  `opie-schedule-row-`, so tests that iterate patient rows do not have to special-case the
+  placeholder; the row key still uses the raw id (`opie-schedule-block--9999-0`).
+- **Colour is not the only cue:** the row carries an "INTERNAL" badge and the label text, so it
+  is distinguishable without colour vision.
+- **No component test file existed** for the day sheet; added `opie-day-sheet.test.tsx`. E2E
+  covers blocks when the configured Opie has any on the test date (the fake local DB now seeds a
+  LUNCH block 12:00–13:00 on 2026-09-03 and 09-04).
+- Verified against the fake local Opie DB (`dotnet build` + running app), not the real schema.

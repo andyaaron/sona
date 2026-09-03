@@ -85,6 +85,7 @@ export function OpieSchedule({ date, onDateChange }: OpieScheduleProps) {
         <p data-testid="opie-schedule-summary" className="text-sm text-gray-500">
           {formatDateHeading(date)}
           {sheet && ` · ${sheet.appointmentCount} appointments · ${sheet.patientCount} patients`}
+          {sheet && sheet.internalBlockCount > 0 && ` · ${sheet.internalBlockCount} internal`}
         </p>
       </div>
 
