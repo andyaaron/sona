@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page } from '@playwright/test'
 
-import { asSystemAdmin } from './fixtures/roles'
+import { asOrgAdmin, asSystemAdmin } from './fixtures/roles'
 
 const toast = (page: Page, text: string) => page.locator('[data-sonner-toast]').filter({ hasText: text }).first()
 
@@ -27,6 +27,7 @@ test.describe('opie schedule', () => {
   const date = '2026-09-03'
 
   test.beforeEach(async ({ request }) => asSystemAdmin(request))
+  test.afterEach(async ({ request }) => asSystemAdmin(request))
 
   test('day sheet lists appointments in time order and notify writes an audited MessageOut', async ({ page, request }) => {
     const patients = await scheduleFor(request, date)
@@ -84,5 +85,27 @@ test.describe('opie schedule', () => {
       data: { opiePatientId: '101', mobileNumber: '828-555-0101', smsConsentAttested: true },
     })
     expect(badNumber.status()).toBe(400)
+  })
+
+  test("the section only exists for the organization Opie is bound to (org_admin of another org sees nothing)", async ({ page, request }) => {
+    test.skip((await scheduleFor(request, date)) === null, 'OpieConnection not configured')
+
+    // The seeded org is the caller; whether it is the bound org depends on Opie:OrganizationId,
+    // so assert the UI agrees with the API either way.
+    await asOrgAdmin(request)
+    const response = await request.get(`/api/opie/schedule?date=${date}`)
+    expect([200, 404]).toContain(response.status())
+    await page.goto(`/?date=${date}`)
+    await expect(page.getByTestId('dashboard')).toBeVisible()
+    if (response.status() === 404) {
+      expect(await response.json()).toEqual({ error: 'opie-not-available' })
+      await expect(page.getByTestId('opie-schedule')).toHaveCount(0)
+      const notify = await request.post('/api/opie/notify', {
+        data: { opiePatientId: '101', mobileNumber: '+18285550101', smsConsentAttested: true },
+      })
+      expect(notify.status()).toBe(404)
+    } else {
+      await expect(page.getByTestId('opie-schedule-toolbar')).toBeVisible()
+    }
   })
 })

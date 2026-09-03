@@ -134,6 +134,20 @@ describe('/ dashboard — Opie day sheet', () => {
     expect(screen.queryByTestId('opie-schedule-sheet')).not.toBeInTheDocument()
   })
 
+  it("hides the whole section on 404 (the Opie clinic is another organization's)", async () => {
+    server.use(
+      http.get('/api/opie/schedule', () =>
+        HttpResponse.json({ error: 'opie-not-available' }, { status: 404 }),
+      ),
+    )
+    renderRoute('/')
+
+    expect(await screen.findByTestId('dashboard')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByTestId('opie-schedule-loading')).not.toBeInTheDocument())
+    expect(screen.queryByTestId('opie-schedule')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('opie-schedule-error')).not.toBeInTheDocument()
+  })
+
   it('shows the server error message on 502 (Opie unreachable)', async () => {
     server.use(
       http.get('/api/opie/schedule', () =>

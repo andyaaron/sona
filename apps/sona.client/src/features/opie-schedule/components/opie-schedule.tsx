@@ -27,11 +27,15 @@ function formatDateHeading(date: string): string {
  * Day view of the external Opie schedule (GET /api/opie/schedule) as a time-ordered day
  * sheet. Read-only PHI apart from the per-row notify button (POST /api/opie/notify).
  * Degrades to a notice when the integration is not configured (503) or Opie is
- * unreachable (502) so the dashboard still renders.
+ * unreachable (502) so the dashboard still renders; hidden entirely when the schedule
+ * belongs to another organization (404).
  */
 export function OpieSchedule({ date, onDateChange }: OpieScheduleProps) {
   const { data, error, isPending } = useQuery(opieScheduleQueryOptions({ date }))
   const notConfigured = error instanceof ApiError && error.status === 503
+  // 404 = the Opie clinic is bound to a different organization than the viewer's: the
+  // section simply does not exist for them (no notice — other orgs must not learn of it).
+  if (error instanceof ApiError && error.status === 404) return null
   const today = todayIsoDate()
   const now = new Date()
   const sheet = data

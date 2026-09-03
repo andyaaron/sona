@@ -127,6 +127,12 @@ A second, **optional** connection string `OpieConnection` points at the external
 `OpieConnection` in `Development`/`Production` (a missing secret is tolerated), the
 `ConnectionStrings:OpieConnection` key in `appsettings.Local.json` in `Local`. When it is absent
 the API still starts and `GET /api/opie/schedule` answers `503 { error: "opie-not-configured" }`.
+Opie has no notion of organizations, so a second key, `Opie:OrganizationId` (the `Organizations.Id`
+of the clinic the Opie database belongs to — `Opie__OrganizationId` as an app setting), binds the
+schedule to one tenant: that org's users and `system_admin` can use `/api/opie/*`, everyone else
+gets `404 opie-not-available`. Without it the integration also reports `503 opie-not-configured`
+(the startup log says which key is missing). Locally: create the clinic via `/organizations` (or
+`POST /api/organizations`) and paste its id into `appsettings.Local.json`.
 Use a read-only SQL login; never commit real values.
 
 `Development` therefore requires HCA Azure credentials (`az login` against the HCA tenant). Without them the API cannot start — use the `Local` profile instead.
@@ -285,6 +291,7 @@ Local mode refuses to start: ConnectionStrings:DefaultConnection points at Azure
 |---|---|---|
 | Connection string | Key Vault secret `DefaultConnection` | `appsettings.Local.json` |
 | Opie_data connection (optional) | Key Vault secret `OpieConnection` | `ConnectionStrings:OpieConnection` in `appsettings.Local.json` (omit → dashboard shows "Opie connection not configured") |
+| Opie organization binding (required with the above) | App setting `Opie__OrganizationId` | `Opie:OrganizationId` in `appsettings.Local.json` — the clinic's `Organizations.Id` |
 | Serilog | MSSqlServer `AppLogs` sink + console | console only |
 | Authentication | Entra ID OIDC | `LocalDevAuth` scheme — every request is the configured identity, no sign-in screen |
 | JIT user provisioning | OIDC `OnTokenValidated` | middleware on the first authenticated request; the created user is promoted to `system_admin` (once — a role you later change through the UI sticks) |

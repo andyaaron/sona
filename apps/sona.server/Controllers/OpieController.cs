@@ -3,12 +3,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Sona.Server.Models.Opie;
+using Sona.Server.Models.Util;
 
 namespace Sona.Server.Controllers;
 
 /// <summary>
 /// Read-only window onto the external Opie_data schedule (docs/opie-odbc-integration.md).
-/// Opie has no notion of Sona's organizations, so the only gate is an assigned role.
+/// Opie has no notion of Sona's organizations, so configuration binds the source to one org
+/// (Opie:OrganizationId): that org's users and system_admin may read it, everyone else 404s.
 /// Responses are PHI: nothing from them is ever logged here — only counts and the date.
 /// </summary>
 [Authorize(Policy = Sona.Server.Models.Auth.Policies.AssignedUser)]
@@ -17,11 +19,19 @@ namespace Sona.Server.Controllers;
 public class OpieController : Controller
 {
     private readonly IOpieScheduleRepository _opie;
+    private readonly OpieOptions _options;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<OpieController> _logger;
 
-    public OpieController(IOpieScheduleRepository opie, ILogger<OpieController> logger)
+    public OpieController(
+        IOpieScheduleRepository opie,
+        OpieOptions options,
+        ICurrentUserService currentUserService,
+        ILogger<OpieController> logger)
     {
         _opie = opie;
+        _options = options;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -39,8 +49,16 @@ public class OpieController : Controller
             return BadRequest(new { error = "date must be YYYY-MM-DD." });
         }
 
-        if (!_opie.IsConfigured)
+        if (!_opie.IsConfigured || !_options.IsConfigured)
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "opie-not-configured" });
+
+        var currentUser = await _currentUserService.GetCurrentUserAsync();
+        if (currentUser == null)
+            return Unauthorized();
+
+        // Tenant gate: 404 rather than 403 so other orgs cannot tell an Opie clinic exists.
+        if (!_options.AllowsAccess(currentUser.Role, currentUser.OrganizationId))
+            return NotFound(new { error = "opie-not-available" });
 
         try
         {

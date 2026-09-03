@@ -13,15 +13,34 @@ public sealed class OpieOptions
 {
     public const string ConnectionStringName = "OpieConnection";
 
+    /// <summary>Configuration key binding the Opie_data source to one Sona organization (Opie has no org concept).</summary>
+    public const string OrganizationIdKey = "Opie:OrganizationId";
+
     /// <summary>Opie's staff/internal placeholder row in tblPatients — never a real patient, never listed or notified.</summary>
     public const string PlaceholderPatientId = "-9999";
 
     public string? ConnectionString { get; }
 
-    public OpieOptions(string? connectionString)
+    /// <summary>
+    /// The Sona organization whose clinic Opie_data belongs to. Only that org's users (and
+    /// system_admin) may read the schedule or notify from it; everyone else gets 404.
+    /// Null = unbound, and the integration reports itself as not configured.
+    /// </summary>
+    public Guid? OrganizationId { get; }
+
+    public OpieOptions(string? connectionString, Guid? organizationId)
     {
         ConnectionString = string.IsNullOrWhiteSpace(connectionString) ? null : connectionString;
+        OrganizationId = organizationId;
     }
+
+    /// <summary>True once both the connection and the org binding are present.</summary>
+    public bool IsConfigured => ConnectionString != null && OrganizationId != null;
+
+    /// <summary>Tenant gate: the caller's org must be the bound org, or the caller is system_admin.</summary>
+    public bool AllowsAccess(string role, Guid? callerOrganizationId) =>
+        OrganizationId != null
+        && (role == Sona.Server.Models.Commons.UserRoles.SystemAdmin || callerOrganizationId == OrganizationId);
 }
 
 // Read DTOs describing Opie's schema. Every field is PHI — internal use only, never logged.

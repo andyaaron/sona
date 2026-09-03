@@ -61,7 +61,19 @@ else
     }
 }
 
-builder.Services.AddSingleton(new OpieOptions(opieConnectionString));
+// Opie has no org concept, so config names the Sona organization the schedule belongs to.
+// Same key in every environment (Opie:OrganizationId — Opie__OrganizationId as an app setting).
+Guid? opieOrganizationId = null;
+var opieOrganizationIdText = builder.Configuration[OpieOptions.OrganizationIdKey];
+if (!string.IsNullOrWhiteSpace(opieOrganizationIdText))
+{
+    if (!Guid.TryParse(opieOrganizationIdText, out var parsedOpieOrganizationId))
+        throw new InvalidOperationException($"{OpieOptions.OrganizationIdKey} must be a GUID (an Organizations.Id).");
+    opieOrganizationId = parsedOpieOrganizationId;
+}
+
+var opieOptions = new OpieOptions(opieConnectionString, opieOrganizationId);
+builder.Services.AddSingleton(opieOptions);
 builder.Services.AddSingleton<IOpieScheduleRepository, OpieScheduleRepository>();
 
 //SERILOG
@@ -82,6 +94,14 @@ Log.Logger = isLocal
 .WriteTo.Console()
 .CreateLogger();
 builder.Host.UseSerilog();
+
+// Diagnostic only — never the connection string itself (it carries credentials).
+if (opieOptions.ConnectionString == null)
+    Log.Information("Opie integration: not configured (ConnectionStrings:{Name} missing) — /api/opie/* answers 503 opie-not-configured", OpieOptions.ConnectionStringName);
+else if (opieOptions.OrganizationId == null)
+    Log.Warning("Opie integration: connection present but {Key} is not set — /api/opie/* answers 503 opie-not-configured until the schedule is bound to an organization", OpieOptions.OrganizationIdKey);
+else
+    Log.Information("Opie integration: configured, bound to organization {OrganizationId}", opieOptions.OrganizationId);
 
 #endregion
 

@@ -18,6 +18,7 @@ public class NotificationsController : Controller
     private readonly IAppUserUtil _appUserUtil;
     private readonly ISmsSender _smsSender;
     private readonly IPushSender _pushSender;
+    private readonly Models.Opie.OpieOptions _opieOptions;
     private readonly ILogger<NotificationsController> _logger;
 
     public NotificationsController(
@@ -26,6 +27,7 @@ public class NotificationsController : Controller
         IAppUserUtil appUserUtil,
         ISmsSender smsSender,
         IPushSender pushSender,
+        Models.Opie.OpieOptions opieOptions,
         ILogger<NotificationsController> logger)
     {
         _db = db;
@@ -33,6 +35,7 @@ public class NotificationsController : Controller
         _appUserUtil = appUserUtil;
         _smsSender = smsSender;
         _pushSender = pushSender;
+        _opieOptions = opieOptions;
         _logger = logger;
     }
 
@@ -127,21 +130,28 @@ public class NotificationsController : Controller
         if (input.MobileNumber == null || !E164.IsMatch(input.MobileNumber))
             return BadRequest(new { error = "Mobile number must be E.164 format (+15551234567)." });
 
+        if (!_opieOptions.IsConfigured)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "opie-not-configured" });
+
         var currentUser = await _currentUserService.GetCurrentUserAsync();
         if (currentUser == null)
             return Unauthorized();
+
+        // Same tenant gate as GET /api/opie/schedule: the Opie clinic's own org or system_admin.
+        if (!_opieOptions.AllowsAccess(currentUser.Role, currentUser.OrganizationId))
+            return NotFound(new { error = "opie-not-available" });
 
         var sender = await ResolveCurrentAppUserAsync();
         if (sender == null)
             return Unauthorized();
 
-        // Opie has no org concept, so the department is validated against the sender's own org.
+        // The department must belong to the org Opie is bound to (the clinic), not merely the sender's.
         Guid? departmentId = null;
         if (input.DepartmentId.HasValue)
         {
             var departmentInOrg = await _db.Departments
                 .AnyAsync(d => d.Id == input.DepartmentId.Value
-                    && (currentUser.Role == UserRoles.SystemAdmin || d.Site!.OrganizationId == currentUser.OrganizationId));
+                    && d.Site!.OrganizationId == _opieOptions.OrganizationId);
             if (!departmentInOrg)
                 return BadRequest(new { error = "Unknown department." });
 
