@@ -261,7 +261,7 @@ day selection.
   last name, keeps rows without a start time in an `unscheduled` list, and places a "now" marker
   when the date is today. An empty hour renders a single "No appointments" row — it means *nobody
   was booked*, and claims nothing about any practitioner.
-- `components/opie-schedule.tsx` (section + toolbar: `‹` / Today / `›` / date input / summary) and
+- `components/opie-schedule.tsx` (section + toolbar: date heading + Today badge + count chips, then `‹` / Today / `›` / date input) and
   `components/opie-day-sheet.tsx` (plain `<table>`, no sort/paging).
 - `components/notify-opie-button.tsx` + `api/notify-opie-patient.ts` — see §8 "Notify".
 - Tests: `day-sheet.test.ts`, `notify-opie-button.test.tsx`, `routes/index.test.tsx`; smoke E2E

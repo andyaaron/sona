@@ -37,7 +37,7 @@ test.describe('opie schedule', () => {
 
     await page.goto(`/?date=${date}`)
     await expect(page.getByTestId('opie-schedule-sheet')).toBeVisible()
-    await expect(page.getByTestId('opie-schedule-summary')).toContainText('appointments')
+    await expect(page.getByTestId('opie-schedule-summary')).toContainText(/\d+ appointments?/)
 
     // Hour headers ascend; every appointment row sits under a header
     const hourIds = await page.locator('[data-testid^="opie-schedule-hour-"]').evaluateAll((els) =>

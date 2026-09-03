@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { makeOpieScheduledPatient } from '@/testing/fixtures'
 
-import { buildDaySheet, pickMobileNumber, toE164 } from './day-sheet'
+import { buildDaySheet, countLabel, pickMobileNumber, toE164 } from './day-sheet'
 import { addDays } from './today-iso-date'
 
 const appt = (start: string, end: string | null = null, details: string | null = null) => ({
@@ -113,5 +113,14 @@ describe('addDays', () => {
     expect(addDays('2026-09-03', 1)).toBe('2026-09-04')
     expect(addDays('2026-09-01', -1)).toBe('2026-08-31')
     expect(addDays('2026-12-31', 1)).toBe('2027-01-01')
+  })
+})
+
+describe('countLabel', () => {
+  it('pluralises with "s" by default and honours an explicit (or invariant) plural', () => {
+    expect(countLabel(1, 'appointment')).toBe('1 appointment')
+    expect(countLabel(0, 'appointment')).toBe('0 appointments')
+    expect(countLabel(3, 'patient')).toBe('3 patients')
+    expect(countLabel(2, 'internal', 'internal')).toBe('2 internal')
   })
 })

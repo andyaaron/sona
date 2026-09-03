@@ -8,7 +8,7 @@ import Spinner from '@/components/spinner'
 import { getErrorMessage } from '@/lib/api-error'
 
 import { opieScheduleQueryOptions } from '../api/get-opie-schedule'
-import { buildDaySheet } from '../day-sheet'
+import { buildDaySheet, countLabel } from '../day-sheet'
 import { addDays, todayIsoDate } from '../today-iso-date'
 import { OpieDaySheet } from './opie-day-sheet'
 
@@ -20,7 +20,25 @@ interface OpieScheduleProps {
 
 function formatDateHeading(date: string): string {
   const [y, m, d] = date.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  return new Date(y, m - 1, d).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
+}
+
+interface CountChipProps {
+  id: string
+  count: number
+  /** Singular noun; pluralised with "s" unless `plural` is given. "internal" is invariant. */
+  noun: string
+  plural?: string
+  tone?: 'neutral' | 'internal'
+}
+
+function CountChip({ id, count, noun, plural, tone = 'neutral' }: CountChipProps) {
+  const toneClass = tone === 'internal' ? 'bg-amber-100 text-amber-900' : 'bg-gray-100 text-gray-700'
+  return (
+    <span data-testid={`opie-schedule-count-${id}`} className={`rounded-md px-2 py-0.5 tabular-nums ${toneClass}`}>
+      {countLabel(count, noun, plural)}
+    </span>
+  )
 }
 
 /**
@@ -45,6 +63,36 @@ export function OpieSchedule({ date, onDateChange }: OpieScheduleProps) {
   return (
     <section data-testid="opie-schedule" className="mt-8">
       <div data-testid="opie-schedule-toolbar" className="flex flex-wrap items-center gap-3">
+        {/* The date leads: it is the first thing staff look for, so it takes the heading slot
+            rather than trailing the controls as small grey text. */}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 data-testid="opie-schedule-heading" className="text-xl font-semibold text-gray-900 tabular-nums">
+            {formatDateHeading(date)}
+          </h2>
+          {date === today && (
+            <span
+              data-testid="opie-schedule-today-badge"
+              className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800"
+            >
+              Today
+            </span>
+          )}
+          {sheet && (
+            <div data-testid="opie-schedule-summary" className="flex items-center gap-1.5 text-xs font-medium">
+              <CountChip id="appointments" count={sheet.appointmentCount} noun="appointment" />
+              <CountChip id="patients" count={sheet.patientCount} noun="patient" />
+              {sheet.internalBlockCount > 0 && (
+                <CountChip
+                  id="internal"
+                  count={sheet.internalBlockCount}
+                  noun="internal"
+                  plural="internal"
+                  tone="internal"
+                />
+              )}
+            </div>
+          )}
+        </div>
         <div className="ml-auto flex items-center gap-1">
           <Button
             variant="secondary"
@@ -82,11 +130,6 @@ export function OpieSchedule({ date, onDateChange }: OpieScheduleProps) {
           value={date}
           onChange={(e) => e.target.value && onDateChange(e.target.value)}
         />
-        <p data-testid="opie-schedule-summary" className="text-sm text-gray-500">
-          {formatDateHeading(date)}
-          {sheet && ` · ${sheet.appointmentCount} appointments · ${sheet.patientCount} patients`}
-          {sheet && sheet.internalBlockCount > 0 && ` · ${sheet.internalBlockCount} internal`}
-        </p>
       </div>
 
       {notConfigured ? (

@@ -43,6 +43,11 @@ export interface DaySheet {
   internalBlockCount: number
 }
 
+/** "1 appointment" / "3 appointments" — `plural` defaults to `singular + 's'`. */
+export function countLabel(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 /** Opie stores local wall-clock without an offset, so `Date` parses it as local time. */
 export function toMinutesOfDay(iso: string | null): number | null {
   if (!iso) return null

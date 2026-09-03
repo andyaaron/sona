@@ -61,7 +61,11 @@ describe('/ dashboard — Opie day sheet', () => {
     const sheet = await screen.findByTestId('opie-schedule-sheet')
     expect(requested).toEqual(['2030-01-15'])
     expect(screen.getByTestId('opie-schedule-date')).toHaveValue('2030-01-15')
-    expect(screen.getByTestId('opie-schedule-summary')).toHaveTextContent('3 appointments · 2 patients · 1 internal')
+    expect(screen.getByTestId('opie-schedule-heading')).toHaveTextContent('Tuesday, Jan 15')
+    expect(screen.queryByTestId('opie-schedule-today-badge')).not.toBeInTheDocument()
+    expect(screen.getByTestId('opie-schedule-count-appointments')).toHaveTextContent('3 appointments')
+    expect(screen.getByTestId('opie-schedule-count-patients')).toHaveTextContent('2 patients')
+    expect(screen.getByTestId('opie-schedule-count-internal')).toHaveTextContent('1 internal')
 
     // Hours 9 → 14, in order, with the empty ones present
     const rows = within(sheet).getAllByRole('row').map((r) => r.getAttribute('data-testid'))
@@ -130,7 +134,10 @@ describe('/ dashboard — Opie day sheet', () => {
     renderRoute('/?date=2026-09-03')
 
     expect(await screen.findByTestId('opie-schedule-empty')).toHaveTextContent('No Opie appointments on this date.')
-    expect(screen.getByTestId('opie-schedule-summary')).toHaveTextContent('0 appointments · 0 patients')
+    expect(screen.getByTestId('opie-schedule-count-appointments')).toHaveTextContent('0 appointments')
+    expect(screen.getByTestId('opie-schedule-count-patients')).toHaveTextContent('0 patients')
+    // The internal chip only appears when the day has blocks
+    expect(screen.queryByTestId('opie-schedule-count-internal')).not.toBeInTheDocument()
   })
 
   it('shows the not-configured notice on 503 instead of an error (dashboard still renders)', async () => {
