@@ -135,3 +135,11 @@ export type UpdateUserFormValues = z.input<typeof updateUserSchema>;
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 export type InviteUserFormValues = z.input<typeof inviteUserSchema>;
 export type CreateOrganizationFormValues = z.input<typeof createOrganizationSchema>;
+
+/** Query for GET /api/opie/schedule — the day to list; the server defaults to today. */
+export const opieScheduleQuerySchema = z.object({
+  /** ISO date (YYYY-MM-DD) */
+  date: z.iso.date({ error: "Date must be YYYY-MM-DD" }).optional(),
+});
+
+export type OpieScheduleQuery = z.infer<typeof opieScheduleQuerySchema>;

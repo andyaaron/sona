@@ -13,6 +13,11 @@ test.describe('smoke', { tag: '@smoke' }, () => {
 
     await expect(page.getByTestId('dashboard')).toBeVisible()
     await expect(page.getByTestId('header-user-id')).toHaveText(me.hca34Id)
+    // Opie schedule region: CI has no OpieConnection, a developer machine may — accept either outcome.
+    await expect(page.getByTestId('opie-schedule-toolbar')).toBeVisible()
+    await expect(
+      page.getByTestId('opie-schedule-unconfigured').or(page.getByTestId('opie-schedule-table')),
+    ).toBeVisible()
     for (const item of ['dashboard', 'patients', 'providers', 'user-management', 'organization', 'organizations']) {
       await expect(page.getByTestId(`header-nav-${item}`)).toBeVisible()
     }

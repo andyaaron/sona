@@ -7,6 +7,7 @@ import {
   inviteUserSchema,
   notifyPatientSchema,
   npiSchema,
+  opieScheduleQuerySchema,
   updateDepartmentSchema,
   updateProviderSchema,
   updateSiteSchema,
@@ -197,5 +198,17 @@ describe("primitive schemas", () => {
     expect(npiSchema.safeParse("123456789").success).toBe(false);
     expect(createProviderSchema.safeParse({ firstName: "A", lastName: "B", npi: "12345" }).success).toBe(false);
     expect(createProviderSchema.safeParse({ firstName: "A", lastName: "B", npi: null }).success).toBe(true);
+  });
+});
+
+describe("opieScheduleQuerySchema", () => {
+  it("accepts an ISO date or nothing", () => {
+    expect(opieScheduleQuerySchema.safeParse({ date: "2026-09-03" }).success).toBe(true);
+    expect(opieScheduleQuerySchema.safeParse({}).success).toBe(true);
+  });
+
+  it("rejects non-ISO dates", () => {
+    expect(opieScheduleQuerySchema.safeParse({ date: "09/03/2026" }).success).toBe(false);
+    expect(opieScheduleQuerySchema.safeParse({ date: "2026-9-3" }).success).toBe(false);
   });
 });

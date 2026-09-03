@@ -11,6 +11,7 @@ using Serilog.Sinks.MSSqlServer;
 using Sona.Server.Data;
 using Sona.Server.Models.Auth;
 using Sona.Server.Models.Local;
+using Sona.Server.Models.Opie;
 using Sona.Server.Models.Util;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,9 @@ builder.Services.AddOpenApi();
 #region Keyvault data pull + Database Context
 
 string connectionString;
+// Opie_data (external, read-only — docs/opie-odbc-integration.md). Optional: null keeps the
+// API starting and makes /api/opie/* answer 503 opie-not-configured.
+string? opieConnectionString;
 
 if (isLocal)
 {
@@ -36,6 +40,8 @@ if (isLocal)
             + "(copy apps/sona.server/appsettings.Local.example.json).");
 
     LocalDevMode.EnsureNotAzure(connectionString);
+
+    opieConnectionString = builder.Configuration.GetConnectionString(OpieOptions.ConnectionStringName);
 }
 else
 {
@@ -43,7 +49,20 @@ else
     var keyVaultClient = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
 
     connectionString = keyVaultClient.GetSecret("DefaultConnection").Value.Value;
+
+    try
+    {
+        opieConnectionString = keyVaultClient.GetSecret(OpieOptions.ConnectionStringName).Value.Value;
+    }
+    catch (Azure.RequestFailedException ex) when (ex.Status == StatusCodes.Status404NotFound)
+    {
+        // Secret not provisioned yet in this vault — integration stays off rather than blocking startup.
+        opieConnectionString = null;
+    }
 }
+
+builder.Services.AddSingleton(new OpieOptions(opieConnectionString));
+builder.Services.AddSingleton<IOpieScheduleRepository, OpieScheduleRepository>();
 
 //SERILOG
 #region SERILOG

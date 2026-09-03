@@ -146,10 +146,16 @@ Left → right:
 
 ### `/` — Dashboard
 
-- **Purpose:** placeholder.
-- **Who:** every assigned role.
-- **Layout:** heading "Dashboard" + one paragraph "Provider dashboard — waiting room queue and notification history will live here."
-- **Regions:** `dashboard` (wrapper). No interactions, no API calls beyond `GET /api/user`.
+- **Purpose:** day view of the external **Opie** schedule (read-only; docs/opie-odbc-integration.md). Waiting-room queue / notification history still to come.
+- **Who:** every assigned role (server: `AssignedUser`; Opie has no org concept, so results are not tenant-scoped).
+- **Layout:** heading "Dashboard" + placeholder paragraph, then the **Opie Schedule** section (`opie-schedule`).
+  - **Toolbar** (`opie-schedule-toolbar`, left → right): heading "Opie Schedule" · "Date" native date input (`opie-schedule-date`, value = `?date=` or today).
+  - **Table** (`opie-schedule-table`, client-side sort/paging): title row holds only the page-size select (`opie-schedule-table-page-size`). Columns: Patient (`-header-lastName`, sortable; "Last, First Middle" + second line `"Nickname"` when present) · Appointment (`-header-appointments`; one `start – end` line per appointment, local time) · Phone (`-header-phoneNumbers`; one line per number: `number ext. N (country)`) · Email (`-header-emailAddress`) · Practitioner (`-header-primaryPractitioner`) · Language (`-header-languagePref`) · Comment (`-header-comment`; truncated, full text on hover). Missing values render as "—". Rows: `opie-schedule-table-row-<opiePatientId>`; footer `opie-schedule-table-row-count` + `-page-first|previous|info|next|last`.
+  - **States** (replace the table, toolbar stays): `opie-schedule-table-loading` while fetching · `opie-schedule-table-empty` "No Opie appointments on this date." · `opie-schedule-unconfigured` "Opie connection not configured. Set ConnectionStrings:OpieConnection on the API to load the schedule." (API `503 opie-not-configured` — the default in CI and on any machine without Opie credentials) · `opie-schedule-error` "Could not load the Opie schedule: …" (API `502 opie-unavailable` or other failure).
+- **Interactions:**
+  1. Pick a date in `opie-schedule-date` → URL `?date=YYYY-MM-DD` → `GET /api/opie/schedule?date=…`. Invalid `?date=` in the URL is rejected by the route's zod search validation.
+  2. Column header click sorts client-side (Patient, Email, Practitioner, Language only).
+- **Compliance:** every cell is PHI (names, contact details, clinical comment, encounter times). Display only — nothing on this page feeds a notification, and the API logs counts + the date, never row content.
 
 ### `/patients` — Patients (notify list)
 

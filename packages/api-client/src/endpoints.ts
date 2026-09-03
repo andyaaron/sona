@@ -10,6 +10,8 @@ import type {
   InviteUserInput,
   MessageOut,
   NotifyPatientInput,
+  OpieScheduleQuery,
+  OpieScheduledPatient,
   Organization,
   PagedResult,
   Patient,
@@ -127,4 +129,16 @@ export const notificationsApi = {
     }),
   listForPatient: (patientId: string) =>
     apiFetch<MessageOut[]>(`/api/patients/${patientId}/notifications`),
+};
+
+export const opieApi = {
+  /**
+   * Patients on the external Opie schedule for one day (server defaults to today).
+   * 503 `{ error: "opie-not-configured" }` when no OpieConnection is set;
+   * 502 `{ error: "opie-unavailable" }` when the Opie server cannot be reached.
+   */
+  schedule: (params?: OpieScheduleQuery) => {
+    const query = params?.date ? `?date=${params.date}` : "";
+    return apiFetch<OpieScheduledPatient[]>(`/api/opie/schedule${query}`);
+  },
 };

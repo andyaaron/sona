@@ -1,7 +1,8 @@
 # Handoff — Connecting `sona.server` to the Opie ODBC Database
 
 **Date:** 2026-09-03
-**Status:** Not started — planning/handoff only, no code written yet
+**Status:** Read path + dashboard table implemented (branch `orthotic-clinic-integration`, 2026-09-03);
+awaiting real `OpieConnection` credentials for an end-to-end run against `Opie_data`. See §8.
 **Owner of this doc:** update in place as decisions are made; promote to `docs/architecture.md` /
 `docs/data-model.md` once the integration ships (per AGENTS.md — docs are living, update in the
 same task as the code).
@@ -195,3 +196,24 @@ an accidental write path being added later.
   hand-run sanity check via SSMS before trusting the code path).
 - No PHI (patient name, phone, comment, email) appears in any log output — grep `Serilog` output
   during a manual test run to confirm.
+
+---
+
+## 8. As implemented (2026-09-03)
+
+Deviations from §4–§5 and the reasons:
+
+| Area | Decision |
+|---|---|
+| Driver | `Microsoft.Data.SqlClient` + `SqlDataReader` in `apps/sona.server/Models/Opie/OpieScheduleRepository.cs` — **not** a second EF `DbContext`: with two contexts every `dotnet ef` command in `docs/getting-started.md` would need `--context`, and Opie's schema is not ours to model or migrate. Read-only by construction (no write path). |
+| Query shape | Three parameterised queries per request (schedule rows, phone rows, patient rows), all filtered by `CAST(fldPatientScheduleStartTime AS DATE) = @date`, assembled in code into one `OpieScheduledPatient` per patient with `appointments[]` + `phoneNumbers[]` (the §2 fan-out advice). |
+| Column types | Unknown, so readers are type-agnostic (`fldPatientID` round-trips as a trimmed string; datetimes as ISO `"O"`). Revisit once a real connection confirms the types. |
+| Config | `ConnectionStrings:OpieConnection` — Local: `appsettings.Local.json` (placeholder in `appsettings.Local.example.json`); Dev/Prod: Key Vault secret `OpieConnection`, 404 tolerated. Missing → `IOpieScheduleRepository.IsConfigured == false`, API still starts. |
+| Endpoint | `GET /api/opie/schedule?date=YYYY-MM-DD` (`OpieController`, policy `AssignedUser`, default = server's today). `400` bad date · `503 opie-not-configured` · `502 opie-unavailable` (SqlException etc., logged with date only). Not tenant-scoped — Opie has no org concept (open question for §6). |
+| Contract | Exposed through the API, so per AGENTS.md Rule 2 the shapes live in `packages/shared` (`OpieScheduledPatient`, `OpieAppointment`, `OpiePhoneNumber`, `opieScheduleQuerySchema`) and `packages/api-client` (`opieApi.schedule`). Kept as their own types, not folded into `Patient` — no identity mapping exists yet. |
+| Consumer | Admin dashboard `/` → **Opie Schedule** table with a date picker (`apps/sona.client/src/features/opie-schedule/`). Display only; `fldPatientComment` is shown truncated with hover — confirm it should be on screen at all (§3). Layout/testids in `docs/admin-ui-guide.md`. |
+| Logging | Counts + date only (`"Opie schedule for {ScheduleDate}: {PatientCount} patients"`); exceptions carry server/login details, never row data. |
+
+Still open from §6: purpose beyond display, `fldPatientID` ↔ `Patient.Id` matching, BAA coverage, read-only login, refresh cadence (currently a live query per page load, cached by TanStack Query per date).
+
+Verification checklist for the first real run: fill `OpieConnection` in `appsettings.Local.json`, restart the API, open `/`, pick a date with known appointments, compare against the §2 SQL in SSMS, and grep the console log for any name/phone/email/comment (there must be none).

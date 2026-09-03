@@ -159,3 +159,42 @@ export interface MessageOut {
   sentAt: string | null;
   deliveredAt: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Opie (external practice-management DB, read-only) — docs/opie-odbc-integration.md
+// ---------------------------------------------------------------------------
+
+/** One tblPatientSchedule row. ISO datetimes without offset (Opie stores local wall-clock). */
+export interface OpieAppointment {
+  startTime: string | null;
+  endTime: string | null;
+}
+
+/** One tblPatientPhoneNumbers row. Raw as stored in Opie — not normalised to E.164. */
+export interface OpiePhoneNumber {
+  number: string | null;
+  extension: string | null;
+  country: string | null;
+}
+
+/**
+ * A patient on Opie's schedule for a given day, assembled server-side from
+ * tblPatients + tblPatientSchedule + tblPatientPhoneNumbers (GET /api/opie/schedule).
+ * `opiePatientId` is Opie's fldPatientID — a different identity space from Sona's
+ * `Patient.id`; no mapping exists yet. Every field is PHI: internal, role-gated views
+ * only — never in a notification, log line or URL (docs/compliance.md).
+ */
+export interface OpieScheduledPatient {
+  opiePatientId: string;
+  lastName: string | null;
+  firstName: string | null;
+  middleName: string | null;
+  nickName: string | null;
+  emailAddress: string | null;
+  /** Free-text clinical notes — highest-risk field in the payload. */
+  comment: string | null;
+  primaryPractitioner: string | null;
+  languagePref: string | null;
+  appointments: OpieAppointment[];
+  phoneNumbers: OpiePhoneNumber[];
+}
