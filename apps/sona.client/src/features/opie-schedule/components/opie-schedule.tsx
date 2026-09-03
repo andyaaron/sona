@@ -45,7 +45,6 @@ export function OpieSchedule({ date, onDateChange }: OpieScheduleProps) {
   return (
     <section data-testid="opie-schedule" className="mt-8">
       <div data-testid="opie-schedule-toolbar" className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold text-gray-900">Opie Schedule</h2>
         <div className="ml-auto flex items-center gap-1">
           <Button
             variant="secondary"

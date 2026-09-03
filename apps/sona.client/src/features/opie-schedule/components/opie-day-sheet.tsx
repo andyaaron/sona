@@ -27,7 +27,7 @@ function ContactCell({ patient }: { patient: OpieScheduledPatient }) {
       {patient.phoneNumbers.map((ph, i) => (
         <li key={i} className="whitespace-nowrap">
           {ph.number ?? '—'}
-          {ph.extension && <span className="text-gray-500"> ext. {ph.extension}</span>}
+          {/*{ph.extension && <span className="text-gray-500"> ext. {ph.extension}</span>}*/}
           {ph.country && <span className="text-gray-400"> ({ph.country})</span>}
         </li>
       ))}
@@ -52,14 +52,13 @@ function AppointmentRow({ row }: { row: DaySheetRow }) {
       <td className="px-3 py-2">
         <PatientCell patient={patient} />
       </td>
-      <td className="px-3 py-2">{patient.primaryPractitioner ?? <Dash />}</td>
       <td className="px-3 py-2">
         <ContactCell patient={patient} />
       </td>
       <td className="px-3 py-2">
         {/* Clinical free text: full text on hover only, truncated in the row. */}
         {patient.comment ? (
-          <span className="block max-w-xs truncate" title={patient.comment}>
+          <span className="block max-w-xs" title={patient.comment}>
             {patient.comment}
           </span>
         ) : (
@@ -76,7 +75,15 @@ function AppointmentRow({ row }: { row: DaySheetRow }) {
 function NowMarker() {
   return (
     <tr data-testid="opie-schedule-now" aria-label="Current time">
-      <td colSpan={6} className="border-t-2 border-red-400 p-0" />
+      <td colSpan={6} className="p-0">
+        {/* Flex layout (rather than absolute-positioned circles) keeps the whole marker within its own
+            row box, so it isn't clipped by the sheet's horizontally-scrolling container. */}
+        <div className="flex h-2 items-center">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-sky-400" />
+          <div className="h-0.5 flex-1 bg-sky-400" />
+          <span className="h-2 w-2 shrink-0 rounded-full bg-sky-400" />
+        </div>
+      </td>
     </tr>
   )
 }
@@ -137,13 +144,6 @@ export function OpieDaySheet({ sheet }: { sheet: DaySheet }) {
           <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
             <th className="px-3 py-2">Time</th>
             <th className="px-3 py-2">Patient</th>
-            {/* Opie only exposes the patient's primary practitioner, not who each appointment is with. */}
-            <th
-              className="px-3 py-2"
-              title="Patient's primary practitioner (Opie has no per-appointment practitioner)"
-            >
-              Practitioner
-            </th>
             <th className="px-3 py-2">Contact</th>
             <th className="px-3 py-2">Comment</th>
             <th className="px-3 py-2" />
