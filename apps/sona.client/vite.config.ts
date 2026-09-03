@@ -53,6 +53,8 @@ export default defineConfig({
       routesDirectory: './src/routes',
       generatedRouteTree: './src/routeTree.gen.ts',
       autoCodeSplitting: true,
+      // Test files live next to the routes they cover; they are not routes.
+      routeFileIgnorePattern: '\\.(test|spec)\\.[jt]sx?$',
     }),
     react(),
     tailwindcss(),
