@@ -217,3 +217,70 @@ Deviations from §4–§5 and the reasons:
 Still open from §6: purpose beyond display, `fldPatientID` ↔ `Patient.Id` matching, BAA coverage, read-only login, refresh cadence (currently a live query per page load, cached by TanStack Query per date).
 
 Verification checklist for the first real run: fill `OpieConnection` in `appsettings.Local.json`, restart the API, open `/`, pick a date with known appointments, compare against the §2 SQL in SSMS, and grep the console log for any name/phone/email/comment (there must be none).
+
+---
+
+## 9. Dashboard schedule layout redesign (proposed, not yet implemented — 2026-09-03)
+
+**Problem:** the current dashboard renders the Opie schedule as a patient-per-row table
+(`OpieScheduleTable`, one row per `OpieScheduledPatient` with a nested list of appointments). This
+was raised for discussion because a table organized by patient doesn't read like a clinic's daily
+schedule — the ask is a time-oriented view: from start of day to end of day, each slot either open
+or booked.
+
+### 9.1 Data constraints found while scoping this
+
+- `OpieAppointment` (`packages/shared/src/types.ts`) is only `{ startTime, endTime }` — Opie's
+  source data (§2) is a list of *booked* appointments; there is no concept of clinic operating
+  hours or empty slots anywhere upstream. "Open" cannot be fetched — it can only be *derived* from
+  gaps between known appointments.
+- No slot-duration/interval config exists anywhere (not in `packages/shared`, not in Opie). A fixed
+  grid ("every row = one 15-min slot") would require inventing new configuration (clinic
+  open/close time + interval, presumably per department) — a contract change, not a display change.
+- `primaryPractitioner` is a field on the *patient*, not on the individual appointment — it's the
+  patient's primary practitioner generally, not necessarily confirmed as who a given appointment
+  slot is with.
+- No appointment type, room, resource, or status field is available.
+- The `/api/opie/schedule` endpoint is not tenant/department-scoped (Opie has no org concept — an
+  existing open question, see §6).
+
+### 9.2 Options considered
+
+1. **Sorted agenda list** — flatten to one row per appointment, sorted chronologically. No new
+   backend data or contract change; ships entirely client-side.
+2. **Fixed time-grid** (e.g. rows every 15 min from open to close, booked appointments span their
+   duration, empty rows = open) — most literal match to the original ask, but needs new
+   clinic-hours/interval configuration that doesn't exist today (contract change).
+3. **Calendar day view with provider columns** (swimlanes, like a typical scheduling UI) — same
+   grid idea as (2) but with a column per practitioner, needed once more than one practitioner can
+   have concurrent appointments (a single-lane grid can't represent two patients booked at the same
+   time with different providers).
+
+### 9.3 Decision (pending review)
+
+Clarified with the requester:
+- Multiple practitioners **can** run concurrent appointments on the same day.
+- "Open" only needs to mean a visual gap between known appointments — not a true bookable slot
+  validated against clinic hours.
+- Scope for now: start small (option 1, agenda), not the full grid (option 2/3).
+
+**Proposed design:** a *per-practitioner* agenda, not one flat clinic-wide list — a single sorted
+list would compute gaps that are misleading once providers overlap (e.g. Dr. A idle 10:00–10:30
+while Dr. B is booked would still show as clinic-wide "open," which is wrong).
+
+- Group appointments by `primaryPractitioner`; one section (or column, if width allows) per
+  provider. Patients with no `primaryPractitioner` get their own "Unassigned" section so nothing
+  silently disappears.
+- Within each provider's section, flatten patient → appointment (a patient can have more than one
+  appointment/day per `OpieAppointment[]`) and sort by `startTime` — not grouped by patient like
+  the current table.
+- Between consecutive appointments in the same provider's list, if the gap exceeds a small
+  threshold (e.g. 10 min), render a lightweight "— 25 min open —" divider row. Purely derived from
+  existing `startTime`/`endTime`; no new data.
+- Patient identity fields (name, phone, comment, etc.) stay exactly as today — same PHI handling,
+  same truncate/hover convention for `comment`, same `data-testid` conventions to update in
+  `docs/admin-ui-guide.md` alongside the implementation.
+- Fits entirely within `apps/sona.client/src/features/opie-schedule/` — no `packages/shared` or
+  `apps/sona.server` changes required for this iteration. Options 2/3 (true time-grid, provider
+  swimlanes with clinic-hours config) remain open as a possible follow-up if the agenda view proves
+  insufficient.
