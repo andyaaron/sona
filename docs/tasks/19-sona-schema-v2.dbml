@@ -9,6 +9,7 @@ Project Sona {
     Tenant boundary is Organizations. Divisions is ownership/reporting only — never a data-visibility scope.
     Golden rule: no PHI in notification payloads, logs, or URLs (docs/compliance.md).
     No table carries CreateDate/ModDate: AuditLogs records create / edit / delete for every entity (Part C).
+    No application-log table: the app is hosted on Azure, Serilog goes to Application Insights (AppLogs dropped in Part C).
     Tables in the `planned` group are documented in docs/data-model.md but not yet in the database.
     Shelved, may return: ImportBatches + ImportRowErrors (flat-file import audit, was Task 09) — see the note at the end of this file; the patient mobile app (Devices table, push channel, Patients.IsUsingMobileApp).
   '''
@@ -214,22 +215,6 @@ Table MessagesOut {
   }
 
   Note: 'THE audit log for sends. Every send path writes a row here before dispatch (no fire-and-forget); consent-blocked attempts are persisted as failed. All FKs restrict so rows survive their references.'
-}
-
-// ---------------------------------------------------------------------------
-// Ops
-// ---------------------------------------------------------------------------
-
-Table AppLogs {
-  Id int [pk, increment]
-  Message nvarchar(max)
-  MessageTemplate nvarchar(max)
-  Level nvarchar(max)
-  TimeStamp datetime2
-  Exception nvarchar(max)
-  Properties nvarchar(max) [note: 'structured props as JSON — PHI leaks here easily, convention-guarded only']
-
-  Note: 'Serilog sink. Not a domain table.'
 }
 
 // ---------------------------------------------------------------------------

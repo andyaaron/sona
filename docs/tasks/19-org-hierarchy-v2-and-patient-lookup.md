@@ -30,6 +30,7 @@ Three parts, three migrations, three PRs. Part A is pure hierarchy; Part B moves
 | **No `CreateDate`/`ModDate` on any table** — including the existing `EntityBase` ones. `AuditLogs` records create / edit / delete for every entity (Part C). | Decided 2026-09-02. One audit mechanism, not two. `EntityBase` shrinks to the uuid v7 PK. |
 | **Cerner is not MVP.** `Patient.InCerner` dropped (Part B), `cerner` removed from the `ImportSource`/`Source` value sets, `Encounter` stays on the diagram as a future-enhancement box only. `AssigningAuthority` remains — it is the hook a future EHR feed plugs into, not Cerner-specific. | Decided 2026-09-02. |
 | **Patient mobile app shelved (not MVP).** `Patient.IsUsingMobileApp` dropped (Part B), `Device` table stays a shelved box, notifications are SMS-only: the notify path no longer branches on channel, `IPushSender`/`LoggingStubPushSender` are deleted, `MessageOut.Channel` column stays (audit) but only `sms` is ever written and the contract's `NotificationChannel` narrows to `"sms"`. | Decided 2026-09-02. `Channel` column kept so re-enabling push is additive. |
+| **No application-log table.** `AppLogs` dropped (Part C); Serilog's `MSSqlServer` sink is replaced by the Application Insights sink. | Decided 2026-09-02: the app is hosted on Azure, Azure Monitor is the log store. A table was only ever a stand-in. |
 | **Import tables shelved.** `ImportBatch`/`ImportRowError` classes are deleted; the design is kept as a note in the DBML file for when flat-file import returns. `Patient.ImportBatchId` (bare guid today) is dropped in Part B. | Decided 2026-09-02. Nothing references them; Task 09 is deferred indefinitely. |
 | **Roles unchanged.** No `division_admin`. | No user needs it yet. |
 | **Division gets a real admin page** (system_admin), not just an API. | Decided 2026-09-02 (Q8). |
@@ -157,12 +158,14 @@ Index `(TableName, RecordId)`. No FK on `RecordId` (polymorphic). Rows are never
 1. Create `AuditLogs`.
 2. Drop `CreateDate`/`ModDate` from `Organizations`, `Facilities`, `Departments`, `UserDepartmentAccesses`, `Providers`, `MessageTemplates`, `MessagesOut`, `Divisions` and `PatientLookups` if they were created with them, and `InDate`/`ModDate` from `AppUsers`. **Exception:** `MessagesOut.CreateDate` is the *attempt* timestamp (consent-blocked attempts have no `SentDateTime`) — **rename it to `AttemptedDateTime`**, do not drop it.
 3. No backfill of `AuditLogs` from the dropped columns — history before this migration is simply not available. Say so in `data-model.md`.
+4. Drop `AppLogs`. Remove `DbSet<AppLog>` and `Data/DbModels/AppLog.cs`.
 
 ### 4b.3 Server
 
 - `EntityBase` → uuid v7 `Id` only. `IAuditStamped`, `StampEntityBaseTimestamps` removed.
 - `ApplicationDbContext.SaveChanges`/`SaveChangesAsync` override writes one `AuditLogs` row per Added / Modified / (soft-)Deleted entry, resolving `ChangedByUserId` from `ICurrentUserService` (null when unavailable). `AuditLogs` and `AppLogs` themselves are excluded. **PHI rule:** `Changes` must not carry `MobileNumber`, `Dob`, names, or `MessageOut.Body` — log column names + a redaction marker for those, or hash them; decide with the team's existing pattern.
 - `AppUser.LastLogin` stays (business field, not an audit timestamp).
+- **Serilog:** in `Program.cs` replace `.WriteTo.MSSqlServer(...)` with `.WriteTo.ApplicationInsights(...)` (`Serilog.Sinks.ApplicationInsights`, `TelemetryConverter.Traces`), connection string from `APPLICATIONINSIGHTS_CONNECTION_STRING` / Key Vault like the Webex config; drop the `Serilog.Sinks.MSSqlServer` package. Local profile stays console-only. Keep `restrictedToMinimumLevel: Warning` for the remote sink. Compliance: Azure Monitor is covered by the Microsoft BAA — confirm it is in the signed scope with the hosting BAA (`docs/compliance.md` checklist), and keep the PHI-in-logs rule: ids only, never patient fields, in structured properties.
 - Contract: any DTO exposing `createDate`/`modDate`/`inDate` drops it. Check `CurrentUserDto` and the organization/provider DTOs. Client: `pnpm typecheck` finds the consumers; fixtures updated.
 
 ### 4b.4 Tests
@@ -279,14 +282,6 @@ erDiagram
         datetime ChangedAt
         string Changes "shape TBD - match other apps"
     }
-    AppLog {
-        int Id PK
-        string Level
-        string Message
-        string Exception
-        string Properties
-        datetime TimeStamp
-    }
     MessageIn {
         uuid Id PK "planned, Enh 1"
     }
@@ -323,10 +318,10 @@ erDiagram
 
 ## 6. Docs (same PR as the code they describe)
 
-- `docs/data-model.md`: new `Division` section; `Organization` (drop `Type`, add `DivisionId`); `Site` → `Facility`; `Department.FacilityType`; new `PatientLookup` section; `Patient` table loses the `Mrn` and `ImportBatchId` rows; new `AuditLogs` section and the conventions paragraph rewritten (no timestamps on tables); `ImportBatch`/`ImportRowError` section replaced by a one-paragraph "shelved" note; mermaid diagram; § Multi-practice patients gains a sentence on assigning authority.
+- `docs/data-model.md`: `AppLogs` removed; new `Division` section; `Organization` (drop `Type`, add `DivisionId`); `Site` → `Facility`; `Department.FacilityType`; new `PatientLookup` section; `Patient` table loses the `Mrn` and `ImportBatchId` rows; new `AuditLogs` section and the conventions paragraph rewritten (no timestamps on tables); `ImportBatch`/`ImportRowError` section replaced by a one-paragraph "shelved" note; mermaid diagram; § Multi-practice patients gains a sentence on assigning authority.
 - `docs/admin-ui-guide.md`: `/divisions` page, organizations page changes, org structure page (Facility wording, ids, FacilityType select/column) — verified in a running Local app.
 - `docs/tasks/_context.md`: a "Task 19 shipped" bullet in the implementation-state list; correct the Task 08 bullet's `Sites` reference.
-- `docs/getting-started.md`: seed ids (default division).
+- `docs/getting-started.md`: seed ids (default division); Application Insights connection string setup replaces any `AppLogs` mention. `docs/compliance.md`: logging vendor line updated to Azure Monitor.
 - `docs/patient-tasks.md`: tick the Task 19 entry.
 
 ## 7. Resolved questions (2026-09-02)
@@ -360,6 +355,7 @@ erDiagram
 
 Per `_context.md` §Definition of Done, plus:
 - Each migration applied to a fresh Local database from `database update` alone **and** on top of a database that already has an org/facility/department/active patient/soft-deleted patient — confirm every row survives, backfills produce the expected values, and `Down` restores `Patients.Mrn`; paste the `SELECT`s in the report.
-- Report includes the migration operations list (Part A: proving rename, not drop+create; Part B: backfill row count = patient count; Part C: `MessagesOut.CreateDate` renamed, not dropped).
+- Report includes the migration operations list (Part A: proving rename, not drop+create; Part B: backfill row count = patient count; Part C: `MessagesOut.CreateDate` renamed, not dropped; `AppLogs` dropped).
+- Part C: API starts in `Development` with an Application Insights connection string and a warning-level event shows up in the Azure portal (or, without a connection string, the sink is skipped with a startup log line and the API still starts — same fail-open rule as Webex).
 - `pnpm typecheck && pnpm build && pnpm test && pnpm e2e` green; `dotnet build Sona.slnx` green.
 - Divisions page and org structure changes exercised in a running Local app per the guide's playbook; report quotes what was observed.
