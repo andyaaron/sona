@@ -1,8 +1,9 @@
 # Handoff — Connecting `sona.server` to the Opie ODBC Database
 
 **Date:** 2026-09-03
-**Status:** Read path + dashboard table implemented (branch `orthotic-clinic-integration`, 2026-09-03);
-awaiting real `OpieConnection` credentials for an end-to-end run against `Opie_data`. See §8.
+**Status:** Read path, dashboard day sheet and notify-from-schedule implemented (branch
+`orthotic-clinic-integration`, 2026-09-03). Verified only against the fake local `Opie_data`
+(Docker, 3 sample patients, the §2 columns only) — the real schema still needs checking. See §8–§9.
 **Owner of this doc:** update in place as decisions are made; promote to `docs/architecture.md` /
 `docs/data-model.md` once the integration ships (per AGENTS.md — docs are living, update in the
 same task as the code).
@@ -211,76 +212,65 @@ Deviations from §4–§5 and the reasons:
 | Config | `ConnectionStrings:OpieConnection` — Local: `appsettings.Local.json` (placeholder in `appsettings.Local.example.json`); Dev/Prod: Key Vault secret `OpieConnection`, 404 tolerated. Missing → `IOpieScheduleRepository.IsConfigured == false`, API still starts. |
 | Endpoint | `GET /api/opie/schedule?date=YYYY-MM-DD` (`OpieController`, policy `AssignedUser`, default = server's today). `400` bad date · `503 opie-not-configured` · `502 opie-unavailable` (SqlException etc., logged with date only). Not tenant-scoped — Opie has no org concept (open question for §6). |
 | Contract | Exposed through the API, so per AGENTS.md Rule 2 the shapes live in `packages/shared` (`OpieScheduledPatient`, `OpieAppointment`, `OpiePhoneNumber`, `opieScheduleQuerySchema`) and `packages/api-client` (`opieApi.schedule`). Kept as their own types, not folded into `Patient` — no identity mapping exists yet. |
-| Consumer | Admin dashboard `/` → **Opie Schedule** table with a date picker (`apps/sona.client/src/features/opie-schedule/`). Display only; `fldPatientComment` is shown truncated with hover — confirm it should be on screen at all (§3). Layout/testids in `docs/admin-ui-guide.md`. |
+| Consumer | Admin dashboard `/` → **Opie Schedule** day sheet with prev/today/next + date picker (`apps/sona.client/src/features/opie-schedule/`; layout/testids in `docs/admin-ui-guide.md`). `fldPatientComment` is shown truncated with hover — confirm it should be on screen at all (§3). Replaced the patient-per-row table on 2026-09-03 (§9). |
+| Placeholder rows | Opie staff book internal blocks against `fldPatientID = -9999`; the repository drops that key when reading (`OpieOptions.PlaceholderPatientId`), and `notifyOpiePatientSchema` / the endpoint refuse it. |
+| Notify | `POST /api/opie/notify {opiePatientId, mobileNumber (E.164), departmentId?, smsConsentAttested}` (`NotificationsController.NotifyOpiePatient`, policy `AssignedUser`). Opie patients have **no Sona `Patient` row and no id mapping**, so the audit row is a `MessagesOut` with `PatientId = null`, `OpiePatientId` set and `SmsConsentAttested` (migration `20260903171937_OpieNotifications`; `docs/data-model.md`). SMS only. Number chosen client-side: first Opie phone row that normalises to E.164 (`day-sheet.ts` `toE164` — ten digits assumed NANP). Consent: Opie has no consent field, so the sender attests it in the dialog; `409` + audited `sms-consent-missing` otherwise (`docs/compliance.md`). Department is validated against the sender's own org (Opie has none). |
 | Logging | Counts + date only (`"Opie schedule for {ScheduleDate}: {PatientCount} patients"`); exceptions carry server/login details, never row data. |
 
-Still open from §6: purpose beyond display, `fldPatientID` ↔ `Patient.Id` matching, BAA coverage, read-only login, refresh cadence (currently a live query per page load, cached by TanStack Query per date).
+Still open from §6: `fldPatientID` ↔ `Patient.Id` matching (decision 2026-09-03: **keep the two id spaces separate** — Sona `Patients.Id` is an int identity and so is Opie's key, so they collide; when a mapping is wanted add a nullable, per-org-unique `Patients.OpiePatientId` populated by an import/matching job, keep using `Patients.Id` everywhere in Sona, and backfill `MessagesOut.PatientId` from `MessagesOut.OpiePatientId` in one join), BAA coverage, read-only login, refresh cadence (currently a live query per page load, cached by TanStack Query per date), and whether sender-attested consent is acceptable (compliance.md).
 
 Verification checklist for the first real run: fill `OpieConnection` in `appsettings.Local.json`, restart the API, open `/`, pick a date with known appointments, compare against the §2 SQL in SSMS, and grep the console log for any name/phone/email/comment (there must be none).
 
 ---
 
-## 9. Dashboard schedule layout redesign (proposed, not yet implemented — 2026-09-03)
+## 9. Dashboard day sheet (implemented 2026-09-03)
 
-**Problem:** the current dashboard renders the Opie schedule as a patient-per-row table
-(`OpieScheduleTable`, one row per `OpieScheduledPatient` with a nested list of appointments). This
-was raised for discussion because a table organized by patient doesn't read like a clinic's daily
-schedule — the ask is a time-oriented view: from start of day to end of day, each slot either open
-or booked.
+**Problem:** the first cut rendered the schedule as a patient-per-row table with a nested list of
+appointments — it did not read like a clinic day. The ask: start of day → end of day, table-esque,
+day selection.
 
-### 9.1 Data constraints found while scoping this
+### 9.1 Audit of the earlier proposal (per-practitioner agenda) — why it was not built
 
-- `OpieAppointment` (`packages/shared/src/types.ts`) is only `{ startTime, endTime }` — Opie's
-  source data (§2) is a list of *booked* appointments; there is no concept of clinic operating
-  hours or empty slots anywhere upstream. "Open" cannot be fetched — it can only be *derived* from
-  gaps between known appointments.
-- No slot-duration/interval config exists anywhere (not in `packages/shared`, not in Opie). A fixed
-  grid ("every row = one 15-min slot") would require inventing new configuration (clinic
-  open/close time + interval, presumably per department) — a contract change, not a display change.
-- `primaryPractitioner` is a field on the *patient*, not on the individual appointment — it's the
-  patient's primary practitioner generally, not necessarily confirmed as who a given appointment
-  slot is with.
-- No appointment type, room, resource, or status field is available.
-- The `/api/opie/schedule` endpoint is not tenant/department-scoped (Opie has no org concept — an
-  existing open question, see §6).
+- It grouped by `fldPatientPrimaryPractitioner` and derived per-provider "open" gaps. That column is
+  the *patient's* primary practitioner, not who a given appointment is with (§2), so a gap labelled
+  "Dr. A idle 10:00–10:30" would have been confidently wrong. Per-provider views need an
+  appointment-level practitioner column, which the pulled schema does not have.
+- "A time grid needs clinic-hours configuration" was overstated: the day's bounds can be derived
+  from the first start / last end, and the interval is a display constant. Only *true* clinic hours
+  (showing 8 AM when nobody is booked until 10) would need config.
+- The §2 column list was treated as the whole schema. Opie's real `tblPatientSchedule` very likely
+  has practitioner/resource, status/cancelled, type and location columns; today cancelled
+  appointments would render as booked. First action when real credentials are available:
 
-### 9.2 Options considered
+  ```sql
+  SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME = 'tblPatientSchedule' ORDER BY ORDINAL_POSITION;
+  ```
+- Not handled there: null start (cannot be placed), null end (no duration), double-booked rows
+  (negative "gap"), and the shared `TableComponent`'s sort/paging, which would break time order.
 
-1. **Sorted agenda list** — flatten to one row per appointment, sorted chronologically. No new
-   backend data or contract change; ships entirely client-side.
-2. **Fixed time-grid** (e.g. rows every 15 min from open to close, booked appointments span their
-   duration, empty rows = open) — most literal match to the original ask, but needs new
-   clinic-hours/interval configuration that doesn't exist today (contract change).
-3. **Calendar day view with provider columns** (swimlanes, like a typical scheduling UI) — same
-   grid idea as (2) but with a column per practitioner, needed once more than one practitioner can
-   have concurrent appointments (a single-lane grid can't represent two patients booked at the same
-   time with different providers).
+### 9.2 What was built
 
-### 9.3 Decision (pending review)
+`apps/sona.client/src/features/opie-schedule/` — client-only; the schedule endpoint is unchanged.
 
-Clarified with the requester:
-- Multiple practitioners **can** run concurrent appointments on the same day.
-- "Open" only needs to mean a visual gap between known appointments — not a true bookable slot
-  validated against clinic hours.
-- Scope for now: start small (option 1, agenda), not the full grid (option 2/3).
+- `day-sheet.ts` — `buildDaySheet(patients, nowMinutes)`: flattens patient → appointment (one row
+  per appointment, key `<opiePatientId>-<n>`), drops `-9999`, buckets rows by **hour** from the
+  hour of the first start to the hour containing the last end, sorts within an hour by start then
+  last name, keeps rows without a start time in an `unscheduled` list, and places a "now" marker
+  when the date is today. An empty hour renders a single "No appointments" row — it means *nobody
+  was booked*, and claims nothing about any practitioner.
+- `components/opie-schedule.tsx` (section + toolbar: `‹` / Today / `›` / date input / summary) and
+  `components/opie-day-sheet.tsx` (plain `<table>`, no sort/paging).
+- `components/notify-opie-button.tsx` + `api/notify-opie-patient.ts` — see §8 "Notify".
+- Tests: `day-sheet.test.ts`, `notify-opie-button.test.tsx`, `routes/index.test.tsx`; smoke E2E
+  accepts unconfigured / sheet / empty.
 
-**Proposed design:** a *per-practitioner* agenda, not one flat clinic-wide list — a single sorted
-list would compute gaps that are misleading once providers overlap (e.g. Dr. A idle 10:00–10:30
-while Dr. B is booked would still show as clinic-wide "open," which is wrong).
+### 9.3 Follow-ups once the real schema is known
 
-- Group appointments by `primaryPractitioner`; one section (or column, if width allows) per
-  provider. Patients with no `primaryPractitioner` get their own "Unassigned" section so nothing
-  silently disappears.
-- Within each provider's section, flatten patient → appointment (a patient can have more than one
-  appointment/day per `OpieAppointment[]`) and sort by `startTime` — not grouped by patient like
-  the current table.
-- Between consecutive appointments in the same provider's list, if the gap exceeds a small
-  threshold (e.g. 10 min), render a lightweight "— 25 min open —" divider row. Purely derived from
-  existing `startTime`/`endTime`; no new data.
-- Patient identity fields (name, phone, comment, etc.) stay exactly as today — same PHI handling,
-  same truncate/hover convention for `comment`, same `data-testid` conventions to update in
-  `docs/admin-ui-guide.md` alongside the implementation.
-- Fits entirely within `apps/sona.client/src/features/opie-schedule/` — no `packages/shared` or
-  `apps/sona.server` changes required for this iteration. Options 2/3 (true time-grid, provider
-  swimlanes with clinic-hours config) remain open as a possible follow-up if the agenda view proves
-  insufficient.
+- If `tblPatientSchedule` carries a practitioner/resource: add it to `OpieAppointment`
+  (`packages/shared` + `packages/api-client` + repository, one task), then provider swimlanes and
+  per-provider gaps become legitimate.
+- If it carries a status/cancelled flag: filter server-side so cancelled slots do not show as booked.
+- Confirm `fldPatientID`'s type (the fake DB uses `int`; the reader is type-agnostic either way) and
+  that `-9999` is the only placeholder value.
+- Week strip with per-day counts (seven queries) if daily stepping proves too slow to scan.

@@ -16,7 +16,7 @@ test.describe('smoke', { tag: '@smoke' }, () => {
     // Opie schedule region: CI has no OpieConnection, a developer machine may — accept either outcome.
     await expect(page.getByTestId('opie-schedule-toolbar')).toBeVisible()
     await expect(
-      page.getByTestId('opie-schedule-unconfigured').or(page.getByTestId('opie-schedule-table')),
+      page.getByTestId('opie-schedule-unconfigured').or(page.getByTestId('opie-schedule-sheet')).or(page.getByTestId('opie-schedule-empty')),
     ).toBeVisible()
     for (const item of ['dashboard', 'patients', 'providers', 'user-management', 'organization', 'organizations']) {
       await expect(page.getByTestId(`header-nav-${item}`)).toBeVisible()

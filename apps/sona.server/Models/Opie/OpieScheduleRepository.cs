@@ -13,6 +13,9 @@ public sealed class OpieOptions
 {
     public const string ConnectionStringName = "OpieConnection";
 
+    /// <summary>Opie's staff/internal placeholder row in tblPatients — never a real patient, never listed or notified.</summary>
+    public const string PlaceholderPatientId = "-9999";
+
     public string? ConnectionString { get; }
 
     public OpieOptions(string? connectionString)
@@ -190,7 +193,8 @@ public sealed class OpieScheduleRepository : IOpieScheduleRepository
         if (reader.IsDBNull(ordinal))
             return null;
         var text = Convert.ToString(reader.GetValue(ordinal), CultureInfo.InvariantCulture)?.Trim();
-        return string.IsNullOrEmpty(text) ? null : text;
+        // Staff book internal blocks against the -9999 placeholder; it is not a patient.
+        return string.IsNullOrEmpty(text) || text == OpieOptions.PlaceholderPatientId ? null : text;
     }
 
     private static string? ReadString(SqlDataReader reader, int ordinal)

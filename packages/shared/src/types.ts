@@ -139,7 +139,12 @@ export type NotificationStatus =
  */
 export interface MessageOut {
   id: string;
-  patientId: string;
+  /** Sona patient id; null when the recipient was an Opie schedule patient (see opiePatientId) */
+  patientId: string | null;
+  /** Opie fldPatientID for sends made from the Opie schedule — a different identity space from patientId */
+  opiePatientId: string | null;
+  /** TCPA: true when the sender attested consent at send time (Opie sends only — Opie has no consent field) */
+  smsConsentAttested: boolean;
   /** AppUser ids are numeric (int PK), unlike the uuid-string ids elsewhere */
   sentByUserId: number;
   channel: NotificationChannel;

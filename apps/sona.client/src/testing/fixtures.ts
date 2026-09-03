@@ -156,6 +156,8 @@ export function makeMessageOut(overrides: Partial<MessageOut> = {}): MessageOut 
   return {
     id: V7_ID,
     patientId: '1',
+    opiePatientId: null,
+    smsConsentAttested: false,
     sentByUserId: 1,
     channel: 'sms',
     messageTemplateId: null,

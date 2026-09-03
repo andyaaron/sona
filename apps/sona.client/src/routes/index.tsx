@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { opieScheduleQuerySchema } from '@sona/shared'
 
-import { OpieScheduleTable } from '@/features/opie-schedule/components/opie-schedule-table'
+import { OpieSchedule } from '@/features/opie-schedule/components/opie-schedule'
 import { todayIsoDate } from '@/features/opie-schedule/today-iso-date'
 
 export const Route = createFileRoute('/')({
@@ -21,7 +21,7 @@ function Index() {
                 Provider dashboard — waiting room queue and notification history will live here.
             </p>
 
-            <OpieScheduleTable
+            <OpieSchedule
                 date={date ?? todayIsoDate()}
                 onDateChange={(next) => navigate({ search: { date: next } })}
             />

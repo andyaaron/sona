@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
+import type { ReactNode } from 'react'
 
 import Button from '@/components/button'
 
@@ -10,6 +11,8 @@ interface ConfirmDialogProps {
   confirmDisabled?: boolean
   onConfirm: () => void
   onCancel: () => void
+  /** Optional body between the title and the buttons (details, an attestation checkbox). */
+  children?: ReactNode
 }
 
 export function ConfirmDialog({
@@ -20,6 +23,7 @@ export function ConfirmDialog({
   confirmDisabled = false,
   onConfirm,
   onCancel,
+  children,
 }: ConfirmDialogProps) {
   const titleId = useId()
   const cancelRef = useRef<HTMLButtonElement>(null)
@@ -50,12 +54,13 @@ export function ConfirmDialog({
         data-testid="confirm-dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-xl"
+        className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 text-left shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <p id={titleId} data-testid="confirm-dialog-title" className="font-medium text-gray-900">
           {title}
         </p>
+        {children && <div className="mt-4">{children}</div>}
         <div className="mt-6 flex justify-end gap-2">
           <Button
             ref={cancelRef}

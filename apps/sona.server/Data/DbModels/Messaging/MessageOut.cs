@@ -10,8 +10,22 @@ namespace Sona.Server.Data.DbModels;
 /// </summary>
 public class MessageOut : EntityBase
 {
-    public int PatientId { get; set; }
+    /// <summary>Sona patient. Null for sends made from the Opie schedule (see <see cref="OpiePatientId"/>).</summary>
+    public int? PatientId { get; set; }
     public Patient? Patient { get; set; }
+
+    /// <summary>
+    /// Opie fldPatientID when the recipient came from the external Opie schedule — a separate
+    /// identity space from <see cref="PatientId"/>. Kept so these rows can be linked to a Sona
+    /// patient once an Opie↔Sona mapping exists (docs/opie-odbc-integration.md §6).
+    /// </summary>
+    public string? OpiePatientId { get; set; }
+
+    /// <summary>
+    /// TCPA: Opie has no consent field, so the sender attests consent at send time and that
+    /// attestation is audited here. Always false for Sona patients (consent lives on Patient).
+    /// </summary>
+    public bool SmsConsentAttested { get; set; }
 
     public int SentByUserId { get; set; }
     public AppUser? SentByUser { get; set; }

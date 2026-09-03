@@ -82,14 +82,9 @@ public class NotificationsController : Controller
             departmentId = input.DepartmentId.Value;
         }
 
-        var template = await _db.MessageTemplates
-            .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Key == ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY && t.IsActive);
+        var template = await GetActiveReadyTemplateAsync();
         if (template == null)
-        {
-            _logger.LogError("Active message template '{TemplateKey}' not found — cannot send", ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY);
             return StatusCode(500, new { error = "No active message template configured." });
-        }
 
         var channel = patient.IsUsingMobileApp ? "push" : "sms";
 
@@ -109,22 +104,116 @@ public class NotificationsController : Controller
         // audited as a failed MessageOut row (docs/compliance.md).
         if (channel == "sms" && !patient.SmsConsent)
         {
-            message.Status = "failed";
-            message.FailureReason = "sms-consent-missing";
-            _db.MessagesOut.Add(message);
-            await _db.SaveChangesAsync();
-
-            _logger.LogWarning("Notification {MessageOutId} blocked: sms-consent-missing", message.Id);
+            await AuditConsentBlockedAsync(message);
             return Conflict(new { error = "Patient has not consented to SMS. Capture consent before notifying." });
         }
 
-        // Persist the audit row BEFORE any dispatch — no fire-and-forget.
+        await DispatchAsync(message, pushPatientId: channel == "push" ? patient.Id : null);
+
+        return CreatedAtAction(nameof(GetPatientNotifications), new { id = patient.Id.ToString() }, ToResponse(message));
+    }
+
+    // POST: /api/opie/notify — "ready to be seen" to a patient on the external Opie schedule.
+    // Opie patients have no Sona Patient row (docs/opie-odbc-integration.md §6), so the audit
+    // row carries OpiePatientId instead of PatientId. SMS only: Opie patients cannot have the app.
+    [HttpPost("/api/opie/notify")]
+    public async Task<IActionResult> NotifyOpiePatient([FromBody] NotifyOpieRequest input)
+    {
+        var opiePatientId = input.OpiePatientId?.Trim();
+        if (string.IsNullOrEmpty(opiePatientId) || opiePatientId.Length > 50
+            || opiePatientId == Models.Opie.OpieOptions.PlaceholderPatientId)
+            return BadRequest(new { error = "Invalid Opie patient id." });
+
+        if (input.MobileNumber == null || !E164.IsMatch(input.MobileNumber))
+            return BadRequest(new { error = "Mobile number must be E.164 format (+15551234567)." });
+
+        var currentUser = await _currentUserService.GetCurrentUserAsync();
+        if (currentUser == null)
+            return Unauthorized();
+
+        var sender = await ResolveCurrentAppUserAsync();
+        if (sender == null)
+            return Unauthorized();
+
+        // Opie has no org concept, so the department is validated against the sender's own org.
+        Guid? departmentId = null;
+        if (input.DepartmentId.HasValue)
+        {
+            var departmentInOrg = await _db.Departments
+                .AnyAsync(d => d.Id == input.DepartmentId.Value
+                    && (currentUser.Role == UserRoles.SystemAdmin || d.Site!.OrganizationId == currentUser.OrganizationId));
+            if (!departmentInOrg)
+                return BadRequest(new { error = "Unknown department." });
+
+            if (currentUser.Role == UserRoles.Staff
+                && !currentUser.DepartmentIds.Contains(input.DepartmentId.Value))
+                return BadRequest(new { error = "You do not have access to this department." });
+
+            departmentId = input.DepartmentId.Value;
+        }
+
+        var template = await GetActiveReadyTemplateAsync();
+        if (template == null)
+            return StatusCode(500, new { error = "No active message template configured." });
+
+        var message = new MessageOut
+        {
+            PatientId = null,
+            OpiePatientId = opiePatientId,
+            SmsConsentAttested = input.SmsConsentAttested,
+            SentByUserId = sender.Id,
+            Channel = "sms",
+            MessageTemplateId = template.Id,
+            DepartmentId = departmentId,
+            Body = template.Body,
+            MobileNumber = input.MobileNumber,
+            Status = "pending",
+        };
+
+        // TCPA gate: Opie has no consent field, so the sender must attest it. Same
+        // audited refusal as a Sona patient without consent.
+        if (!input.SmsConsentAttested)
+        {
+            await AuditConsentBlockedAsync(message);
+            return Conflict(new { error = "Confirm the patient has consented to SMS before notifying." });
+        }
+
+        await DispatchAsync(message, pushPatientId: null);
+
+        return StatusCode(StatusCodes.Status201Created, ToResponse(message));
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex E164 = new(@"^\+[1-9]\d{1,14}$");
+
+    private async Task<MessageTemplate?> GetActiveReadyTemplateAsync()
+    {
+        var template = await _db.MessageTemplates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Key == ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY && t.IsActive);
+        if (template == null)
+            _logger.LogError("Active message template '{TemplateKey}' not found — cannot send", ConstantDefaults.MESSAGE_TEMPLATE_KEY_READY);
+        return template;
+    }
+
+    private async Task AuditConsentBlockedAsync(MessageOut message)
+    {
+        message.Status = "failed";
+        message.FailureReason = "sms-consent-missing";
         _db.MessagesOut.Add(message);
         await _db.SaveChangesAsync();
 
-        var result = channel == "push"
-            ? await _pushSender.SendAsync(patient.Id, template.Body)
-            : await _smsSender.SendAsync(message.Id, patient.MobileNumber, template.Body);
+        _logger.LogWarning("Notification {MessageOutId} blocked: sms-consent-missing", message.Id);
+    }
+
+    /// <summary>Persists the audit row BEFORE any dispatch (no fire-and-forget), then records the outcome.</summary>
+    private async Task DispatchAsync(MessageOut message, int? pushPatientId)
+    {
+        _db.MessagesOut.Add(message);
+        await _db.SaveChangesAsync();
+
+        var result = pushPatientId.HasValue
+            ? await _pushSender.SendAsync(pushPatientId.Value, message.Body ?? "")
+            : await _smsSender.SendAsync(message.Id, message.MobileNumber ?? "", message.Body ?? "");
 
         if (result.Success)
         {
@@ -140,8 +229,6 @@ public class NotificationsController : Controller
         await _db.SaveChangesAsync();
 
         _logger.LogInformation("Notification {MessageOutId} status {Status}", message.Id, message.Status);
-
-        return CreatedAtAction(nameof(GetPatientNotifications), new { id = patient.Id.ToString() }, ToResponse(message));
     }
 
     // GET: /api/patients/{id}/notifications
@@ -187,7 +274,9 @@ public class NotificationsController : Controller
         return new MessageOutResponseDto
         {
             Id = message.Id.ToString(),
-            PatientId = message.PatientId.ToString(),
+            PatientId = message.PatientId?.ToString(),
+            OpiePatientId = message.OpiePatientId,
+            SmsConsentAttested = message.SmsConsentAttested,
             SentByUserId = message.SentByUserId,
             Channel = message.Channel,
             MessageTemplateId = message.MessageTemplateId?.ToString(),
@@ -206,7 +295,9 @@ public class NotificationsController : Controller
     private sealed class MessageOutResponseDto
     {
         public string Id { get; set; } = "";
-        public string PatientId { get; set; } = "";
+        public string? PatientId { get; set; }
+        public string? OpiePatientId { get; set; }
+        public bool SmsConsentAttested { get; set; }
         public int SentByUserId { get; set; }
         public string Channel { get; set; } = "";
         public string? MessageTemplateId { get; set; }
@@ -227,5 +318,19 @@ public class NotificationsController : Controller
 
         /// <summary>Sender's department context (audit — MessageOut.DepartmentId). Optional.</summary>
         public Guid? DepartmentId { get; set; }
+    }
+
+    public sealed class NotifyOpieRequest
+    {
+        /// <summary>Opie fldPatientID — not a Sona patient id.</summary>
+        public string OpiePatientId { get; set; } = "";
+
+        /// <summary>E.164 number to dial, chosen by the caller from the Opie phone rows.</summary>
+        public string MobileNumber { get; set; } = "";
+
+        public Guid? DepartmentId { get; set; }
+
+        /// <summary>TCPA: the sender attests the patient consented to SMS (Opie has no consent field).</summary>
+        public bool SmsConsentAttested { get; set; }
     }
 }

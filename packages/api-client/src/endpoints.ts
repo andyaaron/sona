@@ -9,6 +9,7 @@ import type {
   DirectoryUser,
   InviteUserInput,
   MessageOut,
+  NotifyOpiePatientInput,
   NotifyPatientInput,
   OpieScheduleQuery,
   OpieScheduledPatient,
@@ -141,4 +142,11 @@ export const opieApi = {
     const query = params?.date ? `?date=${params.date}` : "";
     return apiFetch<OpieScheduledPatient[]>(`/api/opie/schedule${query}`);
   },
+  /**
+   * "Ready to be seen" SMS to a patient on the Opie schedule. Audited like
+   * notifyReady (MessageOut with opiePatientId, patientId null). 409 when consent
+   * is not attested.
+   */
+  notify: (input: NotifyOpiePatientInput) =>
+    apiFetch<MessageOut>("/api/opie/notify", { method: "POST", body: input }),
 };
