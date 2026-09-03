@@ -29,7 +29,7 @@ type FormState =
   | null
 
 // Client-side gate is UX only — the server's OrgAdmin policy on POST/PUT is what enforces it.
-export function ManageProvidersPage() {
+function ManageProvidersPage() {
   const currentUser = useUser()
   const isAdmin = currentUser.role === 'org_admin' || currentUser.role === 'system_admin'
 

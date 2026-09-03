@@ -4,7 +4,7 @@ export const Route = createFileRoute('/')({
     component: Index,
 })
 
-export function Index() {
+function Index() {
     return (
         <div data-testid="dashboard">
             <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>

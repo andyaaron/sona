@@ -39,7 +39,7 @@ type FormState =
   | null
 
 // Client-side gate is UX only — the server enforces the OrgAdmin policy.
-export function UserManagementPage() {
+function UserManagementPage() {
   const currentUser = useUser()
   const isSystemAdmin = currentUser.role === 'system_admin'
   const isAdmin = isSystemAdmin || currentUser.role === 'org_admin'

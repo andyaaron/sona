@@ -74,7 +74,7 @@ const columns: AppColumnDef<Patient>[] = [
   },
 ]
 
-export function PatientsPage() {
+function PatientsPage() {
   const searchParams = Route.useSearch()
   const navigate = Route.useNavigate()
   const { data } = useSuspenseQuery(patientsQueryOptions(searchParams))

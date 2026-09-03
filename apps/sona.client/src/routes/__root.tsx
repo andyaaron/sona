@@ -13,7 +13,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     component: RootComponent,
 })
 
-export function RootComponent() {
+function RootComponent() {
     const {
         data: user,
         isPending,

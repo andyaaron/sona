@@ -43,7 +43,7 @@ const columns: AppColumnDef<Organization>[] = [
 ]
 
 // System-admin surface. Client-side gate is UX only — the server enforces SystemAdmin on create.
-export function OrganizationsPage() {
+function OrganizationsPage() {
   const user = useUser()
   const isSystemAdmin = user.role === 'system_admin'
   const { data: organizations = [], isPending } = useQuery({

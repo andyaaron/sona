@@ -25,7 +25,7 @@ export const Route = createFileRoute('/organization/')({
 })
 
 // Client-side gate is UX only — the server enforces the OrgAdmin policy.
-export function OrganizationPage() {
+function OrganizationPage() {
   const user = useUser()
   const isSystemAdmin = user.role === 'system_admin'
   const isAdmin = isSystemAdmin || user.role === 'org_admin'
