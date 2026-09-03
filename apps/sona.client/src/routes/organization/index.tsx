@@ -5,7 +5,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
 import type { Department, Site } from '@sona/shared'
-import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
 import TableComponent from '@/components/Table/Table'
@@ -19,22 +18,14 @@ import { sitesQueryOptions } from '@/features/org-structure/api/get-sites'
 import { useUpdateDepartment } from '@/features/org-structure/api/update-department'
 import { useUpdateSite } from '@/features/org-structure/api/update-site'
 import { NameForm } from '@/features/org-structure/components/name-form'
+import { getErrorMessage } from '@/lib/api-error'
 
 export const Route = createFileRoute('/organization/')({
   component: OrganizationPage,
 })
 
-function getErrorMessage(error: Error): string {
-  if (error instanceof ApiError) {
-    const body = error.body as Record<string, unknown> | null
-    if (body && typeof body.error === 'string') return body.error
-    return `Request failed (${error.status})`
-  }
-  return error.message || 'An unexpected error occurred'
-}
-
 // Client-side gate is UX only — the server enforces the OrgAdmin policy.
-function OrganizationPage() {
+export function OrganizationPage() {
   const user = useUser()
   const isSystemAdmin = user.role === 'system_admin'
   const isAdmin = isSystemAdmin || user.role === 'org_admin'
@@ -91,7 +82,7 @@ function OrganizationPage() {
 
 type SiteFormState = { mode: 'create' } | { mode: 'rename'; site: Site } | null
 
-function OrgStructure({ organizationId }: { organizationId: string }) {
+export function OrgStructure({ organizationId }: { organizationId: string }) {
   const { data: sites = [], isPending } = useQuery(sitesQueryOptions(organizationId))
   const createSite = useCreateSite(organizationId)
   const updateSite = useUpdateSite(organizationId)
@@ -255,7 +246,7 @@ function OrgStructure({ organizationId }: { organizationId: string }) {
 
 type DepartmentFormState = { mode: 'create' } | { mode: 'rename'; department: Department } | null
 
-function DepartmentsPanel({ organizationId, site }: { organizationId: string; site: Site }) {
+export function DepartmentsPanel({ organizationId, site }: { organizationId: string; site: Site }) {
   const { data: departments = [], isPending } = useQuery(departmentsQueryOptions(site.id))
   const createDepartment = useCreateDepartment(organizationId, site.id)
   const updateDepartment = useUpdateDepartment(organizationId, site.id)

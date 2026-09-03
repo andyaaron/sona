@@ -59,8 +59,9 @@ public class ProvidersController : Controller
         return Ok(providers);
     }
 
-    // POST: /api/providers
+    // POST: /api/providers — providers are org reference data: admins only (docs/data-model.md, Role row)
     [HttpPost]
+    [Authorize(Policy = Sona.Server.Models.Auth.Policies.OrgAdmin)]
     public async Task<IActionResult> CreateProvider([FromBody] CreateProviderRequest input)
     {
         var (scopeOk, orgId) = await ResolveOrgScopeAsync(input.OrganizationId);
@@ -100,8 +101,9 @@ public class ProvidersController : Controller
         return CreatedAtAction(nameof(GetProviders), null, ToResponse(provider));
     }
 
-    // PUT: /api/providers/{id}
+    // PUT: /api/providers/{id} — admins only, as above
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = Sona.Server.Models.Auth.Policies.OrgAdmin)]
     public async Task<IActionResult> UpdateProvider(Guid id, [FromBody] UpdateProviderRequest input)
     {
         var (scopeOk, orgId) = await ResolveOrgScopeAsync();

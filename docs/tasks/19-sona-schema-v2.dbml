@@ -1,0 +1,346 @@
+// Sona — target schema after Task 19 (Parts A, B, C), 2026-09-02
+// Paste into https://dbdiagram.io. Table names match the SQL Server tables EF Core creates.
+// DBML has no syntax for filtered indexes or check constraints — they are recorded in notes.
+
+Project Sona {
+  database_type: 'SQL Server'
+  Note: '''
+    Provider-to-patient "ready to be seen" messaging.
+    Tenant boundary is Organizations. Divisions is ownership/reporting only — never a data-visibility scope.
+    Golden rule: no PHI in notification payloads, logs, or URLs (docs/compliance.md).
+    No table carries CreateDate/ModDate: AuditLogs records create / edit / delete for every entity (Part C).
+    No application-log table: the app is hosted on Azure, Serilog goes to Application Insights (AppLogs dropped in Part C).
+    Tables in the `planned` group are documented in docs/data-model.md but not yet in the database.
+    Shelved, may return: ImportBatches + ImportRowErrors (flat-file import audit, was Task 09) — see the note at the end of this file; the patient mobile app (Devices table, push channel, Patients.IsUsingMobileApp).
+  '''
+}
+
+Enum organization_role {
+  system_admin [note: 'sees every org; OrganizationId is null']
+  org_admin
+  staff [note: 'scoped by UserDepartmentAccesses']
+  unassigned [note: 'JIT-created on first sign-in, not yet provisioned']
+}
+
+Enum facility_type {
+  inpatient
+  outpatient
+}
+
+Enum import_source {
+  flatfile [note: 'reserved — flat-file import is shelved']
+  ui
+}
+
+Enum message_channel {
+  sms
+  push [note: 'reserved — mobile app is shelved, no code path produces it']
+}
+
+Enum message_status {
+  pending
+  sent
+  delivered
+  failed
+}
+
+// ---------------------------------------------------------------------------
+// Tenant hierarchy: Division → Organization → Facility → Department
+// ---------------------------------------------------------------------------
+
+Table Divisions {
+  Id uniqueidentifier [pk, note: 'uuid v7']
+  Name nvarchar(200) [not null, unique, note: 'e.g. "North Carolina Division"']
+  IsActive bit [not null, default: true]
+
+  Note: 'NEW (Task 19 A). State-level owner of organizations. Restrict delete — a division with organizations cannot be removed. Managed on a system_admin page.'
+}
+
+Table Organizations {
+  Id uniqueidentifier [pk]
+  DivisionId uniqueidentifier [not null, note: 'backfilled to the seeded default division 22222222-…']
+  Name nvarchar(200) [not null]
+  IsActive bit [not null, default: true]
+
+  Note: 'CHANGED (Task 19 A): Type column (practice | hospital) removed; DivisionId added. Still the tenant boundary — every patient, provider, staff user and identifier hangs off one org. Seeded org 11111111-….'
+}
+
+Table Facilities {
+  Id uniqueidentifier [pk]
+  OrganizationId uniqueidentifier [not null]
+  Name nvarchar(200) [not null]
+  IsActive bit [not null, default: true]
+
+  Note: 'RENAMED from Sites (Task 19 A), data preserved. Campus/location grouping — admin structure only; departments are what message patients. Each org auto-creates a "Main" facility.'
+}
+
+Table Departments {
+  Id uniqueidentifier [pk]
+  FacilityId uniqueidentifier [not null, note: 'was SiteId']
+  Name nvarchar(200) [not null, note: 'can imply a condition — never in payloads, logs or URLs; only the id is referenced']
+  FacilityType facility_type [not null, default: 'outpatient', note: 'NEW. Label only, no send-path behaviour. Name kept for parity with existing HCA schemas. CHECK CK_Departments_FacilityType']
+  IsActive bit [not null, default: true]
+
+  Note: 'The unit that messages patients (ED waiting, Lab, Imaging). Each org auto-creates a "General" department under "Main".'
+}
+
+// ---------------------------------------------------------------------------
+// People who log in
+// ---------------------------------------------------------------------------
+
+Table AppUsers {
+  Id int [pk, increment, note: 'legacy int identity — kept']
+  HCAID nvarchar(max) [note: 'Entra ID identifier']
+  DisplayName nvarchar(max)
+  FirstName nvarchar(max)
+  LastName nvarchar(max)
+  Email nvarchar(max)
+  EmpDept nvarchar(max) [note: 'informational MSGraph string — NOT authorization data']
+  LastLogin datetime2
+  Role nvarchar(20) [not null, default: 'unassigned', note: 'see organization_role']
+  OrganizationId uniqueidentifier [note: 'null for system_admin and unassigned']
+
+  Note: 'Staff accounts, sourced from HCA Entra ID (single tenant). Authorization = Role + UserDepartmentAccesses, nothing else.'
+}
+
+Table UserDepartmentAccesses {
+  Id uniqueidentifier [pk]
+  AppUserId int [not null]
+  DepartmentId uniqueidentifier [not null]
+
+  indexes {
+    (AppUserId, DepartmentId) [unique, name: 'IX_UserDepartmentAccesses_AppUserId_DepartmentId']
+  }
+
+  Note: 'Scopes a staff user to the departments they may act in (a float nurse gets multiple rows). Only meaningful for Role = staff; org_admin has org-wide access implied. Cascade on both sides.'
+}
+
+Table Providers {
+  Id uniqueidentifier [pk]
+  OrganizationId uniqueidentifier [not null, note: 'provider dropdowns are org-scoped']
+  FirstName nvarchar(100) [not null]
+  LastName nvarchar(100) [not null]
+  Credentials nvarchar(50)
+  Npi nvarchar(10) [note: 'National Provider Identifier, 10 digits. Unique filtered index WHERE Npi IS NOT NULL']
+  Specialty nvarchar(200)
+  AppUserId int [note: 'optional link to a staff login; SET NULL on user delete']
+  IsActive bit [not null, default: true]
+
+  indexes {
+    Npi [unique, name: 'IX_Providers_Npi', note: 'filtered: [Npi] IS NOT NULL']
+  }
+
+  Note: 'Directory of clinicians who see patients. Separate from AppUsers on purpose: front desk sends on behalf of providers; some providers never log in.'
+}
+
+// ---------------------------------------------------------------------------
+// Patients
+// ---------------------------------------------------------------------------
+
+Table Patients {
+  Id int [pk, increment, note: 'legacy int identity — kept; MessagesOut.PatientId depends on it']
+  OrganizationId uniqueidentifier [not null, note: 'tenant column — stays here, never only in PatientLookups']
+  FirstName nvarchar(max) [not null]
+  LastName nvarchar(max) [not null]
+  Dob date [not null]
+  MobileNumber nvarchar(max) [not null, note: 'E.164 (+15551234567), normalized before persistence']
+  SmsConsent bit [not null, note: 'TCPA: no SMS may be sent while false']
+  SmsConsentDate datetime2 [note: 'stamped on first true, kept on repeat true, cleared on revoke']
+  ImportSource nvarchar(max) [not null, note: 'see import_source — which ingest path last wrote this row. `cerner` value removed: Cerner is a future enhancement']
+  IsActive bit [not null, default: true, note: 'soft delete — rows are never hard-deleted (audit trail)']
+  PrimaryProviderId uniqueidentifier [note: 'nullable']
+
+  Note: '''
+    CHANGED (Task 19 B): Mrn column and the (OrganizationId, Mrn) filtered unique index are REMOVED — identifiers live in PatientLookups.
+    The API contract still exposes `mrn`, projected from the primary PatientLookups row.
+    A patient row is "this practice's record of a person", not a global human: the same person at two orgs = two rows (tenant isolation, per-practice TCPA consent).
+    ImportBatchId (bare guid), InCerner and IsUsingMobileApp columns REMOVED (Task 19 B) — mobile app and — Cerner is a future enhancement, not MVP. FIN is deliberately absent — it is encounter-level (see Encounters).
+  '''
+}
+
+Table PatientLookups {
+  Id uniqueidentifier [pk]
+  OrganizationId uniqueidentifier [not null, note: 'must equal Patients.OrganizationId — asserted in the write path']
+  PatientId int [not null]
+  AssigningAuthority nvarchar(100) [not null, note: 'who issued the identifier (HL7 PID-3 / FHIR identifier.system). Default for UI and backfill: org:{OrganizationId}. Later (future enhancement): a facility COID, or the assigning authority from an EHR feed']
+  Mrn nvarchar(50) [not null, note: 'the identifier value — only unique within its assigning authority']
+  IsPrimary bit [not null, note: 'exactly one non-retired primary per patient; this is the one shown as Patient.mrn']
+  Source nvarchar(20) [not null, note: 'see import_source']
+  RetiredDate datetime2 [note: 'set when the identifier stops resolving: patient soft-deleted, future merge / re-issue']
+
+  indexes {
+    (OrganizationId, AssigningAuthority, Mrn) [unique, name: 'UX_PatientLookups_Org_Authority_Mrn', note: 'filtered: [RetiredDate] IS NULL — a retired MRN can be re-used by a new row']
+    PatientId [name: 'IX_PatientLookups_PatientId']
+    PatientId [unique, name: 'UX_PatientLookups_Primary', note: 'filtered: [IsPrimary] = 1 AND [RetiredDate] IS NULL']
+  }
+
+  Note: '''
+    NEW (Task 19 B). The only store of patient identifiers — one patient, N MRNs from N sources (today: exactly one, from the practice EMR).
+    Backfilled with one primary row per existing patient (authority = org:{OrganizationId}, Source = Patients.ImportSource, retired if the patient was inactive).
+    Written only through PatientIdentifierService (create, correct MRN, retire on soft delete). Search matches any non-retired identifier; sort uses the primary.
+  '''
+}
+
+// ---------------------------------------------------------------------------
+// Messaging
+// ---------------------------------------------------------------------------
+
+Table MessageTemplates {
+  Id uniqueidentifier [pk]
+  Key nvarchar(max) [not null, unique, note: 'e.g. ready-to-be-seen']
+  Body nvarchar(max) [not null, note: 'approved, PHI-free text']
+  IsActive bit [not null, default: true]
+
+  Note: 'The PHI review gate: content is reviewed once here and send paths may only pick from this table — never caller-supplied free text.'
+}
+
+Table MessagesOut {
+  Id uniqueidentifier [pk]
+  PatientId int [not null]
+  SentByUserId int [not null]
+  Channel nvarchar(max) [not null, note: 'see message_channel — always sms; push reserved for the shelved mobile app']
+  MessageTemplateId uniqueidentifier
+  DepartmentId uniqueidentifier [note: 'sender department at send time — opaque id only']
+  Body nvarchar(max) [note: 'rendered template text as actually sent — audit snapshot, never free text']
+  MobileNumber nvarchar(max) [note: 'number dialed at send time (patients change numbers). Nullable only for the reserved push channel']
+  Status nvarchar(max) [not null, note: 'see message_status']
+  ProviderMessageSid nvarchar(max) [note: 'Webex Connect messageId / push ticket — correlation key for delivery webhooks']
+  FailureReason nvarchar(max) [note: 'e.g. sms-consent-missing, sms-not-configured']
+  AttemptedDateTime datetime2 [not null, note: 'when the send was attempted — was CreateDate. Consent-blocked attempts have this and no SentDateTime']
+  SentDateTime datetime2
+  DeliveredDateTime datetime2
+
+  indexes {
+    PatientId [name: 'IX_MessagesOut_PatientId']
+  }
+
+  Note: 'THE audit log for sends. Every send path writes a row here before dispatch (no fire-and-forget); consent-blocked attempts are persisted as failed. All FKs restrict so rows survive their references.'
+}
+
+// ---------------------------------------------------------------------------
+// Planned — documented in docs/data-model.md, not in the database yet
+// ---------------------------------------------------------------------------
+
+Table MessagesIn {
+  Id uniqueidentifier [pk]
+  MobileNumber nvarchar(max) [not null, note: 'E.164, number the reply came from']
+  PatientId int [note: 'nullable on purpose — family members share phones, numbers get recycled; ambiguous rows go to manual triage']
+  MatchedMessageOutId uniqueidentifier [note: 'most recent outbound to that number within a window']
+  Body nvarchar(max) [not null, note: 'raw inbound text — treat as PHI']
+  ProviderMessageSid nvarchar(max) [not null, unique, note: 'dedupe on webhook retries']
+  ProcessedStatus nvarchar(max) [not null, note: 'unread | handled | ignored']
+  HandledByUserId int
+  ReceivedDateTime datetime2 [not null]
+
+  Note: 'PLANNED (Enhancement 1, SMS reply-back). Also where STOP/opt-out handling has to live (TCPA / FCC revocation rule).'
+}
+
+Table Encounters {
+  Id uniqueidentifier [pk]
+  PatientId int [not null]
+  Fin nvarchar(max) [not null, note: 'EHR encounter identifier — unique per visit; this is why FIN is not on Patients']
+
+  Note: 'FUTURE ENHANCEMENT — Cerner integration is not part of the MVP (2026-09-02). Placeholder shape until the integration contract (HL7 / FHIR / file drop) is known. Kept on the diagram only so FIN has a documented home.'
+}
+
+Table Devices {
+  Id uniqueidentifier [pk]
+  PatientId int [not null]
+  PushToken nvarchar(max) [not null, unique, note: 'Expo push token — rotates, update on app launch']
+  Platform nvarchar(max) [not null, note: 'ios | android']
+  LastSeenDateTime datetime2 [not null]
+  IsActive bit [not null, default: true, note: 'false on push-service "token invalid"']
+
+  Note: 'SHELVED — patient mobile app is not part of the MVP (2026-09-02). When it returns: channel selection = "has at least one active device" (replaces the dropped Patients.IsUsingMobileApp flag), and MessagesOut.Channel starts producing push.'
+}
+
+Table AuditLogs {
+  Id uniqueidentifier [pk]
+  TableName nvarchar(200) [not null]
+  RecordId nvarchar(100) [not null, note: 'string — mixed int / uuid keys']
+  Action nvarchar(20) [not null, note: 'create | update | delete (soft)']
+  ChangedByUserId int
+  ChangedAt datetime2 [not null, note: 'UTC']
+  Changes nvarchar(max) [note: 'what changed — column shape to match the team’s other apps']
+
+  indexes {
+    (TableName, RecordId) [name: 'IX_AuditLogs_Table_Record']
+  }
+
+  Note: 'Task 19 Part C. Records create / edit / delete for every entity — the ONLY source of "when did this happen" now that no table carries CreateDate/ModDate. Written from the ApplicationDbContext SaveChanges override. Column shape is a placeholder until the team shares the schema from their other apps.'
+}
+
+TableGroup tenant_hierarchy {
+  Divisions
+  Organizations
+  Facilities
+  Departments
+}
+
+TableGroup staff {
+  AppUsers
+  UserDepartmentAccesses
+  Providers
+}
+
+TableGroup patients {
+  Patients
+  PatientLookups
+}
+
+TableGroup messaging {
+  MessageTemplates
+  MessagesOut
+}
+
+TableGroup audit {
+  AuditLogs
+}
+
+TableGroup planned {
+  MessagesIn
+  Encounters
+}
+
+TableGroup shelved {
+  Devices
+}
+
+// ---------------------------------------------------------------------------
+// Relationships (delete behaviour as configured in ApplicationDbContext)
+// ---------------------------------------------------------------------------
+
+Ref: Organizations.DivisionId > Divisions.Id [delete: restrict]
+Ref: Facilities.OrganizationId > Organizations.Id [delete: restrict]
+Ref: Departments.FacilityId > Facilities.Id [delete: restrict]
+
+Ref: AppUsers.OrganizationId > Organizations.Id [delete: restrict]
+Ref: UserDepartmentAccesses.AppUserId > AppUsers.Id [delete: cascade]
+Ref: UserDepartmentAccesses.DepartmentId > Departments.Id [delete: cascade]
+Ref: Providers.OrganizationId > Organizations.Id [delete: restrict]
+Ref: Providers.AppUserId > AppUsers.Id [delete: set null]
+
+Ref: Patients.OrganizationId > Organizations.Id [delete: restrict]
+Ref: Patients.PrimaryProviderId > Providers.Id [delete: restrict]
+Ref: PatientLookups.OrganizationId > Organizations.Id [delete: restrict]
+Ref: PatientLookups.PatientId > Patients.Id [delete: restrict]
+
+Ref: MessagesOut.PatientId > Patients.Id [delete: restrict]
+Ref: MessagesOut.SentByUserId > AppUsers.Id [delete: restrict]
+Ref: MessagesOut.MessageTemplateId > MessageTemplates.Id [delete: restrict]
+Ref: MessagesOut.DepartmentId > Departments.Id [delete: restrict]
+
+// planned
+Ref: MessagesIn.PatientId > Patients.Id
+Ref: MessagesIn.MatchedMessageOutId > MessagesOut.Id
+Ref: MessagesIn.HandledByUserId > AppUsers.Id
+Ref: Encounters.PatientId > Patients.Id
+Ref: Devices.PatientId > Patients.Id
+Ref: AuditLogs.ChangedByUserId > AppUsers.Id
+
+// ---------------------------------------------------------------------------
+// Shelved 2026-09-02 — not built, may return with flat-file import
+// ---------------------------------------------------------------------------
+// ImportBatches   — one row per uploaded file: FileName, UploadedByUserId → AppUsers, Status (processing | completed | failed), RowsTotal / RowsImported / RowsFailed.
+// ImportRowErrors — one row per rejected line: ImportBatchId, RowNumber, ErrorMessage (validation text only, never the raw row — PHI).
+// Patients.ImportBatchId (a bare guid for this) is dropped in Task 19 Part B; re-add as a real FK if import returns.

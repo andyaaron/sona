@@ -103,7 +103,43 @@ describe('NotifyPatientButton', () => {
     expect(screen.getByTestId('notify-button-7')).toBeEnabled()
   })
 
-  // The button toasts nothing today (docs/tasks/16); these lock in the contract for that task.
-  it.todo('toasts success after a 201')
-  it.todo('surfaces the 409 consent message as an error toast')
+  it('toasts the audited failure reason when the 201 row is failed (Local: sms-not-configured)', async () => {
+    captureNotify()
+    const user = userEvent.setup()
+    renderWithProviders(<NotifyPatientButton patientId="7" patientName="Test Patient" />)
+
+    await user.click(screen.getByTestId('notify-button-7'))
+    await user.click(screen.getByTestId('confirm-dialog-confirm'))
+
+    // sonner renders the text twice (toast + aria-live announcement)
+    expect(await screen.findAllByText('Notification failed: sms-not-configured')).not.toHaveLength(0)
+  })
+
+  it('toasts success when the row went out', async () => {
+    server.use(
+      http.post('/api/notifications/ready', () =>
+        HttpResponse.json(makeMessageOut({ status: 'sent', failureReason: null }), { status: 201 }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<NotifyPatientButton patientId="7" patientName="Test Patient" />)
+
+    await user.click(screen.getByTestId('notify-button-7'))
+    await user.click(screen.getByTestId('confirm-dialog-confirm'))
+
+    // sonner renders the text twice (toast + aria-live announcement)
+    expect(await screen.findAllByText('Notification sent')).not.toHaveLength(0)
+  })
+
+  it('surfaces the 409 consent message as an error toast', async () => {
+    captureNotify(409)
+    const user = userEvent.setup()
+    renderWithProviders(<NotifyPatientButton patientId="7" patientName="Test Patient" />)
+
+    await user.click(screen.getByTestId('notify-button-7'))
+    await user.click(screen.getByTestId('confirm-dialog-confirm'))
+
+    // sonner renders the text twice (toast + aria-live announcement)
+    expect(await screen.findAllByText('Patient has not consented to SMS.')).not.toHaveLength(0)
+  })
 })

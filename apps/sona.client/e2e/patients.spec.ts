@@ -18,9 +18,16 @@ test.describe('patients', () => {
 
   test('create → appears in the list → search → edit', { tag: '@smoke' }, async ({ page }) => {
     const seed = patientSeed()
+    // Opening the empty form used to log "`value` prop on `select` should not be null"
+    const consoleWarnings: string[] = []
+    page.on('console', (msg) => {
+      if (msg.type() === 'warning' || msg.type() === 'error') consoleWarnings.push(msg.text())
+    })
     await page.goto('/patients/manage')
 
     await page.getByTestId('patients-manage-add-button').click()
+    await expect(page.getByTestId('patient-form-primary-provider')).toBeVisible()
+    expect(consoleWarnings.filter((w) => w.includes('`value` prop'))).toEqual([])
     await page.getByTestId('patient-form-mrn').fill(seed.mrn)
     await page.getByTestId('patient-form-first-name').fill(seed.firstName)
     await page.getByTestId('patient-form-last-name').fill(seed.lastName)
@@ -75,6 +82,7 @@ test.describe('patients', () => {
     expect(response.status()).toBe(201)
     expect(await response.json()).toMatchObject({ patientId: patient.id, status: 'failed', failureReason: 'sms-not-configured' })
     await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
+    await expect(toast(page, 'Notification failed: sms-not-configured')).toBeVisible()
 
     await page.getByTestId(`patients-history-${patient.id}`).click()
     await expect(page.getByTestId(`notification-history-table-${patient.id}-row-0`)).toContainText('failed')
@@ -91,6 +99,36 @@ test.describe('patients', () => {
     expect((await sent).status()).toBe(409)
     await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
     await expect(page.getByTestId(`notify-button-${patient.id}`)).toBeEnabled()
-    // The 409 message is not shown to the user yet — docs/tasks/16 adds the toast.
+    await expect(toast(page, 'Patient has not consented to SMS')).toBeVisible()
+  })
+
+  test('delete asks through the shared dialog; cancel sends nothing, confirm removes the row', async ({ page, request }) => {
+    const patient = await createPatient(request)
+    created.push(patient.id)
+    let deletes = 0
+    page.on('request', (req) => {
+      if (req.method() === 'DELETE' && req.url().includes('/api/patients/')) deletes += 1
+    })
+
+    await page.goto(`/patients/manage?search=${patient.mrn}`)
+    await page.getByTestId(`patients-manage-delete-${patient.id}`).click()
+    await expect(page.getByTestId('confirm-dialog-title')).toHaveText(`Delete ${patient.firstName} ${patient.lastName}?`)
+    await expect(page.getByTestId('confirm-dialog-confirm')).toHaveText('Delete')
+
+    await page.getByTestId('confirm-dialog-cancel').click()
+    await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
+    await expect(page.getByTestId(`patients-manage-table-row-${patient.id}`)).toBeVisible()
+    expect(deletes).toBe(0)
+
+    await page.getByTestId(`patients-manage-delete-${patient.id}`).click()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
+    expect(deletes).toBe(0)
+
+    await page.getByTestId(`patients-manage-delete-${patient.id}`).click()
+    await page.getByTestId('confirm-dialog-confirm').click()
+    await expect(toast(page, 'Patient deleted')).toBeVisible()
+    await expect(page.getByTestId(`patients-manage-table-row-${patient.id}`)).toHaveCount(0)
+    expect(deletes).toBe(1)
   })
 })

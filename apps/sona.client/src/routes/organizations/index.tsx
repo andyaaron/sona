@@ -5,7 +5,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
 import type { CreateOrganizationInput, Organization } from '@sona/shared'
-import { ApiError } from '@sona/api-client'
 
 import Button from '@/components/button'
 import TableComponent from '@/components/Table/Table'
@@ -14,19 +13,11 @@ import { useUser } from '@/hooks/useUser'
 import { useCreateOrganization } from '@/features/org-structure/api/create-organization'
 import { organizationsQueryOptions } from '@/features/org-structure/api/get-organizations'
 import { OrganizationForm } from '@/features/org-structure/components/organization-form'
+import { getErrorMessage } from '@/lib/api-error'
 
 export const Route = createFileRoute('/organizations/')({
   component: OrganizationsPage,
 })
-
-function getErrorMessage(error: Error): string {
-  if (error instanceof ApiError) {
-    const body = error.body as Record<string, unknown> | null
-    if (body && typeof body.error === 'string') return body.error
-    return `Request failed (${error.status})`
-  }
-  return error.message || 'An unexpected error occurred'
-}
 
 const columns: AppColumnDef<Organization>[] = [
   {
@@ -52,7 +43,7 @@ const columns: AppColumnDef<Organization>[] = [
 ]
 
 // System-admin surface. Client-side gate is UX only — the server enforces SystemAdmin on create.
-function OrganizationsPage() {
+export function OrganizationsPage() {
   const user = useUser()
   const isSystemAdmin = user.role === 'system_admin'
   const { data: organizations = [], isPending } = useQuery({

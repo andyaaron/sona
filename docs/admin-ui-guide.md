@@ -80,7 +80,7 @@ plain http with a config that spreads `vite.config.ts` with `server.https: false
 |---|---|---|---|
 | `system_admin` | Dashboard, Patients, Providers, User Management, Organization, Organizations | none | No org of their own: header shows id only; Organization page needs the org picker; **cannot create patients/providers from the UI** (Task 15) |
 | `org_admin` | Dashboard, Patients, Providers, User Management, Organization | `/organizations` → "Only system administrators can manage organizations." | Header shows `DEV001 · Default Practice`; Organization page opens straight on their org |
-| `staff` | Dashboard, Patients, Providers | `/user-management` → "Only organization administrators can manage users."; `/organization` → "Only organization administrators can manage sites and departments."; `/organizations` as above | Header gets the **Department** picker when the user has > 1 department |
+| `staff` | Dashboard, Patients | `/providers/manage` → "Only organization administrators can manage providers."; `/user-management` → "Only organization administrators can manage users."; `/organization` → "Only organization administrators can manage sites and departments."; `/organizations` as above | Header gets the **Department** picker when the user has > 1 department |
 | `unassigned` | *(no shell)* | everything — server `AssignedUser` policy answers `403` | Whole app replaced by the pending screen (below) |
 
 Client gates are UX only; the server policies (`SystemAdmin`, `OrgAdmin`, `AssignedUser`) are what
@@ -132,7 +132,7 @@ Left → right:
 | far left | Sona logo (link to `/`) | `header-logo` | |
 | nav | Dashboard | `header-nav-dashboard` | active link is emerald |
 | nav | Patients | `header-nav-patients` | → `/patients` |
-| nav | Providers | `header-nav-providers` | → `/providers/manage` |
+| nav | Providers | `header-nav-providers` | → `/providers/manage`; org_admin + system_admin only |
 | nav | User Management | `header-nav-user-management` | org_admin + system_admin only |
 | nav | Organization | `header-nav-organization` | org_admin + system_admin only |
 | nav | Organizations | `header-nav-organizations` | system_admin only |
@@ -165,11 +165,11 @@ Left → right:
   2. Sort: click the header button inside `patients-table-header-mrn` → `?sortBy=mrn&sortDir=asc`, `aria-sort="ascending"`; click again → desc. Single-column only.
   3. Page size / paging → `?pageSize=` / `?page=` (defaults 25 / 1 omitted from the URL).
   4. Provider filter → `?providerId=<guid>`.
-  5. Notify: click `notify-button-<id>` → `confirm-dialog` opens, title "Send 'ready to be seen' notification to {First Last}?" → `confirm-dialog-confirm` (or `confirm-dialog-cancel` / Esc / backdrop click) → `POST /api/notifications/ready {patientId, departmentId}` → dialog closes on settle, history query invalidated. **No success/error toast** (see gaps). `201` body is the audited `MessageOut`.
+  5. Notify: click `notify-button-<id>` → `confirm-dialog` opens, title "Send 'ready to be seen' notification to {First Last}?" → `confirm-dialog-confirm` (or `confirm-dialog-cancel` / Esc / backdrop click) → `POST /api/notifications/ready {patientId, departmentId}` → dialog closes on settle, history query invalidated. `201` body is the audited `MessageOut`; the toast reflects it: `status` ≠ `failed` → **"Notification sent"**; `failed` → error toast **"Notification failed: {failureReason}"** (Local always: `sms-not-configured`). A server `4xx` → error toast with the body's `error` (e.g. `409` "Patient has not consented to SMS. Capture consent before notifying." — that attempt is still audited as `failed` / `sms-consent-missing`).
   6. History: click `patients-history-<id>` → expanded row renders `NotificationHistory`.
 - **History panel** (`features/notifications/components/notification-history.tsx`, `patientId` suffix on every id): loading `notification-history-loading-<id>` "Loading history…"; error `notification-history-error-<id>` "Failed to load notification history."; empty `notification-history-empty-<id>` "No notifications sent yet."; otherwise an unbordered table `notification-history-table-<id>` (rows `…-row-0`, `…-row-1` — index ids, newest first) with columns Channel ("SMS"/"PUSH") · Status pill (`pending|sent|delivered|failed`; hover title = `failureReason`) · Created · Sent · Delivered (`—` when null). In Local every send is `failed` / `sms-not-configured`.
 - **API:** `GET /api/patients?page&pageSize&sortBy&sortDir&search&providerId` · `GET /api/providers?isActive=true` · `POST /api/notifications/ready` · `GET /api/patients/{id}/notifications`.
-- **States:** empty table → `patients-table-empty` "No patients found."; route loader suspends on the patients query (root "Loading..." on first load). A `4xx` on notify surfaces nowhere except the network tab (gap).
+- **States:** empty table → `patients-table-empty` "No patients found."; route loader suspends on the patients query (root "Loading..." on first load).
 
 ### `/patients/manage` — Manage Patients
 
@@ -182,7 +182,7 @@ Left → right:
 - **Interactions:**
   1. Add: `patients-manage-add-button` → form opens in create mode. Submit empty → inline errors "MRN is required", "Date of birth is required", "First name is required", "Last name is required", "Phone number must be E.164 format (+15551234567)" (zod `createPatientSchema`; SMS consent has no client message). Valid → `POST /api/patients` → toast **"Patient added successfully"**, form closes, list refetches. Server `4xx` → toast with the body's `error` (e.g. `409` "A patient with this MRN already exists."; **as system_admin: `400` "organizationId is required for system admins."** — Task 15).
   2. Edit: `patients-manage-edit-<id>` → same form prefilled, title "Edit patient", submit "Save changes" → `PUT /api/patients/{id}` → toast "Patient updated successfully". "Unassigned" in the provider select submits `primaryProviderId: null` (until 2026-09-02 it failed validation as "Invalid GUID" and the form would not save).
-  3. Delete: `patients-manage-delete-<id>` → **native `window.confirm`** "Delete {First Last}?" (not the shared ConfirmDialog) → `DELETE /api/patients/{id}` (soft) → toast "Patient deleted". No error toast on failure (gap).
+  3. Delete: `patients-manage-delete-<id>` → shared `confirm-dialog` (title `confirm-dialog-title` "Delete {First Last}?", `confirm-dialog-confirm` reads "Delete", disabled while pending) → `DELETE /api/patients/{id}` (soft) → toast "Patient deleted", row gone; failure → error toast with the server message. Cancel / Esc / backdrop click → nothing sent.
   4. Toolbar Cancel or form Cancel → form closes, nothing sent.
 - **API:** `GET /api/patients…` · `GET /api/providers?isActive=true` (loader) · `POST/PUT/DELETE /api/patients`.
 - **States:** empty → `patients-manage-table-empty` "No patients found."
@@ -190,7 +190,7 @@ Left → right:
 ### `/providers/manage` — Manage Providers
 
 - **Purpose:** CRUD providers (soft deactivate).
-- **Who:** every assigned role (server `AssignedUser`, org-scoped). No client gate (`@TODO` in code).
+- **Who:** org_admin, system_admin (decided 2026-09-02, Task 18 — providers are org reference data). Others: `providers-forbidden` "Only organization administrators can manage providers." Server: `POST`/`PUT /api/providers` require the `OrgAdmin` policy (`403` otherwise); `GET /api/providers` stays open to every assigned role because the patient form and the patients provider filter need the list.
 - **Layout:** toolbar → (form card) → table.
   - **Toolbar** (`providers-toolbar`): heading "Manage Providers" · **Add Provider** (`providers-add-button`, toggles to Cancel, `aria-expanded`) · search (`providers-search-toggle|input|clear`, placeholder "Search by name or NPI…", **client-side** filter on first/last name or NPI, no URL param).
   - **Form card** (`provider-form`): title `provider-form-title` ("Add provider"/"Edit provider"), **Cancel** `provider-form-cancel`, submit `provider-form-submit` ("Create provider"/"Save changes"). Grid: First name (`provider-form-first-name`) · Last name (`provider-form-last-name`) · Credentials (`provider-form-credentials`, placeholder "e.g. MD, DO, NP") · NPI (`provider-form-npi`, "10-digit NPI") · Specialty full-width (`provider-form-specialty`). Errors `<testid>-error`.
@@ -274,9 +274,5 @@ Convention: kebab-case `<feature>-<element>[-<qualifier>]`; row/action ids carry
 ## Known gaps / open bugs
 
 - **system_admin cannot create patients or providers from the UI** — `400 "organizationId is required for system admins."` toast; no org field on either form. [tasks/15](tasks/15-system-admin-org-picker-for-create.md).
-- **Notify has no success/error toast** — only the button label ("Notifying…") and the history refresh; a `4xx` on `POST /api/notifications/ready` is invisible in the UI. [tasks/16](tasks/16-patient-page-feedback-gaps.md).
-- **Patient delete uses `window.confirm`** instead of the shared `ConfirmDialog`, and its failure is not toasted. [tasks/16](tasks/16-patient-page-feedback-gaps.md).
-- **Console warning on Add Patient:** "`value` prop on `select` should not be null" — `addPatientFormOpts.defaultValues.primaryProviderId` is `null` while `SelectField` expects a string. Harmless. [tasks/16](tasks/16-patient-page-feedback-gaps.md).
-- `/providers/manage` has no role gate at all — staff can create/edit/deactivate providers (client `@TODO`, server `AssignedUser`). Decision + fix: [tasks/18](tasks/18-providers-page-role-gate.md).
 - No automated tests yet — [tasks/12](tasks/12-frontend-unit-tests.md) adds Vitest + Playwright against the ids in this guide.
 - `pnpm lint` does not pass on `main` (mobile `expo lint` self-installs and fails) — [tasks/17](tasks/17-lint-toolchain.md).

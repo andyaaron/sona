@@ -11,7 +11,8 @@ export const addPatientFormOpts = formOptions({
     dob: '',
     phoneNumber: '',
     smsConsent: false,
-    primaryProviderId: null,
+    // '' keeps the provider <select> controlled; '' → null happens before validation and on submit
+    primaryProviderId: '',
   } as CreatePatientInput,
   validators: {
     // The provider select holds '' for "Unassigned"; the contract wants null.

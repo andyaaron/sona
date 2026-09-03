@@ -62,7 +62,8 @@ export async function inviteUser(
   request: APIRequestContext,
   input: { role: 'system_admin' | 'org_admin' | 'staff'; organizationId?: string | null; departmentIds?: string[] },
 ) {
-  const hca34Id = `E2E${uniqueSuffix().slice(0, 6)}`
+  // 34 IDs are at most 10 chars; the random tail (not the timestamp head) keeps them unique within a run
+  const hca34Id = `E2E${Math.random().toString(36).slice(2, 8).toUpperCase()}`
   // Staff need a department once the org has more than one (earlier runs add some)
   const departmentIds = input.role === 'staff' ? [SEED.departmentId] : []
   const response = await request.post('/api/users/invite', {

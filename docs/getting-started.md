@@ -295,8 +295,12 @@ user is promoted to `system_admin` on its first request; to test other roles, ch
 pnpm typecheck    # TS across all workspace packages (incl. test + e2e files)
 pnpm build        # production builds
 pnpm test         # Vitest: packages/shared schemas + apps/sona.client components/routes (MSW-mocked API)
-pnpm lint
+pnpm lint         # oxlint (client + packages) and expo lint (mobile, eslint-config-expo flat config)
 ```
+
+`pnpm lint` needs no first-run step: the one postinstall it depends on (`unrs-resolver`, pulled in by
+`eslint-config-expo`) is already allowed in `pnpm-workspace.yaml` → `allowBuilds`. It must never modify
+`package.json`, the lockfile or `pnpm-workspace.yaml` — if it does, a dependency went missing.
 
 End-to-end (real browser against the real API in the `Local` profile — needs a local SQL Server and
 `appsettings.Local.json`, see below; Chromium once via `pnpm --filter sona.client exec playwright install chromium`):
