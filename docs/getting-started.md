@@ -295,7 +295,7 @@ Local mode refuses to start: ConnectionStrings:DefaultConnection points at Azure
 | Serilog | MSSqlServer `AppLogs` sink + console | console only |
 | Authentication | Entra ID OIDC | `LocalDevAuth` scheme — every request is the configured identity, no sign-in screen |
 | JIT user provisioning | OIDC `OnTokenValidated` | middleware on the first authenticated request; the created user is promoted to `system_admin` (once — a role you later change through the UI sticks) |
-| `/auth/login` | Entra challenge | redirect straight back to `AzureAd:RedirectUri` |
+| `/auth/login` | Entra challenge | redirect straight back to `AzureAd:RedirectUri` (default `/`) |
 | MSGraph (directory search, invite name lookup) | live | **not configured** — returns no results / `503` |
 | SMS (Webex Connect) | live if configured | **not configured** — sends are audited as `failed` with `sms-not-configured` |
 

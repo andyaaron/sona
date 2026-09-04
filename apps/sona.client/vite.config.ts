@@ -16,28 +16,32 @@ const certificateName = 'sona.client'
 const certFilePath = path.join(baseFolder, `${certificateName}.pem`)
 const keyFilePath = path.join(baseFolder, `${certificateName}.key`)
 
-if (!fs.existsSync(baseFolder)) {
-  fs.mkdirSync(baseFolder, { recursive: true })
-}
+// Dev-server only: `vite build` must not need `dotnet dev-certs` (build agents have no
+// ASP.NET dev certificate and may not even have the dotnet SDK on PATH).
+function ensureDevCertificate() {
+  if (!fs.existsSync(baseFolder)) {
+    fs.mkdirSync(baseFolder, { recursive: true })
+  }
 
-if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
-  if (
-    0 !==
-    child_process.spawnSync(
-      'dotnet',
-      [
-        'dev-certs',
-        'https',
-        '--export-path',
-        certFilePath,
-        '--format',
-        'Pem',
-        '--no-password',
-      ],
-      { stdio: 'inherit' },
-    ).status
-  ) {
-    throw new Error('Could not create certificate.')
+  if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
+    if (
+      0 !==
+      child_process.spawnSync(
+        'dotnet',
+        [
+          'dev-certs',
+          'https',
+          '--export-path',
+          certFilePath,
+          '--format',
+          'Pem',
+          '--no-password',
+        ],
+        { stdio: 'inherit' },
+      ).status
+    ) {
+      throw new Error('Could not create certificate.')
+    }
   }
 }
 
@@ -45,56 +49,66 @@ const target = env.ASPNETCORE_HTTPS_PORT ? `https://localhost:${env.ASPNETCORE_H
     env.ASPNETCORE_URLS ? env.ASPNETCORE_URLS.split(';')[0] : 'https://localhost:7296';
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    // tanstackRouter must come before react()
-    tanstackRouter({
-      target: 'react',
-      routesDirectory: './src/routes',
-      generatedRouteTree: './src/routeTree.gen.ts',
-      autoCodeSplitting: true,
-      // Test files live next to the routes they cover; they are not routes.
-      routeFileIgnorePattern: '\\.(test|spec)\\.[jt]sx?$',
-    }),
-    react(),
-    tailwindcss(),
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+export default defineConfig(({ command }) => {
+  if (command === 'serve') {
+    ensureDevCertificate()
+  }
+
+  return {
+    plugins: [
+      // tanstackRouter must come before react()
+      tanstackRouter({
+        target: 'react',
+        routesDirectory: './src/routes',
+        generatedRouteTree: './src/routeTree.gen.ts',
+        autoCodeSplitting: true,
+        // Test files live next to the routes they cover; they are not routes.
+        routeFileIgnorePattern: '\\.(test|spec)\\.[jt]sx?$',
+      }),
+      react(),
+      tailwindcss(),
+    ],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
     },
-  },
     server: {
-    proxy: {
-            '^/api': {
-                target,
-                changeOrigin: true,
-                secure: false
-            },
-            '/auth': {
-                target: target,
-                changeOrigin: true,
-                secure: false,
-            },
-            '/MicrosoftIdentity': {
-                target,
-                changeOrigin: true,
-                secure: false
-            },
-            '/signin-oidc': {
-                target,
-                changeOrigin: true,
-                secure: false
+      proxy: {
+        '^/api': {
+          target,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/auth': {
+          target,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/MicrosoftIdentity': {
+          target,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/signin-oidc': {
+          target,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+      port: 5173,
+      // The cert files only exist once ensureDevCertificate() ran, i.e. under `vite`/`vite dev`.
+      https:
+        command === 'serve'
+          ? {
+              key: fs.readFileSync(keyFilePath),
+              cert: fs.readFileSync(certFilePath),
             }
+          : undefined,
     },
-    port: 5173,
-    https: {
-      key: fs.readFileSync(keyFilePath),
-      cert: fs.readFileSync(certFilePath),
+    build: {
+      outDir: '../sona.server/wwwroot',
+      emptyOutDir: true,
     },
-  },
-  build: {
-    outDir: '../sona.server/wwwroot',
-    emptyOutDir: true,
-  },
+  }
 })

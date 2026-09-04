@@ -45,7 +45,9 @@ if (isLocal)
 }
 else
 {
-    var keyVaultUri = builder.Configuration["Keyvault:_keyvaultURI"];
+    var keyVaultUri = builder.Configuration["Keyvault:_keyvaultURI"]
+        ?? throw new InvalidOperationException(
+            "Keyvault:_keyvaultURI is required outside Local mode (Keyvault___keyvaultURI as an app setting).");
     var keyVaultClient = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
 
     connectionString = keyVaultClient.GetSecret("DefaultConnection").Value.Value;
@@ -229,6 +231,11 @@ if (app.Environment.IsDevelopment() || isLocal)
 }
 
 app.UseHttpsRedirection();
+
+// The admin build lands in wwwroot (vite.config.ts outDir). MapFallbackToFile only serves
+// index.html — without this, every /assets/*.js|css is a 404 and the deployed page is blank.
+app.UseStaticFiles();
+
 app.UseRouting();
 
 if (app.Environment.IsDevelopment() || isLocal)

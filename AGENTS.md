@@ -29,7 +29,7 @@ You are a developer agent working on **Sona**, a nurse/provider-to-patient commu
 ├── packages/
 │   ├── shared/    # Domain types + zod schemas (THE contract)
 │   └── api-client/# Typed fetch client: patientsApi, notificationsApi
-└── docs/          # architecture.md, tech-stack.md, getting-started.md, compliance.md
+└── docs/          # architecture.md, tech-stack.md, getting-started.md, compliance.md, deployment.md
 ```
 
 Both frontends use the same `src/` layout (bulletproof-react):
@@ -50,6 +50,7 @@ Doc map — read as needed, don't guess:
 - **Why each technology + version constraints** → `docs/tech-stack.md`
 - **Compliance rules (PHI, BAA, audit log)** → `docs/compliance.md`
 - **Setup / run instructions** → `docs/getting-started.md`
+- **Building the deployable + Azure App Service config** → `docs/deployment.md` (pipeline, app settings, Key Vault/SQL identity, migration script)
 - **Expo specifics** → `apps/mobile/AGENTS.md` (points to versioned Expo SDK 57 docs — Expo APIs changed significantly; verify against those docs, not memory)
 
 ---
