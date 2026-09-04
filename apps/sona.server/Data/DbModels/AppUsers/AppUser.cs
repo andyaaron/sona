@@ -1,14 +1,17 @@
+using Sona.Server.Data;
+using Sona.Server.Models.Attributes;
+using Sona.Server.Models.Commons;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-using Sona.Server.Data;
-using Sona.Server.Models.Commons;
-
 namespace Sona.Server.Data.DbModels;
 
+
+[Auditable]
 public class AppUser
 {
     [Key]
+   
     public int Id { get; set; }
     public string? HCAID { get; set; }
     public string? DisplayName { get; set; }

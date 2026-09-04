@@ -1,16 +1,29 @@
+using GAIT.Data.DbTables;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Sona.Server.Data.DbModels;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text;
+using Sona.Server.Models.Attributes;
+
 
 namespace Sona.Server.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+
+        private readonly IHttpContextAccessor _contextAccessor;
+
+
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IHttpContextAccessor httpcontext) 
+            : base(options)
         {
-               
+            _contextAccessor = httpcontext;
         }
 
         public DbSet<AppLog> AppLogs { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
         public virtual DbSet<MessageTemplate> MessageTemplates { get; set; }
         public virtual DbSet<AppUser> AppUsers { get; set; }
         public virtual DbSet<Organization> Organizations { get; set; }
@@ -20,6 +33,7 @@ namespace Sona.Server.Data
         public virtual DbSet<Patient> Patients { get; set; }
         public virtual DbSet<Provider> Providers { get; set; }
         public virtual DbSet<MessageOut> MessagesOut { get; set; }
+        public IHttpContextAccessor Httpcontext { get; }
         // public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
         // public DbSet<ImportRowError> ImportRowErrors => Set<ImportRowError>();
 
@@ -143,19 +157,21 @@ namespace Sona.Server.Data
                 .HasIndex(m => m.OpiePatientId);
         }
 
-        public override int SaveChanges(bool acceptAllChangesOnSuccess)
-        {
-            StampEntityBaseTimestamps();
-            return base.SaveChanges(acceptAllChangesOnSuccess);
-        }
+        //public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        //{
+        //    StampEntityBaseTimestamps();
+        //    return base.SaveChanges(acceptAllChangesOnSuccess);
+        //}
 
-        public override Task<int> SaveChangesAsync(
-            bool acceptAllChangesOnSuccess,
-            CancellationToken cancellationToken = default)
-        {
-            StampEntityBaseTimestamps();
-            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-        }
+
+        //Aaron will add this StampEntityBaseTimestamps(); piece back into the lower area - FJC 9/4/26
+        //public override Task<int> SaveChangesAsync(
+        //    bool acceptAllChangesOnSuccess,
+        //    CancellationToken cancellationToken = default)
+        //{
+        //    StampEntityBaseTimestamps();
+        //    return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        //}
 
         private void StampEntityBaseTimestamps()
         {
@@ -173,5 +189,247 @@ namespace Sona.Server.Data
                 }
             }
         }
+
+        //Everything below this is FormatException audit logs
+
+        public override int SaveChanges()
+        {
+            return SaveChanges(acceptAllChangesOnSuccess: true);
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            StampEntityBaseTimestamps();
+
+
+            var auditEntries = OnBeforeSaveChanges();
+            ChangeTracker.AutoDetectChangesEnabled = false; // disable auto detection
+
+            var auditLogs = OnAfterSaveChanges(auditEntries);
+            AuditLogs.AddRange(auditLogs);
+            try
+            {
+                var result = base.SaveChanges(acceptAllChangesOnSuccess: false);
+
+                if (acceptAllChangesOnSuccess)
+                {
+                    ChangeTracker.AcceptAllChanges(); // manually accept all changes
+                }
+                return result;
+            }
+            finally
+            {
+                ChangeTracker.AutoDetectChangesEnabled = true;  // re-enable auto detection
+            }
+        }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return await SaveChangesAsync(true, cancellationToken);
+        }
+
+        public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            var auditEntries = OnBeforeSaveChanges();
+            ChangeTracker.AutoDetectChangesEnabled = false;
+
+            var auditLogs = OnAfterSaveChanges(auditEntries);
+            AuditLogs.AddRange(auditLogs);
+            try
+            {
+                var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess: false, cancellationToken);
+
+                if (acceptAllChangesOnSuccess)
+                {
+
+                    ChangeTracker.AcceptAllChanges();
+                }
+
+                return result;
+            }
+            finally
+            {
+                ChangeTracker.AutoDetectChangesEnabled = true;
+            }
+        }
+
+        private string GetCurrentUserId()
+        {
+            try
+            {
+                return _contextAccessor.HttpContext.User.Identity.Name ?? "USER N/A";
+            }
+            catch
+            {
+                return "USER N/A";
+            }
+
+        }
+
+        private List<AuditEntry> OnBeforeSaveChanges()
+        {
+            var entries = ChangeTracker.Entries().ToList();
+            var auditEntries = new List<AuditEntry>();
+
+            foreach (var entry in entries)
+            {
+                // Skip if no auditing needed
+                if (entry.Entity is AuditLog ||
+                    entry.State == EntityState.Detached ||
+                    entry.State == EntityState.Unchanged ||
+                    !entry.Entity.GetType().GetCustomAttributes(typeof(AuditableAttribute), true).Any())
+                {
+                    continue;
+                }
+                var auditEntry = new AuditEntry(entry)
+                {
+                    EntityName = entry.Entity.GetType().Name,
+                    ChangeIdByUserId = GetCurrentUserId()
+                };
+
+                // retrieve primary key
+                var pkProperty = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
+                if (pkProperty != null && pkProperty.CurrentValue != null)
+                {
+                    auditEntry.PrimaryKey = pkProperty.CurrentValue.ToString();
+                }
+
+                // If it's a Modify, capture property-level changes
+                if (entry.State == EntityState.Modified)
+                {
+                    auditEntry.Action = "Update";
+
+                    // For each modified property, store old/new if they differ
+                    foreach (var property in entry.Properties)
+                    {
+                        // Skip unmapped
+                        var propInfo = entry.Entity.GetType().GetProperty(property.Metadata.Name);
+                        if (propInfo != null &&
+                            propInfo.GetCustomAttributes(typeof(NotMappedAttribute), true).Any())
+                        {
+                            continue;
+                        }
+
+                        // Only log if EF actually marked it as modified
+                        if (property.IsModified)
+                        {
+                            var originalVal = property.OriginalValue?.ToString() ?? "";
+                            var currentVal = property.CurrentValue?.ToString() ?? "";
+
+                            // Also ensure there's a real difference
+                            if (!Equals(property.OriginalValue, property.CurrentValue))
+                            {
+                                // Create a separate record per changed field
+                                var fieldAudit = new AuditEntry(entry)
+                                {
+                                    Action = "Update",
+                                    EntityName = auditEntry.EntityName,
+                                    PrimaryKey = auditEntry.PrimaryKey,
+                                    ChangeIdByUserId = auditEntry.ChangeIdByUserId,
+                                    PropertyName = property.Metadata.Name,
+                                    OldValue = originalVal,
+                                    NewValue = currentVal
+                                };
+                                if (fieldAudit.PropertyName != "ModDate")
+                                {
+                                    if (fieldAudit.OldValue != fieldAudit.NewValue)
+                                    {
+                                        auditEntries.Add(fieldAudit.Copy());
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                }
+                else if (entry.State == EntityState.Added)
+                {
+                    // TODO: Audit new records added
+                }
+                else if (entry.State == EntityState.Deleted)
+                {
+                    auditEntry.Action = "Deleted";
+                    var sb = new StringBuilder();
+                    foreach (var property in entry.Properties)
+                    {
+                        // Skip unmapped
+                        var propInfo = entry.Entity.GetType().GetProperty(property.Metadata.Name);
+                        if (propInfo != null &&
+                            propInfo.GetCustomAttributes(typeof(NotMappedAttribute), true).Any())
+                        {
+                            continue;
+                        }
+                        sb.Append(auditEntry.EntityName + " [").Append($"{property.OriginalValue?.ToString() ?? ""}").Append("] ");
+                    }
+                    auditEntry.OldValue = sb.ToString();
+                    auditEntries.Add(auditEntry.Copy());
+                }
+            }
+            return auditEntries;
+        }
+
+
+        private List<AuditLog> OnAfterSaveChanges(List<AuditEntry> auditEntries)
+        {
+            var auditLogs = new List<AuditLog>();
+            if (auditEntries == null || auditEntries.Count == 0)
+                return auditLogs;
+
+
+            foreach (var auditEntry in auditEntries)
+            {
+                // add to db
+
+                auditLogs.Add(new AuditLog
+                {
+                    EntityName = auditEntry.EntityName,
+                    PrimaryKey = auditEntry.PrimaryKey,
+                    PropertyName = auditEntry.PropertyName,
+                    OldValue = auditEntry.OldValue,
+                    NewValue = auditEntry.NewValue,
+                    ChangedDate = DateTime.Now,
+                    ChangeIdByUserId = auditEntry.ChangeIdByUserId,
+                    Action = auditEntry.Action,
+                });
+            }
+            return auditLogs;
+        }
+
+        // private helper class
+        private class AuditEntry
+        {
+            public AuditEntry(EntityEntry entry)
+            {
+                Entry = entry;
+            }
+
+            public EntityEntry Entry { get; }
+            public string EntityName { get; set; }
+            public string PrimaryKey { get; set; }
+            public string PropertyName { get; set; }
+            public string OldValue { get; set; }
+            public string NewValue { get; set; }
+            public string ChangeIdByUserId { get; set; }
+            public string Action { get; set; }
+
+            // method to create a copy of the auditentry
+            public AuditEntry Copy()
+            {
+                return new AuditEntry(this.Entry)
+                {
+                    EntityName = this.EntityName,
+                    PrimaryKey = this.PrimaryKey,
+                    PropertyName = this.PropertyName,
+                    OldValue = this.OldValue,
+                    NewValue = this.NewValue,
+                    ChangeIdByUserId = this.ChangeIdByUserId,
+                    Action = this.Action,
+                };
+            }
+
+        }
+
+
+
     }
 }
