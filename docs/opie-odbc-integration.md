@@ -1,7 +1,9 @@
 # Handoff — Connecting `sona.server` to the Opie ODBC Database
 
 **Date:** 2026-09-03
-**Status:** Not started — planning/handoff only, no code written yet
+**Status:** Read path, dashboard day sheet and notify-from-schedule implemented (branch
+`orthotic-clinic-integration`, 2026-09-03). Verified only against the fake local `Opie_data`
+(Docker, 3 sample patients, the §2 columns only) — the real schema still needs checking. See §8–§9.
 **Owner of this doc:** update in place as decisions are made; promote to `docs/architecture.md` /
 `docs/data-model.md` once the integration ships (per AGENTS.md — docs are living, update in the
 same task as the code).
@@ -31,7 +33,7 @@ step exists — see [§6 Open questions](#6-open-questions)).
 | Table | Join | Columns needed |
 |---|---|---|
 | `tblPatients` | (root — `fldPatientID` is its PK) | `fldPatientLastName`, `fldPatientFirstName`, `fldPatientMiddleName`, `fldPatientEmailAddress`, `fldPatientComment`, `fldPatientPrimaryPractitioner`, `fldPatientNickName`, `fldcmbLanguagePref` |
-| `tblPatientSchedule` | `fldPatientSchedulePatientID → tblPatients.fldPatientID` | `fldPatientScheduleStartTime`, `fldPatientScheduleEndTime` |
+| `tblPatientSchedule` | `fldPatientSchedulePatientID → tblPatients.fldPatientID` | `fldPatientScheduleStartTime`, `fldPatientScheduleEndTime`, `fldPatientScheduleDetails` (free text per booking — the label of internal `-9999` blocks) |
 | `tblPatientPhoneNumbers` | `fldPatientPhoneNumberPatientID → tblPatients.fldPatientID` | `fldPatientPhoneNumber`, `fldPatientPhoneNumberExtension`, `fldPatientPhoneNumberCountry` |
 
 Base shape of the query that satisfies all three (adjust the `WHERE` to whatever the actual
@@ -50,6 +52,7 @@ SELECT
     p.fldcmbLanguagePref,
     s.fldPatientScheduleStartTime,
     s.fldPatientScheduleEndTime,
+    s.fldPatientScheduleDetails,
     ph.fldPatientPhoneNumber,
     ph.fldPatientPhoneNumberExtension,
     ph.fldPatientPhoneNumberCountry
@@ -195,3 +198,83 @@ an accidental write path being added later.
   hand-run sanity check via SSMS before trusting the code path).
 - No PHI (patient name, phone, comment, email) appears in any log output — grep `Serilog` output
   during a manual test run to confirm.
+
+---
+
+## 8. As implemented (2026-09-03)
+
+Deviations from §4–§5 and the reasons:
+
+| Area | Decision |
+|---|---|
+| Driver | `Microsoft.Data.SqlClient` + `SqlDataReader` in `apps/sona.server/Models/Opie/OpieScheduleRepository.cs` — **not** a second EF `DbContext`: with two contexts every `dotnet ef` command in `docs/getting-started.md` would need `--context`, and Opie's schema is not ours to model or migrate. Read-only by construction (no write path). |
+| Query shape | Three parameterised queries per request (schedule rows, phone rows, patient rows), all filtered by `CAST(fldPatientScheduleStartTime AS DATE) = @date`, assembled in code into one `OpieScheduledPatient` per patient with `appointments[]` + `phoneNumbers[]` (the §2 fan-out advice). |
+| Column types | Unknown, so readers are type-agnostic (`fldPatientID` round-trips as a trimmed string; datetimes as ISO `"O"`). Revisit once a real connection confirms the types. |
+| Config | `ConnectionStrings:OpieConnection` — Local: `appsettings.Local.json` (placeholder in `appsettings.Local.example.json`); Dev/Prod: Key Vault secret `OpieConnection`, 404 tolerated. Missing → `IOpieScheduleRepository.IsConfigured == false`, API still starts. |
+| Endpoint | `GET /api/opie/schedule?date=YYYY-MM-DD` (`OpieController`, policy `AssignedUser`, default = server's today). `400` bad date · `503 opie-not-configured` (no connection **or** no `Opie:OrganizationId`) · `404 opie-not-available` (caller's org ≠ bound org and not system_admin — 404, not 403, so other tenants cannot learn the clinic exists) · `502 opie-unavailable` (SqlException etc., logged with date only). |
+| Tenant binding | **2026-09-03.** Opie has no org concept, so `Opie:OrganizationId` (config/app setting, same key everywhere) names the Sona organization the database belongs to — for the current source that is *CarePartners Orthotics & Prosthetics Clinic*, a `practice` org created through the normal `/organizations` flow (no seed, no migration; each environment creates its own and pastes the id). `OpieOptions.AllowsAccess` gates both endpoints; `POST /api/opie/notify` validates the department against the bound org. When a second Opie/EMR clinic appears, replace the config key with a per-org integrations table (`OrganizationIntegrations {OrganizationId, Kind, SecretName}`), the same shape the Cerner plan in data-model.md needs. |
+| Contract | Exposed through the API, so per AGENTS.md Rule 2 the shapes live in `packages/shared` (`OpieScheduledPatient`, `OpieAppointment`, `OpiePhoneNumber`, `opieScheduleQuerySchema`) and `packages/api-client` (`opieApi.schedule`). Kept as their own types, not folded into `Patient` — no identity mapping exists yet. |
+| Consumer | Admin dashboard `/` → **Opie Schedule** day sheet with prev/today/next + date picker (`apps/sona.client/src/features/opie-schedule/`; layout/testids in `docs/admin-ui-guide.md`). `fldPatientComment` is shown truncated with hover — confirm it should be on screen at all (§3). Replaced the patient-per-row table on 2026-09-03 (§9). |
+| Internal blocks (`-9999`) | Opie staff book LUNCH / meetings / out-of-office against the shared placeholder `fldPatientID = -9999` (`OpieOptions.PlaceholderPatientId`, `OPIE_PLACEHOLDER_PATIENT_ID`). **Task 20 (2026-09-03):** its schedule rows are kept so the sheet shows booked time honestly, but the repository redacts the shared patient row completely (name/contact/practitioner/language/comment forced null, phone rows dropped at the source — whatever staff typed into that shared row is not an identity) and synthesises the row if `tblPatients` lacks a `-9999` entry. The label of each block is its own booking's `fldPatientScheduleDetails` (`OpieAppointment.details`, confirmed with the clinic 2026-09-03 — "Lunch", "Staff meeting"…), so two blocks on one day are distinguishable. The client renders them as highlighted "Internal" label rows with no notify control (`DaySheetRow.isInternalBlock`). `notifyOpiePatientSchema` and `POST /api/opie/notify` still refuse `-9999` (400). `details` is also returned on patient appointments (PHI like `comment`; not rendered on patient rows yet). |
+| Notify | `POST /api/opie/notify {opiePatientId, mobileNumber (E.164), departmentId?, smsConsentAttested}` (`NotificationsController.NotifyOpiePatient`, policy `AssignedUser`). Opie patients have **no Sona `Patient` row and no id mapping**, so the audit row is a `MessagesOut` with `PatientId = null`, `OpiePatientId` set and `SmsConsentAttested` (migration `20260903171937_OpieNotifications`; `docs/data-model.md`). SMS only. Number chosen client-side: first Opie phone row that normalises to E.164 (`day-sheet.ts` `toE164` — ten digits assumed NANP). Consent: Opie has no consent field, so the sender attests it in the dialog; `409` + audited `sms-consent-missing` otherwise (`docs/compliance.md`). Department is validated against the sender's own org (Opie has none). |
+| Logging | Counts + date only (`"Opie schedule for {ScheduleDate}: {PatientCount} patients"`); exceptions carry server/login details, never row data. |
+
+Still open from §6: `fldPatientID` ↔ `Patient.Id` matching (decision 2026-09-03: **keep the two id spaces separate** — Sona `Patients.Id` is an int identity and so is Opie's key, so they collide; when a mapping is wanted add a nullable, per-org-unique `Patients.OpiePatientId` populated by an import/matching job, keep using `Patients.Id` everywhere in Sona, and backfill `MessagesOut.PatientId` from `MessagesOut.OpiePatientId` in one join), BAA coverage, read-only login, refresh cadence (currently a live query per page load, cached by TanStack Query per date), and whether sender-attested consent is acceptable (compliance.md).
+
+Verification checklist for the first real run: fill `OpieConnection` in `appsettings.Local.json`, restart the API, open `/`, pick a date with known appointments, compare against the §2 SQL in SSMS, and grep the console log for any name/phone/email/comment (there must be none).
+
+---
+
+## 9. Dashboard day sheet (implemented 2026-09-03)
+
+**Problem:** the first cut rendered the schedule as a patient-per-row table with a nested list of
+appointments — it did not read like a clinic day. The ask: start of day → end of day, table-esque,
+day selection.
+
+### 9.1 Audit of the earlier proposal (per-practitioner agenda) — why it was not built
+
+- It grouped by `fldPatientPrimaryPractitioner` and derived per-provider "open" gaps. That column is
+  the *patient's* primary practitioner, not who a given appointment is with (§2), so a gap labelled
+  "Dr. A idle 10:00–10:30" would have been confidently wrong. Per-provider views need an
+  appointment-level practitioner column, which the pulled schema does not have.
+- "A time grid needs clinic-hours configuration" was overstated: the day's bounds can be derived
+  from the first start / last end, and the interval is a display constant. Only *true* clinic hours
+  (showing 8 AM when nobody is booked until 10) would need config.
+- The §2 column list was treated as the whole schema. Opie's real `tblPatientSchedule` very likely
+  has practitioner/resource, status/cancelled, type and location columns; today cancelled
+  appointments would render as booked. First action when real credentials are available:
+
+  ```sql
+  SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME = 'tblPatientSchedule' ORDER BY ORDINAL_POSITION;
+  ```
+- Not handled there: null start (cannot be placed), null end (no duration), double-booked rows
+  (negative "gap"), and the shared `TableComponent`'s sort/paging, which would break time order.
+
+### 9.2 What was built
+
+`apps/sona.client/src/features/opie-schedule/` — client-only; the schedule endpoint is unchanged.
+
+- `day-sheet.ts` — `buildDaySheet(patients, nowMinutes)`: flattens patient → appointment (one row
+  per appointment, key `<opiePatientId>-<n>`), drops `-9999`, buckets rows by **hour** from the
+  hour of the first start to the hour containing the last end, sorts within an hour by start then
+  last name, keeps rows without a start time in an `unscheduled` list, and places a "now" marker
+  when the date is today. An empty hour renders a single "No appointments" row — it means *nobody
+  was booked*, and claims nothing about any practitioner.
+- `components/opie-schedule.tsx` (section + toolbar: date heading + Today badge + count chips, then `‹` / Today / `›` / date input) and
+  `components/opie-day-sheet.tsx` (plain `<table>`, no sort/paging).
+- `components/notify-opie-button.tsx` + `api/notify-opie-patient.ts` — see §8 "Notify".
+- Tests: `day-sheet.test.ts`, `notify-opie-button.test.tsx`, `routes/index.test.tsx`; smoke E2E
+  accepts unconfigured / sheet / empty.
+
+### 9.3 Follow-ups once the real schema is known
+
+- If `tblPatientSchedule` carries a practitioner/resource: add it to `OpieAppointment`
+  (`packages/shared` + `packages/api-client` + repository, one task), then provider swimlanes and
+  per-provider gaps become legitimate.
+- If it carries a status/cancelled flag: filter server-side so cancelled slots do not show as booked.
+- ~~Per-row note column~~ — confirmed: `fldPatientScheduleDetails`, now `OpieAppointment.details` and the
+  internal-block label. Open: whether to show it on patient rows too (it is PHI like `comment`).
+- Confirm `fldPatientID`'s type (the fake DB uses `int`; the reader is type-agnostic either way) and
+  that `-9999` is the only placeholder value.
+- Week strip with per-day counts (seven queries) if daily stepping proves too slow to scan.

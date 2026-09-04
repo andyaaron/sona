@@ -135,3 +135,35 @@ export type UpdateUserFormValues = z.input<typeof updateUserSchema>;
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 export type InviteUserFormValues = z.input<typeof inviteUserSchema>;
 export type CreateOrganizationFormValues = z.input<typeof createOrganizationSchema>;
+
+/** Query for GET /api/opie/schedule — the day to list; the server defaults to today. */
+export const opieScheduleQuerySchema = z.object({
+  /** ISO date (YYYY-MM-DD) */
+  date: z.iso.date({ error: "Date must be YYYY-MM-DD" }).optional(),
+});
+
+export type OpieScheduleQuery = z.infer<typeof opieScheduleQuerySchema>;
+
+/** Opie's staff/internal placeholder row in tblPatients — never a real patient. */
+export const OPIE_PLACEHOLDER_PATIENT_ID = "-9999";
+
+/**
+ * Body for POST /api/opie/notify — "ready to be seen" to a patient on the Opie schedule.
+ * Opie patients have no Sona Patient row (no id mapping exists yet), so the recipient is
+ * identified by Opie's fldPatientID and the number is supplied by the caller (E.164).
+ */
+export const notifyOpiePatientSchema = z.object({
+  opiePatientId: z
+    .string()
+    .trim()
+    .min(1, "Opie patient id is required")
+    .max(50)
+    .refine((id) => id !== OPIE_PLACEHOLDER_PATIENT_ID, "Not a patient"),
+  mobileNumber: e164Phone,
+  /** Sender's department context — audited on MessageOut.DepartmentId (opaque id only). */
+  departmentId: z.guid().nullable().optional(),
+  /** TCPA: Opie has no consent field, so the sender attests consent at send time. */
+  smsConsentAttested: z.literal(true, { error: "Confirm the patient has consented to SMS" }),
+});
+
+export type NotifyOpiePatientInput = z.infer<typeof notifyOpiePatientSchema>;

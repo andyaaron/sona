@@ -152,7 +152,9 @@ Corresponds to `MessageOut` in `@sona/shared`.
 | Field | Type | Notes |
 |---|---|---|
 | `Id` | uuid PK | |
-| `PatientId` | **int** FK → Patient | Patient uses an int identity PK as shipped (see `docs/tasks/_context.md` PK conventions). Restrict delete — audit rows must survive. |
+| `PatientId` | **int** FK → Patient, **nullable** | Patient uses an int identity PK as shipped (see `docs/tasks/_context.md` PK conventions). Restrict delete — audit rows must survive. Null when the recipient came from the Opie schedule (2026-09-03, migration `OpieNotifications`) — see `OpiePatientId`. |
+| `OpiePatientId` | string(50), nullable, indexed | **2026-09-03.** Opie `fldPatientID` for sends made from the dashboard day sheet (`POST /api/opie/notify`). A *different identity space* from `PatientId` — Opie ids must never be reused as Sona PKs. Kept so these rows can be linked to a Sona patient once an Opie↔Sona mapping exists (planned: nullable `Patients.OpiePatientId`, then a one-off backfill join). Exactly one of `PatientId` / `OpiePatientId` is set. |
+| `SmsConsentAttested` | bool | **2026-09-03.** TCPA: Opie has no consent field, so the sender attests consent in the notify dialog and the attestation is audited here. Always false for Sona-patient sends (consent lives on `Patient.SmsConsent`). |
 | `SentByUserId` | **int** FK → AppUser | **Compliance requirement.** Who triggered the send. Restrict delete. |
 | `DepartmentId` | uuid FK → Department, nullable | **Task 08.** Sender's active department at send time (multi-department staff pick a context in the UI). This — not a department FK on Patient — is how "what did ED send today" is answered. Opaque id only; the department *name* never enters a payload/log/URL. |
 | `Channel` | string enum: `sms` \| `push` | MVP is always `sms`; column exists now so Enhancement 2 doesn't need a migration + the TS contract already has it. |

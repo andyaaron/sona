@@ -1,4 +1,5 @@
 import { notificationHandlers } from './notifications'
+import { opieHandlers } from './opie'
 import { organizationHandlers } from './organizations'
 import { patientHandlers } from './patients'
 import { providerHandlers } from './providers'
@@ -15,4 +16,5 @@ export const handlers = [
   ...patientHandlers,
   ...providerHandlers,
   ...notificationHandlers,
+  ...opieHandlers,
 ]

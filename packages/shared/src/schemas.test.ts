@@ -5,8 +5,10 @@ import {
   createProviderSchema,
   e164Phone,
   inviteUserSchema,
+  notifyOpiePatientSchema,
   notifyPatientSchema,
   npiSchema,
+  opieScheduleQuerySchema,
   updateDepartmentSchema,
   updateProviderSchema,
   updateSiteSchema,
@@ -197,5 +199,38 @@ describe("primitive schemas", () => {
     expect(npiSchema.safeParse("123456789").success).toBe(false);
     expect(createProviderSchema.safeParse({ firstName: "A", lastName: "B", npi: "12345" }).success).toBe(false);
     expect(createProviderSchema.safeParse({ firstName: "A", lastName: "B", npi: null }).success).toBe(true);
+  });
+});
+
+describe("opieScheduleQuerySchema", () => {
+  it("accepts an ISO date or nothing", () => {
+    expect(opieScheduleQuerySchema.safeParse({ date: "2026-09-03" }).success).toBe(true);
+    expect(opieScheduleQuerySchema.safeParse({}).success).toBe(true);
+  });
+
+  it("rejects non-ISO dates", () => {
+    expect(opieScheduleQuerySchema.safeParse({ date: "09/03/2026" }).success).toBe(false);
+    expect(opieScheduleQuerySchema.safeParse({ date: "2026-9-3" }).success).toBe(false);
+  });
+});
+
+describe("notifyOpiePatientSchema", () => {
+  const valid = { opiePatientId: "101", mobileNumber: "+15555550100", smsConsentAttested: true as const };
+
+  it("accepts an Opie id, an E.164 number and attested consent", () => {
+    expect(notifyOpiePatientSchema.safeParse(valid).success).toBe(true);
+    expect(notifyOpiePatientSchema.safeParse({ ...valid, departmentId: SEED_DEPARTMENT }).success).toBe(true);
+    expect(notifyOpiePatientSchema.safeParse({ ...valid, departmentId: null }).success).toBe(true);
+  });
+
+  it("refuses to send without attested consent (TCPA)", () => {
+    expect(issuesAt(notifyOpiePatientSchema.safeParse({ ...valid, smsConsentAttested: false }), "smsConsentAttested")).toEqual([
+      "Confirm the patient has consented to SMS",
+    ]);
+  });
+
+  it("rejects Opie's -9999 staff placeholder and non-E.164 numbers", () => {
+    expect(issuesAt(notifyOpiePatientSchema.safeParse({ ...valid, opiePatientId: "-9999" }), "opiePatientId")).toEqual(["Not a patient"]);
+    expect(notifyOpiePatientSchema.safeParse({ ...valid, mobileNumber: "555-0100" }).success).toBe(false);
   });
 });

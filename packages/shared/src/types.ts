@@ -139,7 +139,12 @@ export type NotificationStatus =
  */
 export interface MessageOut {
   id: string;
-  patientId: string;
+  /** Sona patient id; null when the recipient was an Opie schedule patient (see opiePatientId) */
+  patientId: string | null;
+  /** Opie fldPatientID for sends made from the Opie schedule — a different identity space from patientId */
+  opiePatientId: string | null;
+  /** TCPA: true when the sender attested consent at send time (Opie sends only — Opie has no consent field) */
+  smsConsentAttested: boolean;
   /** AppUser ids are numeric (int PK), unlike the uuid-string ids elsewhere */
   sentByUserId: number;
   channel: NotificationChannel;
@@ -158,4 +163,49 @@ export interface MessageOut {
   createdAt: string;
   sentAt: string | null;
   deliveredAt: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Opie (external practice-management DB, read-only) — docs/opie-odbc-integration.md
+// ---------------------------------------------------------------------------
+
+/** One tblPatientSchedule row. ISO datetimes without offset (Opie stores local wall-clock). */
+export interface OpieAppointment {
+  startTime: string | null;
+  endTime: string | null;
+  /**
+   * fldPatientScheduleDetails — free text staff type on the booking. For internal blocks
+   * (-9999) this is the label ("Lunch", "Staff meeting"); for patients it may be clinical
+   * context, so it is PHI like `comment`.
+   */
+  details: string | null;
+}
+
+/** One tblPatientPhoneNumbers row. Raw as stored in Opie — not normalised to E.164. */
+export interface OpiePhoneNumber {
+  number: string | null;
+  extension: string | null;
+  country: string | null;
+}
+
+/**
+ * A patient on Opie's schedule for a given day, assembled server-side from
+ * tblPatients + tblPatientSchedule + tblPatientPhoneNumbers (GET /api/opie/schedule).
+ * `opiePatientId` is Opie's fldPatientID — a different identity space from Sona's
+ * `Patient.id`; no mapping exists yet. Every field is PHI: internal, role-gated views
+ * only — never in a notification, log line or URL (docs/compliance.md).
+ */
+export interface OpieScheduledPatient {
+  opiePatientId: string;
+  lastName: string | null;
+  firstName: string | null;
+  middleName: string | null;
+  nickName: string | null;
+  emailAddress: string | null;
+  /** Free-text clinical notes — highest-risk field in the payload. */
+  comment: string | null;
+  primaryPractitioner: string | null;
+  languagePref: string | null;
+  appointments: OpieAppointment[];
+  phoneNumbers: OpiePhoneNumber[];
 }

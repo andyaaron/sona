@@ -2,6 +2,7 @@ import type {
   AppUserSummary,
   Department,
   MessageOut,
+  OpieScheduledPatient,
   Organization,
   Patient,
   Provider,
@@ -155,6 +156,8 @@ export function makeMessageOut(overrides: Partial<MessageOut> = {}): MessageOut 
   return {
     id: V7_ID,
     patientId: '1',
+    opiePatientId: null,
+    smsConsentAttested: false,
     sentByUserId: 1,
     channel: 'sms',
     messageTemplateId: null,
@@ -167,6 +170,26 @@ export function makeMessageOut(overrides: Partial<MessageOut> = {}): MessageOut 
     createdAt: TIMESTAMP,
     sentAt: null,
     deliveredAt: null,
+    ...overrides,
+  }
+}
+
+export function makeOpieScheduledPatient(
+  overrides: Partial<OpieScheduledPatient> = {},
+): OpieScheduledPatient {
+  const id = overrides.opiePatientId ?? String(nextId())
+  return {
+    opiePatientId: id,
+    lastName: `Opie ${id}`,
+    firstName: 'Test',
+    middleName: null,
+    nickName: null,
+    emailAddress: `opie${id}@example.com`,
+    comment: null,
+    primaryPractitioner: 'Dr. Example',
+    languagePref: 'English',
+    appointments: [{ startTime: '2026-09-03T09:00:00', endTime: '2026-09-03T09:30:00', details: null }],
+    phoneNumbers: [{ number: '555-0100', extension: null, country: 'US' }],
     ...overrides,
   }
 }

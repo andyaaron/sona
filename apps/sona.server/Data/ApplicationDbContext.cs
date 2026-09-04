@@ -134,6 +134,13 @@ namespace Sona.Server.Data
 
             modelBuilder.Entity<MessageOut>()
                 .HasIndex(m => m.PatientId);
+
+            modelBuilder.Entity<MessageOut>()
+                .Property(m => m.OpiePatientId)
+                .HasMaxLength(50);
+
+            modelBuilder.Entity<MessageOut>()
+                .HasIndex(m => m.OpiePatientId);
         }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)

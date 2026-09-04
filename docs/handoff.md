@@ -99,7 +99,7 @@ Both frontends follow **bulletproof-react**: `app/ → features/ → (components
     - `components/`: `notify-patient-button.tsx`
   - `user/` — current user
     - `api/`: `getUser.ts`
-- **Routes:** file-based via TanStack Router plugin (routes in `src/app/routes/`)
+- **Routes:** file-based via TanStack Router plugin (routes in `src/routes/`)
 - **UI:** Tailwind v4, shared Button component, search/filter on patient list, toast notifications
 - **Env config:** centralized in `src/config/env.ts`
 
@@ -197,7 +197,7 @@ See `docs/getting-started.md` for full setup including local SQL Server (Docker 
 ## Important Gotchas
 
 1. **`routeTree.gen.ts`** is generated — never hand-edit. Run `pnpm dev:admin` or `pnpm build` to regenerate.
-2. **Route files** go in `src/app/routes/` (not `src/routes/`).
+2. **Route files** go in `src/routes/` (`routesDirectory` in `vite.config.ts`).
 3. **`.npmrc`** has `node-linker=hoisted` — Expo breaks without it. Don't change.
 4. **`lightningcss@1.30.1`** override in `pnpm-workspace.yaml` is a NativeWind requirement. Don't change.
 5. **Solution file** is `Sona.slnx` (XML format, .NET 10), not `Sona.sln`.
@@ -213,7 +213,7 @@ See `docs/getting-started.md` for full setup including local SQL Server (Docker 
 |---|---|
 | Domain types + schemas | `packages/shared/src/types.ts`, `schemas.ts` |
 | API client endpoints | `packages/api-client/src/endpoints.ts` |
-| Admin routes | `apps/sona.client/src/app/routes/` |
+| Admin routes | `apps/sona.client/src/routes/` |
 | Admin features | `apps/sona.client/src/features/{patients,notifications,user}/` |
 | Backend controllers | `apps/sona.server/Controllers/` |
 | EF Core entities | `apps/sona.server/Data/DbModels/` |

@@ -16,6 +16,7 @@ Sona sends communications from healthcare providers to patients, which very like
 ## Data handling
 
 - **Audit logging:** every notification send must be recorded — who sent it, to whom, when, via which channel, delivery outcome. The `ReadyNotification` entity is designed for this; do not add a code path that sends without persisting.
+- **SMS consent (TCPA):** no SMS without consent. Sona patients carry `SmsConsent`; patients notified from the external Opie schedule have no consent record in Opie, so the sender **attests** consent in the confirm dialog and the API stores `MessagesOut.SmsConsentAttested` (a refusal is still audited as `failed` / `sms-consent-missing`). **Open for legal review:** whether sender attestation is an acceptable consent basis, or whether Opie-side consent must be captured/imported first.
 - **Encryption at rest** for the database; TLS everywhere in transit.
 - **Access control:** admin app requires authenticated provider accounts; role checks server-side, never client-only.
 - **Minimum necessary:** the mobile app should only surface the current patient's own data; the API must enforce patient-scoped authorization on every endpoint.
