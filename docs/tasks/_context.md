@@ -26,6 +26,14 @@ Every task prompt in `docs/tasks/` assumes you have read this file AND `AGENTS.m
 - **Frontend test toolchain shipped (Task 12, 2026-09-02):** Vitest in `packages/shared` (`schemas.test.ts`) and `apps/sona.client` (jsdom + Testing Library + MSW; helpers in `src/testing/` — `renderWithProviders`, `renderRoute`, typed fixtures with the real seed ids, default handlers for every endpoint). Playwright in `apps/sona.client/e2e/` against the Local API: `webServer` starts both processes, `e2e/fixtures/roles.ts` switches the dev user's role through the Local-only `PUT /api/local/me/role` (`Controllers/LocalDevController.cs`, 404 outside Local), data is created through the real API with unique `E2E-` identifiers. `.github/workflows/ci.yml` runs typecheck/build/test/`dotnet build` and the `@smoke` E2E job (SQL Server service + `dotnet ef database update`). ⚠️ The PR #12 merge (`c08bb87`) dropped Task 14's `testId` support in `Table.tsx` and `header.tsx`; both were restored on `bug-fixes` (2026-09-02).
 - **Admin UI guide shipped (Task 14, 2026-09-02):** `docs/admin-ui-guide.md` maps every admin route (regions, on-screen order, click paths, toasts, validation text, role gates, API calls, empty/loading/error states), is the **registry of every `data-testid`** (convention `<feature>-<element>[-<qualifier>]`, entity ids only; shared `Table`/`SearchInput`/form fields take a `testId` prop and derive children), and opens with the verification playbook. **Read it before any client task**, select by testid, and update it in the same commit as any user-noticeable change (AGENTS.md §4).
 
+## Feedback round 2026-09-04 (Tasks 22–29)
+
+Colleague feedback after running the app produced Tasks 22–29 (Opie schema discovery, provider
+filter, provider/room columns, SMS content, notified state, check-in flow, message templates,
+day/week views) plus `_backlog.md`. Many have unanswered product/compliance questions —
+collected in `_open-questions-2026-09-04.md`; do not start a task whose ⚠️ blocking questions are
+unanswered. Task 22 is the unblocker: it needs the real Opie schema (work repo), not the fake DB.
+
 ## Compliance (non-negotiable, from docs/compliance.md)
 
 - No PHI in notification payloads, log lines, or URLs. Message content is generic and template-gated.
