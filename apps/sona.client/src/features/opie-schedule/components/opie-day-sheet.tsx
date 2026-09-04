@@ -82,6 +82,7 @@ function InternalBlockRow({ row }: { row: DaySheetRow }) {
 function AppointmentRow({ row }: { row: DaySheetRow }) {
   if (row.isInternalBlock) return <InternalBlockRow row={row} />
   const { patient } = row
+
   return (
     <tr data-testid={`opie-schedule-row-${row.key}`} className="border-b border-gray-100 align-top">
       <TimeCell row={row} />
@@ -128,10 +129,12 @@ function HourGroup({
   hour,
   rows,
   nowMarkerIndex,
+  hideInternal,
 }: {
   hour: number
   rows: DaySheetRow[]
   nowMarkerIndex: number | null
+  hideInternal: boolean
 }) {
   return (
     <>
@@ -151,18 +154,36 @@ function HourGroup({
         </>
       ) : (
         rows.map((row, index) => (
-          <RowGroup key={row.key} row={row} before={nowMarkerIndex === index} after={nowMarkerIndex === index + 1} />
+          <RowGroup
+            key={row.key}
+            row={row}
+            before={nowMarkerIndex === index}
+            after={nowMarkerIndex === index + 1}
+            hideInternal={hideInternal}
+          />
         ))
       )}
     </>
   )
 }
 
-function RowGroup({ row, before, after }: { row: DaySheetRow; before: boolean; after: boolean }) {
+function RowGroup({
+  row,
+  before,
+  after,
+  hideInternal,
+}: {
+  row: DaySheetRow
+  before: boolean
+  after: boolean
+  hideInternal: boolean
+}) {
+  // Keep the now-marker index aligned with the underlying rows array — skip the row's own
+  // content when hidden, but still render the marker so "now" doesn't silently drift.
   return (
     <>
       {before && <NowMarker />}
-      <AppointmentRow row={row} />
+      {!(hideInternal && row.isInternalBlock) && <AppointmentRow row={row} />}
       {after && <NowMarker />}
     </>
   )
@@ -173,7 +194,8 @@ function RowGroup({ row, before, after }: { row: DaySheetRow; before: boolean; a
  * appointment under its start hour, empty hours shown as a single quiet row. Internal
  * (staff) blocks occupy time like appointments but render as highlighted label rows.
  */
-export function OpieDaySheet({ sheet }: { sheet: DaySheet }) {
+export function OpieDaySheet({ sheet, hideInternal = false }: { sheet: DaySheet; hideInternal?: boolean }) {
+  const unscheduled = hideInternal ? sheet.unscheduled.filter((row) => !row.isInternalBlock) : sheet.unscheduled
   return (
     <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table data-testid="opie-schedule-sheet" className="w-full text-sm">
@@ -188,16 +210,16 @@ export function OpieDaySheet({ sheet }: { sheet: DaySheet }) {
         </thead>
         <tbody>
           {sheet.hours.map(({ hour, rows, nowMarkerIndex }) => (
-            <HourGroup key={hour} hour={hour} rows={rows} nowMarkerIndex={nowMarkerIndex} />
+            <HourGroup key={hour} hour={hour} rows={rows} nowMarkerIndex={nowMarkerIndex} hideInternal={hideInternal} />
           ))}
-          {sheet.unscheduled.length > 0 && (
+          {unscheduled.length > 0 && (
             <>
               <tr data-testid="opie-schedule-unscheduled" className="bg-gray-50">
                 <td colSpan={5} className="px-3 py-1.5 text-xs font-medium text-gray-600">
                   No start time
                 </td>
               </tr>
-              {sheet.unscheduled.map((row) => (
+              {unscheduled.map((row) => (
                 <AppointmentRow key={row.key} row={row} />
               ))}
             </>

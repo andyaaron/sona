@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
 
 import { ApiError } from '@sona/api-client'
 
@@ -30,12 +31,32 @@ interface CountChipProps {
   noun: string
   plural?: string
   tone?: 'neutral' | 'internal'
+  onClick?: () => void
+  pressed?: boolean
 }
 
-function CountChip({ id, count, noun, plural, tone = 'neutral' }: CountChipProps) {
+function CountChip({ id, count, noun, plural, tone = 'neutral', onClick, pressed }: CountChipProps) {
   const toneClass = tone === 'internal' ? 'bg-amber-100 text-amber-900' : 'bg-gray-100 text-gray-700'
+  const interactiveClass = onClick ? 'cursor-pointer select-none hover:opacity-80' : ''
   return (
-    <span data-testid={`opie-schedule-count-${id}`} className={`rounded-md px-2 py-0.5 tabular-nums ${toneClass}`}>
+    <span
+      data-testid={`opie-schedule-count-${id}`}
+      className={`rounded-md px-2 py-0.5 tabular-nums ${toneClass} ${interactiveClass}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-pressed={onClick ? pressed : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
+    >
       {countLabel(count, noun, plural)}
     </span>
   )
@@ -49,6 +70,7 @@ function CountChip({ id, count, noun, plural, tone = 'neutral' }: CountChipProps
  * belongs to another organization (404).
  */
 export function OpieSchedule({ date, onDateChange }: OpieScheduleProps) {
+  const [hideInternalRows, setHideInternalRows] = useState(false)
   const { data, error, isPending } = useQuery(opieScheduleQueryOptions({ date }))
   const notConfigured = error instanceof ApiError && error.status === 503
   // 404 = the Opie clinic is bound to a different organization than the viewer's: the
@@ -88,6 +110,8 @@ export function OpieSchedule({ date, onDateChange }: OpieScheduleProps) {
                   noun="internal"
                   plural="internal"
                   tone="internal"
+                  onClick={() => setHideInternalRows((hidden) => !hidden)}
+                  pressed={hideInternalRows}
                 />
               )}
             </div>
@@ -160,7 +184,7 @@ export function OpieSchedule({ date, onDateChange }: OpieScheduleProps) {
           No Opie appointments on this date.
         </p>
       ) : (
-        <OpieDaySheet sheet={sheet} />
+        <OpieDaySheet sheet={sheet} hideInternal={hideInternalRows} />
       )}
     </section>
   )

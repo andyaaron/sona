@@ -140,6 +140,24 @@ describe('/ dashboard — Opie day sheet', () => {
     expect(screen.queryByTestId('opie-schedule-count-internal')).not.toBeInTheDocument()
   })
 
+  it('toggles internal block rows off/on when the internal count chip is clicked', async () => {
+    serveSchedule('2030-01-15')
+    const user = userEvent.setup()
+    renderRoute('/?date=2030-01-15')
+
+    await screen.findByTestId('opie-schedule-sheet')
+    expect(screen.getByTestId('opie-schedule-block--9999-0')).toBeInTheDocument()
+
+    const chip = screen.getByTestId('opie-schedule-count-internal')
+    await user.click(chip)
+    expect(screen.queryByTestId('opie-schedule-block--9999-0')).not.toBeInTheDocument()
+    // Real appointment rows stay visible — only the internal block is hidden
+    expect(screen.getByTestId('opie-schedule-row-4242-0')).toBeInTheDocument()
+
+    await user.click(chip)
+    expect(screen.getByTestId('opie-schedule-block--9999-0')).toBeInTheDocument()
+  })
+
   it('shows the not-configured notice on 503 instead of an error (dashboard still renders)', async () => {
     server.use(opieNotConfiguredHandler)
     renderRoute('/')

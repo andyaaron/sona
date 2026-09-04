@@ -44,6 +44,25 @@ describe('OpieDaySheet — internal blocks', () => {
     expect(within(row).getByTestId('opie-notify-7-0')).toBeInTheDocument()
   })
 
+  it('hides internal block rows (but keeps real appointment rows) when hideInternal is set', () => {
+    const sheet = buildDaySheet([
+      makeOpieScheduledPatient({ opiePatientId: '7', lastName: 'Real', appointments: [appt('11:30', '12:00')] }),
+      makeOpieScheduledPatient({
+        opiePatientId: '-9999',
+        lastName: null,
+        firstName: null,
+        emailAddress: null,
+        comment: null,
+        phoneNumbers: [],
+        appointments: [appt('12:00', '13:00', 'Lunch')],
+      }),
+    ])
+    renderWithProviders(<OpieDaySheet sheet={sheet} hideInternal />)
+
+    expect(screen.queryByTestId('opie-schedule-block--9999-0')).not.toBeInTheDocument()
+    expect(screen.getByTestId('opie-schedule-row-7-0')).toBeInTheDocument()
+  })
+
   it('labels each block from its own schedule row, and falls back when details are empty', () => {
     const sheet = buildDaySheet([
       makeOpieScheduledPatient({
