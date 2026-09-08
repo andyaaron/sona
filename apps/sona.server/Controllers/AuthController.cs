@@ -21,13 +21,16 @@ public class AuthController : Controller
     [HttpGet("login")]
     public IActionResult Login()
     {
-        var redirectUri = _configuration["AzureAd:RedirectUri"];
+        // Post-login landing page. Relative "/" works on any host (Azure included); Development
+        // overrides it with the Vite dev-server origin because the API and admin run on
+        // different ports there.
+        var redirectUri = _configuration["AzureAd:RedirectUri"] ?? "/";
 
         // Local mode already authenticates every request, so challenging a scheme that
         // always succeeds is meaningless — bounce straight back to the app instead.
         if (_environment.IsEnvironment(LocalDevAuthDefaults.LocalEnvironmentName))
         {
-            return Redirect(redirectUri ?? "/");
+            return Redirect(redirectUri);
         }
 
         var properties = new AuthenticationProperties { RedirectUri = redirectUri };

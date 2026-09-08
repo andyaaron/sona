@@ -78,6 +78,7 @@ jobs:
       - name: Create the schema
         run: |
           dotnet tool restore
+          dotnet restore apps/sona.server/sona.server.csproj
           dotnet dotnet-ef database update --project apps/sona.server
       - name: Dev certificate for Kestrel + Vite
         run: dotnet dev-certs https

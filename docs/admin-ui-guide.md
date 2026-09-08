@@ -97,7 +97,7 @@ Toasts still render. Verified.
 
 `apiFetch` calls `onUnauthorized` on any `401`, which sets `window.location.href = '/auth/login'`
 (never resolves the promise). In Local the API answers `302 → AzureAd:RedirectUri`
-(`https://localhost:5173/`) — verified with curl; the redirect target is the Entra challenge in
+(default `/`; `https://localhost:5173/` only under the Development profile) — verified with curl; the redirect target is the Entra challenge in
 Development/Production. A `401` cannot occur in Local (stub auth), so the bounce itself is *(unverified in-browser)*.
 
 ---
