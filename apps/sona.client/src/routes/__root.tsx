@@ -33,7 +33,7 @@ function RootComponent() {
 
     return (
         <UserContext value={user}>
-            <Header />
+            <Header isUserPending={isPending} />
             <div className="flex min-h-screen">
                 <main data-testid="main" className="flex-1 p-6 text-left">
                     {isPending ? (
