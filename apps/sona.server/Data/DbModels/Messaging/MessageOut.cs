@@ -11,12 +11,13 @@ namespace Sona.Server.Data.DbModels;
 public class MessageOut : EntityBase
 {
     /// <summary>
-    /// When this send attempt was recorded. Stamped at construction (not by the generic
+    /// When this send attempt was recorded. Same column name as the old EntityBase field so
+    /// existing rows keep their values; now stamped at construction (not by the generic
     /// EntityBase mechanism, which was removed) because this row IS the compliance audit
     /// trail and the admin notification history relies on it for ordering/display even
     /// for attempts that never reach <see cref="SentDateTime"/> (e.g. consent-blocked).
     /// </summary>
-    public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+    public DateTime CreateDate { get; set; } = DateTime.UtcNow;
 
     /// <summary>Sona patient. Null for sends made from the Opie schedule (see <see cref="OpiePatientId"/>).</summary>
     public int? PatientId { get; set; }

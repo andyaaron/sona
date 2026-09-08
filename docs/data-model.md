@@ -13,7 +13,7 @@ Phasing follows the product roadmap:
 Conventions (all tables):
 
 - Primary keys are UUIDs (`Id`), matching the string ids in `@sona/shared`.
-- Change tracking (who changed what, when) goes through the `[Auditable]`-driven audit log (`AuditLogs` table), not per-row `CreateDate`/`ModDate` columns — those were removed from `EntityBase`-derived tables (Task 22, 2026-09-08). `MessageOut` is the one exception: it keeps its own `CreatedDate` because the row **is** the compliance audit record and the admin notification history needs a created timestamp even for consent-blocked attempts that the `[Auditable]` log (which only tracks Modified/Deleted) never sees.
+- Change tracking (who changed what, when) goes through the `[Auditable]`-driven audit log (`AuditLogs` table), not per-row `CreateDate`/`ModDate` columns — those were removed from `EntityBase`-derived tables (Task 22, 2026-09-08). `MessageOut` is the one exception: it keeps `CreateDate` (declared on the entity itself, column unchanged) because the row **is** the compliance audit record and the admin notification history needs a created timestamp even for consent-blocked attempts that the `[Auditable]` log (which only tracks Modified/Deleted) never sees.
 - Soft delete via `IsActive` where noted — patient and message rows are never hard-deleted (audit trail).
 - Phone numbers stored in E.164 format (`+15551234567`), matching `e164Phone` in `packages/shared/src/schemas.ts`.
 - **No PHI ever leaves the database in a notification payload, log line, or URL** — see [compliance.md](compliance.md).
@@ -92,8 +92,6 @@ Renamed from the original proposal (which used `appUser` for patient data) — p
 | `InCerner` | bool | Whether the patient exists in Cerner (Enhancement 1 sync flag). |
 | `ImportSource` | string enum: `flatfile` \| `ui` \| `cerner` | Which ingest path wrote/last-updated this row — with 2+ ingest paths this answers "where did this data come from" during support. |
 | `IsActive` | bool, default true | Soft delete. |
-| `CreateDate` | datetime | |
-| `ModDate` | datetime | |
 
 **Dropped from original proposal:** `FIN`. FIN is an encounter (visit) identifier in Cerner and changes every visit — a single column on the patient row goes stale immediately. It moves to the [Encounter](#encounter--enhancement-1-cerner) table.
 
@@ -114,8 +112,7 @@ Corresponds to the `Provider` type in `@sona/shared`.
 | `OrganizationId` | uuid FK → Organization, nullable | **Task 08.** Single-org membership (MVP rule). Null for `system_admin` (global) and `unassigned` (not yet provisioned). |
 | `Role` | string enum: `system_admin` \| `org_admin` \| `staff` \| `unassigned` | **Task 08** (was `nurse`/`provider`/`admin`; replaces the flat `AccessLevels` table). Matches `UserRole` in `@sona/shared`. Plain column is justified by single-org membership — multi-org would split it into a scoped assignment table. Role checks are server-side, never client-only ([compliance.md](compliance.md)). New Entra logins JIT-create as `unassigned` and appear in the org admin's approval queue; invite-first provisioning (MSGraph directory search) pre-creates the row with org + role + departments. **Providers are admin-only (decided 2026-09-02, Task 18):** creating/editing/deactivating providers requires `org_admin`/`system_admin` (`OrgAdmin` policy on `POST`/`PUT /api/providers`); every assigned role may still read the list (patient form, provider filter). |
 | `IsActive` | bool, default true | Deactivate instead of delete — sent messages keep a valid sender reference. |
-| `CreateDate` | datetime | |
-| `ModDate` | datetime | |
+| `InDate` / `ModDate` | datetime | `AppUser`'s own fields (it does not inherit `EntityBase`) — set directly in code, untouched by Task 22. |
 
 Credential storage depends on the auth approach (hosted identity provider vs local) — decide before implementation; no password column until then.
 
@@ -161,7 +158,7 @@ Corresponds to `MessageOut` in `@sona/shared`.
 | `FailureReason` | string, nullable | Carrier/provider error on `failed`. |
 | `SentDateTime` | datetime, nullable | Null while `pending`. |
 | `DeliveredDateTime` | datetime, nullable | Set from delivery webhook. |
-| `CreatedDate` | datetime | **2026-09-08 (Task 22).** Stamped at construction, not by a generic `EntityBase` mechanism (removed) — this row is the compliance audit record, and the notification history needs a created timestamp even for consent-blocked attempts that never reach `SentDateTime`. |
+| `CreateDate` | datetime | **2026-09-08 (Task 22).** Now declared on `MessageOut` itself and stamped at construction, not by a generic `EntityBase` mechanism (removed) — this row is the compliance audit record, and the notification history needs a created timestamp even for consent-blocked attempts that never reach `SentDateTime`. |
 
 **Changed from original proposal:**
 
@@ -229,8 +226,6 @@ Inbound SMS from patients. Original proposal was the right skeleton; additions b
 | `ProcessedStatus` | string enum: `unread` \| `handled` \| `ignored` | Staff triage queue state. |
 | `HandledByUserId` | uuid FK → AppUser, nullable | Who processed it. |
 | `ReceivedDateTime` | datetime | |
-| `CreateDate` | datetime | |
-| `ModDate` | datetime | |
 
 ---
 
@@ -248,8 +243,6 @@ Shape is a starting point; finalize against the actual Cerner integration contra
 | `AdmitDateTime` | datetime, nullable | |
 | `DischargeDateTime` | datetime, nullable | |
 | `Status` | string enum: `active` \| `discharged` (extend per Cerner states) | |
-| `CreateDate` | datetime | |
-| `ModDate` | datetime | |
 
 Consider later: `MessageOut.EncounterId` (nullable FK) so a "ready" ping is tied to the visit it belongs to.
 
@@ -267,8 +260,6 @@ Registered patient devices for push notifications. Replaces manual maintenance o
 | `Platform` | string enum: `ios` \| `android` | |
 | `LastSeenDateTime` | datetime | Prune stale registrations. |
 | `IsActive` | bool | Set false on push-service "token invalid" responses. |
-| `CreateDate` | datetime | |
-| `ModDate` | datetime | |
 
 Once this table exists, `Patient.IsUsingMobileApp` = "has ≥1 active device" (derived or maintained by trigger/app logic) — server-side channel selection reads this at send time ([architecture.md](architecture.md)).
 

@@ -3,7 +3,7 @@
 **Priority: high** — touches every write path through `ApplicationDbContext`; also fixes a live
 bug (see §2) that should not sit unaddressed if this code is being touched anyway.
 
-**Status: not started**
+**Status: done 2026-09-08** — see `docs/task-22-handoff.md` (including the audit corrections at the bottom).
 
 Read `docs/tasks/_context.md` and `AGENTS.md` first.
 

@@ -51,24 +51,12 @@ namespace sona.server.Data.Migrations
                 name: "ModDate",
                 table: "MessageTemplates");
 
-            migrationBuilder.DropColumn(
-                name: "CreateDate",
-                table: "MessagesOut");
-
-            // MessagesOut keeps a created timestamp (docs/data-model.md — this row is the
-            // compliance audit record) but under a new name and semantics: it is stamped once
-            // at construction, never updated, so it is dropped/re-added rather than renamed
-            // from ModDate (which tracked last-modified, not created).
+            // MessagesOut keeps CreateDate untouched (docs/data-model.md — this row is the
+            // compliance audit record, and existing values must survive). Only ModDate goes;
+            // the entity now declares CreateDate itself and stamps it at construction.
             migrationBuilder.DropColumn(
                 name: "ModDate",
                 table: "MessagesOut");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "CreatedDate",
-                table: "MessagesOut",
-                type: "datetime2",
-                nullable: false,
-                defaultValueSql: "SYSUTCDATETIME()");
 
             migrationBuilder.DropColumn(
                 name: "CreateDate",
@@ -82,19 +70,8 @@ namespace sona.server.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "CreatedDate",
-                table: "MessagesOut");
-
             migrationBuilder.AddColumn<DateTime>(
                 name: "ModDate",
-                table: "MessagesOut",
-                type: "datetime2",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "CreateDate",
                 table: "MessagesOut",
                 type: "datetime2",
                 nullable: false,

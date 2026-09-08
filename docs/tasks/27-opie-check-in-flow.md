@@ -28,7 +28,7 @@ After the text is sent there is a flow for the patient's visit state:
 
 ### Data (Sona-owned; Opie stays read-only)
 
-New table **`AppointmentVisits`** (`EntityBase`: Guid v7 PK, CreateDate/ModDate):
+New table **`AppointmentVisits`** (`EntityBase`: Guid v7 PK; no timestamps — change tracking is the `[Auditable]` audit log per Task 22):
 
 | Column | Type | Notes |
 |---|---|---|

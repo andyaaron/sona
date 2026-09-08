@@ -12,7 +12,7 @@ Real-world example that drove the design: **North Carolina Division** (division)
 
 Second goal: introduce **`PatientLookup`** as the single home of patient identifiers, so a patient can carry MRNs from more than one source (practice EMR today; hospital EHR feeds, EMR migrations, chart merges later — Cerner itself is a future enhancement, not MVP). Decided 2026-09-02: the multi-source case is expected, so the structure goes in now while every patient still has exactly one MRN and the migration is trivial.
 
-Third goal (added 2026-09-02): **`AuditLogs`** replaces per-table `CreateDate`/`ModDate`. No table carries timestamps; create / edit / delete of every entity is recorded in one audit table, following the pattern in the team's other apps.
+Third goal (added 2026-09-02): **`AuditLogs`** replaces per-table `CreateDate`/`ModDate`. No table carries timestamps; create / edit / delete of every entity is recorded in one audit table, following the pattern in the team's other apps. **Partly superseded (2026-09-08):** the `AuditLogs` table shipped with the 2026-09-04 audit-log merge and Task 22 already dropped `CreateDate`/`ModDate` from every `EntityBase` table (`MessagesOut` keeps `CreateDate` deliberately — see `docs/task-22-handoff.md`). Part C below now only needs to cover `AppUser.InDate`/`ModDate` and any new tables, if at all.
 
 Three parts, three migrations, three PRs. Part A is pure hierarchy; Part B moves MRN storage; Part C adds `AuditLogs` and drops the timestamp columns. Do not combine — the review surface is too large. **Order: C may ship before or after A/B, but A and B must not add `CreateDate`/`ModDate` to new tables.**
 

@@ -58,7 +58,6 @@ Rows sharing an order number are parallelizable; higher numbers depend on lower 
 | `Specialty` | string, nullable | ⚠️ Fine at rest, **never in SMS/push content** — "your oncologist is ready" leaks a condition ([compliance.md](compliance.md)) |
 | `AppUserId` | int FK → AppUser, nullable | Set when the provider also has a login ("may be both" — some providers log in, some don't) |
 | `IsActive` | bool, default true | Deactivate, never delete — assigned patients keep a valid reference; deactivation needs a reassignment workflow |
-| `CreateDate` / `ModDate` | datetime | |
 
 **Patient** (add column)
 
