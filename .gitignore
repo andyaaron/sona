@@ -31,3 +31,6 @@ apps/sona.server/appsettings.Local.json
 .vs/
 .vscode/*
 !.vscode/extensions.json
+
+# Claude Code hook cache (typecheck locks, Stop-gate fingerprint)
+.claude/.cache/

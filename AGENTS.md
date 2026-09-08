@@ -159,4 +159,18 @@ These have all bitten before. Check this list before assuming a novel problem:
 | Compliance rules | `docs/compliance.md` |
 | Expo SDK 57 docs | https://docs.expo.dev/versions/v57.0.0/ |
 
+## 8. Enforced by hooks
+
+`.claude/settings.json` wires Claude Code hooks (scripts in `.claude/hooks/*.mjs`, plain Node, no extra deps) that mechanically enforce the rules above. A denied tool call or a blocked stop quotes the rule — fix the cause, do not work around the hook.
+
+| Hook | Enforces |
+|---|---|
+| PreToolUse `Edit\|Write` → `protect-files.mjs` | §0.7 — `.npmrc`, `routeTree.gen.ts`, `expo-env.d.ts` are never edited; `pnpm-workspace.yaml` edits must keep `lightningcss: 1.30.1`. |
+| PreToolUse `Bash` → `bash-guard.mjs` | §5.6 `dotnet … Sona.slnx` (the `.sln` name is rejected); §2 quoted `@workspace:*`, native/Expo packages via `npx expo install`; §0.5 no TanStack Router on mobile; §0.7 no shell rewrites of protected files; §6 no `.env` in a commit; §4 a commit touching `apps/sona.client/src/**` also touches `docs/admin-ui-guide.md` **or** its message contains `no user-visible change`. |
+| PostToolUse `Edit\|Write` → `post-edit-lint.mjs` | §1 env vars only in `src/config/env.ts`; §0.3 no feature→feature imports, no `components/lib/hooks/utils`→feature imports; §0.5 no `@tanstack/react-router` in mobile; §4 every literal `data-testid` in the admin is in the guide; §3 no `@tailwind` v3 directives. |
+| PostToolUse `Edit\|Write` → `post-edit-typecheck.mjs` (async) | §0.6 — `pnpm --filter <pkg> typecheck` (+ `oxlint` on web) for the edited package; failures wake the agent. |
+| Stop → `stop-gate.mjs` | §4 Definition of Done — `pnpm typecheck`, `pnpm build`, `pnpm test`, `dotnet build` as applicable to what changed vs `main`; the stop is blocked until they pass. Results are cached per tree state in `.claude/.cache/` (gitignored). |
+
+Not hookable (still your responsibility): PHI in messages/logs/URLs (§0.1), persisting `ReadyNotification` on new send paths, exercising UI changes in a running app, zod schemas for new inputs, keeping docs current beyond the guide gate. Set `SONA_HOOK_DEBUG=1` to see per-gate timings on stderr.
+
 Keep the contract in `packages/shared`, keep PHI out of messages, verify before done.
