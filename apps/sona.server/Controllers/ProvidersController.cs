@@ -161,8 +161,6 @@ public class ProvidersController : Controller
             Specialty = provider.Specialty,
             AppUserId = provider.AppUserId,
             IsActive = provider.IsActive,
-            CreateDate = provider.CreateDate.ToString("O"),
-            ModDate = provider.ModDate.ToString("O"),
         };
     }
 
@@ -176,8 +174,6 @@ public class ProvidersController : Controller
         public string? Specialty { get; set; }
         public int? AppUserId { get; set; }
         public bool IsActive { get; set; }
-        public string CreateDate { get; set; } = "";
-        public string ModDate { get; set; } = "";
     }
 
     public sealed class CreateProviderRequest

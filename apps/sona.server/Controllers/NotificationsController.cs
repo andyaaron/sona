@@ -261,7 +261,7 @@ public class NotificationsController : Controller
         var messages = await _db.MessagesOut
             .AsNoTracking()
             .Where(m => m.PatientId == patientId)
-            .OrderByDescending(m => m.CreateDate)
+            .OrderByDescending(m => m.CreatedDate)
             .Select(m => ToResponse(m))
             .ToListAsync();
 
@@ -296,7 +296,7 @@ public class NotificationsController : Controller
             Status = message.Status,
             ProviderMessageSid = message.ProviderMessageSid,
             FailureReason = message.FailureReason,
-            CreatedAt = message.CreateDate.ToString("O"),
+            CreatedAt = message.CreatedDate.ToString("O"),
             SentAt = message.SentDateTime?.ToString("O"),
             DeliveredAt = message.DeliveredDateTime?.ToString("O"),
         };

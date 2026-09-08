@@ -70,8 +70,6 @@ export function makeOrganization(overrides: Partial<Organization> = {}): Organiz
     name: 'Default Practice',
     type: 'practice',
     isActive: true,
-    createDate: TIMESTAMP,
-    modDate: TIMESTAMP,
     ...overrides,
   }
 }
@@ -82,8 +80,6 @@ export function makeSite(overrides: Partial<Site> = {}): Site {
     organizationId: SEED.organizationId,
     name: 'Main',
     isActive: true,
-    createDate: TIMESTAMP,
-    modDate: TIMESTAMP,
     ...overrides,
   }
 }
@@ -94,8 +90,6 @@ export function makeDepartment(overrides: Partial<Department> = {}): Department 
     siteId: SEED.siteId,
     name: 'General',
     isActive: true,
-    createDate: TIMESTAMP,
-    modDate: TIMESTAMP,
     ...overrides,
   }
 }
@@ -146,8 +140,6 @@ export function makeProvider(overrides: Partial<Provider> = {}): Provider {
     specialty: null,
     appUserId: null,
     isActive: true,
-    createDate: TIMESTAMP,
-    modDate: TIMESTAMP,
     ...overrides,
   }
 }

@@ -73,7 +73,7 @@ Both frontends follow **bulletproof-react**: `app/ → features/ → (components
 
 ### Backend (apps/sona.server)
 
-- **EF Core data layer** fully set up — `ApplicationDbContext`, `EntityBase` (UUID PKs via `Guid.CreateVersion7()`, auto-stamped `CreateDate`/`ModDate`), SQL Server provider
+- **EF Core data layer** fully set up — `ApplicationDbContext`, `EntityBase` (UUID PKs via `Guid.CreateVersion7()`), SQL Server provider. Change tracking is the `[Auditable]`-driven audit log (`AuditLogs` table), not per-row timestamps — `EntityBase.CreateDate`/`ModDate` were removed (Task 22, 2026-09-08).
 - **6 MVP database tables** implemented with migrations:
   - `Patients` — demographics, MRN (unique), SMS consent, import source, soft delete
   - `AppUsers` — staff accounts (nurse/provider/admin roles), no auth columns yet

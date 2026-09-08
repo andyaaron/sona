@@ -196,8 +196,6 @@ public class OrganizationsController : Controller
         Name = org.Name,
         Type = org.Type,
         IsActive = org.IsActive,
-        CreateDate = org.CreateDate.ToString("O"),
-        ModDate = org.ModDate.ToString("O"),
     };
 
     private static SiteResponseDto ToResponse(Site site) => new()
@@ -206,8 +204,6 @@ public class OrganizationsController : Controller
         OrganizationId = site.OrganizationId.ToString(),
         Name = site.Name,
         IsActive = site.IsActive,
-        CreateDate = site.CreateDate.ToString("O"),
-        ModDate = site.ModDate.ToString("O"),
     };
 
     private static DepartmentResponseDto ToResponse(Department department) => new()
@@ -216,8 +212,6 @@ public class OrganizationsController : Controller
         SiteId = department.SiteId.ToString(),
         Name = department.Name,
         IsActive = department.IsActive,
-        CreateDate = department.CreateDate.ToString("O"),
-        ModDate = department.ModDate.ToString("O"),
     };
 
     private sealed class OrganizationResponseDto
@@ -226,8 +220,6 @@ public class OrganizationsController : Controller
         public string Name { get; set; } = "";
         public string Type { get; set; } = "";
         public bool IsActive { get; set; }
-        public string CreateDate { get; set; } = "";
-        public string ModDate { get; set; } = "";
     }
 
     private sealed class SiteResponseDto
@@ -236,8 +228,6 @@ public class OrganizationsController : Controller
         public string OrganizationId { get; set; } = "";
         public string Name { get; set; } = "";
         public bool IsActive { get; set; }
-        public string CreateDate { get; set; } = "";
-        public string ModDate { get; set; } = "";
     }
 
     private sealed class DepartmentResponseDto
@@ -246,8 +236,6 @@ public class OrganizationsController : Controller
         public string SiteId { get; set; } = "";
         public string Name { get; set; } = "";
         public bool IsActive { get; set; }
-        public string CreateDate { get; set; } = "";
-        public string ModDate { get; set; } = "";
     }
 
     public sealed class CreateOrganizationRequest

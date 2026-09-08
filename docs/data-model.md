@@ -13,7 +13,7 @@ Phasing follows the product roadmap:
 Conventions (all tables):
 
 - Primary keys are UUIDs (`Id`), matching the string ids in `@sona/shared`.
-- Every table has `CreateDate` and `ModDate` (UTC).
+- Change tracking (who changed what, when) goes through the `[Auditable]`-driven audit log (`AuditLogs` table), not per-row `CreateDate`/`ModDate` columns — those were removed from `EntityBase`-derived tables (Task 22, 2026-09-08). `MessageOut` is the one exception: it keeps its own `CreatedDate` because the row **is** the compliance audit record and the admin notification history needs a created timestamp even for consent-blocked attempts that the `[Auditable]` log (which only tracks Modified/Deleted) never sees.
 - Soft delete via `IsActive` where noted — patient and message rows are never hard-deleted (audit trail).
 - Phone numbers stored in E.164 format (`+15551234567`), matching `e164Phone` in `packages/shared/src/schemas.ts`.
 - **No PHI ever leaves the database in a notification payload, log line, or URL** — see [compliance.md](compliance.md).
@@ -34,7 +34,6 @@ Users are managed by their practice; hospitals are the same structure with more 
 | `Name` | string | |
 | `Type` | string enum: `practice` \| `hospital` | Same tables either way — hospital just uses more sites/departments. |
 | `IsActive` | bool, default true | Deactivate, never delete. |
-| `CreateDate` / `ModDate` | datetime | |
 
 Created by `system_admin` only.
 
@@ -46,7 +45,6 @@ Created by `system_admin` only.
 | `OrganizationId` | uuid FK → Organization | Restrict. |
 | `Name` | string | "Main" auto-created for practices; hospital campuses otherwise. |
 | `IsActive` | bool | |
-| `CreateDate` / `ModDate` | datetime | |
 
 ### Department
 
@@ -56,7 +54,6 @@ Created by `system_admin` only.
 | `SiteId` | uuid FK → Site | Restrict. |
 | `Name` | string | "General" auto-created for practices; ED waiting, Lab, Imaging for hospitals. ⚠️ A department name can imply a condition — never render it into a notification payload, log line, or URL. |
 | `IsActive` | bool | |
-| `CreateDate` / `ModDate` | datetime | |
 
 ### UserDepartmentAccess
 
@@ -67,7 +64,6 @@ Scopes `staff` users to departments (float nurse = multiple rows). Irrelevant fo
 | `Id` | uuid PK | |
 | `AppUserId` | int FK → AppUser | Cascade. |
 | `DepartmentId` | uuid FK → Department | Cascade. Unique `(AppUserId, DepartmentId)`. |
-| `CreateDate` / `ModDate` | datetime | |
 
 ### Multi-practice patients
 
@@ -139,7 +135,6 @@ Directory of providers who see patients — **separate from `AppUser`** (front d
 | `Specialty` | string, nullable | ⚠️ Never in any notification payload, log line, or URL. |
 | `AppUserId` | int FK → AppUser, nullable | Optional link to a staff login account. |
 | `IsActive` | bool, default true | Deactivate, never delete (`Patient.PrimaryProviderId` references must stay valid). |
-| `CreateDate` / `ModDate` | datetime | |
 
 ---
 
@@ -166,8 +161,7 @@ Corresponds to `MessageOut` in `@sona/shared`.
 | `FailureReason` | string, nullable | Carrier/provider error on `failed`. |
 | `SentDateTime` | datetime, nullable | Null while `pending`. |
 | `DeliveredDateTime` | datetime, nullable | Set from delivery webhook. |
-| `CreateDate` | datetime | |
-| `ModDate` | datetime | |
+| `CreatedDate` | datetime | **2026-09-08 (Task 22).** Stamped at construction, not by a generic `EntityBase` mechanism (removed) — this row is the compliance audit record, and the notification history needs a created timestamp even for consent-blocked attempts that never reach `SentDateTime`. |
 
 **Changed from original proposal:**
 
@@ -186,8 +180,6 @@ Approved outbound message texts. The PHI review gate: content is reviewed once h
 | `Key` | string, unique | e.g. `ready-to-be-seen` |
 | `Body` | string | Generic content only — "You're ready to be seen. Please come to the front desk." No conditions, reasons, specialty or clinic names implying a condition. |
 | `IsActive` | bool | Retire templates without breaking old `MessageOut` references. |
-| `CreateDate` | datetime | |
-| `ModDate` | datetime | |
 
 MVP can seed a single row. The table earns its keep the first time someone asks for a second message variant.
 
@@ -208,8 +200,6 @@ Audit trail for flat-file patient imports: which file, who uploaded it, what hap
 | `RowsTotal` | int | |
 | `RowsImported` | int | |
 | `RowsFailed` | int | |
-| `CreateDate` | datetime | |
-| `ModDate` | datetime | |
 
 **ImportRowError**
 
@@ -219,7 +209,6 @@ Audit trail for flat-file patient imports: which file, who uploaded it, what hap
 | `ImportBatchId` | uuid FK → ImportBatch | |
 | `RowNumber` | int | |
 | `ErrorMessage` | string | Validation error only (e.g. "invalid phone format") — do not echo the full raw row here; it contains PHI and error tables tend to get read/exported casually. |
-| `CreateDate` | datetime | |
 
 `Patient.ImportBatchId` (nullable FK, SetNull on delete) traces each imported patient row to its source file — implemented.
 

@@ -157,39 +157,6 @@ namespace Sona.Server.Data
                 .HasIndex(m => m.OpiePatientId);
         }
 
-        //public override int SaveChanges(bool acceptAllChangesOnSuccess)
-        //{
-        //    StampEntityBaseTimestamps();
-        //    return base.SaveChanges(acceptAllChangesOnSuccess);
-        //}
-
-
-        //Aaron will add this StampEntityBaseTimestamps(); piece back into the lower area - FJC 9/4/26
-        //public override Task<int> SaveChangesAsync(
-        //    bool acceptAllChangesOnSuccess,
-        //    CancellationToken cancellationToken = default)
-        //{
-        //    StampEntityBaseTimestamps();
-        //    return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-        //}
-
-        private void StampEntityBaseTimestamps()
-        {
-            var now = DateTime.UtcNow;
-            foreach (var entry in ChangeTracker.Entries<EntityBase>())
-            {
-                if (entry.State == EntityState.Added)
-                {
-                    entry.Entity.CreateDate = now;
-                    entry.Entity.ModDate = now;
-                }
-                else if (entry.State == EntityState.Modified)
-                {
-                    entry.Entity.ModDate = now;
-                }
-            }
-        }
-
         //Everything below this is FormatException audit logs
 
         public override int SaveChanges()
@@ -199,9 +166,6 @@ namespace Sona.Server.Data
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
-            StampEntityBaseTimestamps();
-
-
             var auditEntries = OnBeforeSaveChanges();
             ChangeTracker.AutoDetectChangesEnabled = false; // disable auto detection
 

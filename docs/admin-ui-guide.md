@@ -44,8 +44,8 @@ role."`, so to see the app as another role change the row directly:
 UPDATE AppUsers SET Role='org_admin', OrganizationId='11111111-1111-1111-1111-111111111111' WHERE HCAID='DEV001';
 -- staff in every department (header picker appears when > 1)
 UPDATE AppUsers SET Role='staff', OrganizationId='11111111-1111-1111-1111-111111111111' WHERE HCAID='DEV001';
-INSERT INTO UserDepartmentAccesses (Id, AppUserId, DepartmentId, CreateDate, ModDate)
-  SELECT NEWID(), 1, Id, SYSUTCDATETIME(), SYSUTCDATETIME() FROM Departments;
+INSERT INTO UserDepartmentAccesses (Id, AppUserId, DepartmentId)
+  SELECT NEWID(), 1, Id FROM Departments;
 -- pending screen
 UPDATE AppUsers SET Role='unassigned' WHERE HCAID='DEV001';
 -- back
@@ -249,7 +249,7 @@ Left → right:
 - **Who:** system_admin. Others: `organizations-forbidden` "Only system administrators can manage organizations."
 - **Layout:** toolbar (`organizations-toolbar`: heading "Organizations" · **Add organization** `organizations-add-button`, toggles Cancel, `aria-expanded`) → form card → table.
   - **Form** (`organization-form`): title "Add organization", **Cancel** `organization-form-cancel`, submit `organization-form-submit` "Create organization"; fields Name (`organization-form-name`) · Type select (`organization-form-type`: Practice / Hospital, default Practice); helper text "A "Main" site and "General" department are created automatically."
-  - **Table** (`organizations-table`, client paging, page size 10): Name (`-header-name`, "(Inactive)" flag) · Type (`-header-type`) · Created (`-header-createDate`). **No row actions.**
+  - **Table** (`organizations-table`, client paging, page size 10): Name (`-header-name`, "(Inactive)" flag) · Type (`-header-type`). **No row actions.**
 - **Interactions:** Add → `POST /api/organizations` → toast "Organization created", form closes. *(create executed only via the form open/close; the POST was code-reviewed)*
 - **API:** `GET /api/organizations` · `POST /api/organizations`.
 - **States:** `organizations-table-empty` "No organizations yet."
@@ -270,7 +270,7 @@ Left → right:
 | Feature forms | fixed ids | `patient-form-*`, `provider-form-*`, `user-access-form-*`, `organization-form-*`, `site-form-*` / `department-form-*` (NameForm, prefixed by `kind`) |
 
 Column ids for `-header-<columnId>` are the `accessorKey` (`lastName`, `mrn`, `dob`, `npi`,
-`specialty`, `displayName`, `role`, `organizationId`, `name`, `type`, `createDate`, `channel`,
+`specialty`, `displayName`, `role`, `organizationId`, `name`, `type`, `channel`,
 `status`, `createdAt`, `sentAt`, `deliveredAt`, `lastLogin`) or the explicit `id` (`actions`,
 `departments`).
 

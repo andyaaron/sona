@@ -26,8 +26,6 @@ export interface Organization {
   name: string;
   type: OrganizationType;
   isActive: boolean;
-  createDate: string;
-  modDate: string;
 }
 
 /** Campus/location grouping — admin structure only; departments message patients. */
@@ -36,8 +34,6 @@ export interface Site {
   organizationId: string;
   name: string;
   isActive: boolean;
-  createDate: string;
-  modDate: string;
 }
 
 /** The unit that messages patients (ED waiting, Lab, Imaging). */
@@ -46,8 +42,6 @@ export interface Department {
   siteId: string;
   name: string;
   isActive: boolean;
-  createDate: string;
-  modDate: string;
 }
 
 /** A managed user row as listed in user management (GET /api/users). */
@@ -82,8 +76,6 @@ export interface Provider {
   specialty: string | null;
   appUserId: number | null;
   isActive: boolean;
-  createDate: string;
-  modDate: string;
 }
 
 export interface Patient {

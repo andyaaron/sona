@@ -35,11 +35,6 @@ const columns: AppColumnDef<Organization>[] = [
     header: 'Type',
     cell: ({ row }) => (row.original.type === 'hospital' ? 'Hospital' : 'Practice'),
   },
-  {
-    accessorKey: 'createDate',
-    header: 'Created',
-    cell: ({ row }) => new Date(row.original.createDate).toLocaleDateString(),
-  },
 ]
 
 // System-admin surface. Client-side gate is UX only — the server enforces SystemAdmin on create.
